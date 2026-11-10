@@ -511,8 +511,7 @@
       "originRequestUID": ""
     },
     "want": {
-      "state": "confirmed",
-      "basis": "status.clusterRef.uid"
+      "state": "unconfirmed"
     }
   },
   {
@@ -542,7 +541,7 @@
       "originRequestUID": ""
     },
     "want": {
-      "state": "candidate"
+      "state": "unconfirmed"
     }
   },
   {
@@ -572,7 +571,7 @@
       "originRequestUID": "request-1"
     },
     "want": {
-      "state": "candidate"
+      "state": "unconfirmed"
     }
   }
 ]

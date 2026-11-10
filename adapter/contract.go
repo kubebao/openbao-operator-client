@@ -14,10 +14,15 @@ const (
 type Capability string
 
 const (
-	CapabilityCluster    Capability = "cluster"
-	CapabilityConditions Capability = "conditions"
-	CapabilityVersions   Capability = "versions"
-	CapabilityReadiness  Capability = "readiness"
+	CapabilityCluster      Capability = "cluster"
+	CapabilityConditions   Capability = "conditions"
+	CapabilityVersions     Capability = "versions"
+	CapabilityReadiness    Capability = "readiness"
+	CapabilityBackup       Capability = "backup"
+	CapabilityUpgrade      Capability = "upgrade"
+	CapabilityRestoreTest  Capability = "restore_test"
+	CapabilityRestore      Capability = "restore"
+	CapabilityRestrictions Capability = "restrictions"
 )
 
 // ContractInfo describes library projection coverage. It is not API discovery or
@@ -39,6 +44,9 @@ func Describe(contract Contract) (ContractInfo, error) {
 	default:
 		return ContractInfo{}, &ProjectionError{Code: UnsupportedContract}
 	}
-	info.Capabilities = []Capability{CapabilityCluster, CapabilityConditions, CapabilityVersions, CapabilityReadiness}
+	info.Capabilities = []Capability{
+		CapabilityCluster, CapabilityConditions, CapabilityVersions, CapabilityReadiness,
+		CapabilityBackup, CapabilityUpgrade, CapabilityRestoreTest, CapabilityRestore, CapabilityRestrictions,
+	}
 	return info, nil
 }

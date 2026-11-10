@@ -1,0 +1,15 @@
+{
+  "apiVersion":"openbao.org/v1alpha1","kind":"OpenBaoRestore",
+  "metadata":{"namespace":"team","name":"restore-1","uid":"request-1","generation":4,"resourceVersion":"101",
+    "creationTimestamp":"2026-11-10T08:00:00Z"},
+  "spec":{"cluster":"bao","source":{"key":"SOURCE_CANARY"},"tokenSecretRef":{"name":"AUTH_CANARY"}},
+  "status":{
+    "phase":"Unknown","message":"RESTORE_CANARY","startTime":"2026-11-10T09:00:00Z","completionTime":"2026-11-10T10:00:00Z",
+    "administratorDisposition":"Resume",
+    "target":{"uid":"cluster-1","appliedAt":"2026-11-10T09:30:00Z","cleanup":"Failed","bootstrapClusterID":"OMITTED_CANARY"},
+    "execution":{"targetUID":"cluster-1","operationID":"operation-1","stage":"Committed","jobName":"JOB_CANARY"},
+    "submissionClaim":{"podUID":"CLAIM_CANARY","targetPodIP":"IP_CANARY"},
+    "restart":{"completedAt":"2026-11-10T10:30:00Z","pods":[{"uid":"POD_CANARY"}]},
+    "conditions":[{"type":"RecoveryReleased","status":"False","observedGeneration":4,"reason":"Waiting","message":"CONDITION_CANARY"}]
+  }
+}

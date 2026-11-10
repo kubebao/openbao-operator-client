@@ -20,42 +20,26 @@ type ProjectionOptions struct {
 // fields remain distinguishable without discarding independent facts. Raw data and provider
 // messages are never retained. The function performs no reads and never uses the wall clock.
 func ProjectCluster(raw []byte, options ProjectionOptions) (evidence.Cluster, error) {
-	info, err := Describe(options.Contract)
+	object, ref, err := projectResource(raw, options, "OpenBaoCluster")
 	if err != nil {
 		return evidence.Cluster{}, err
 	}
-	if options.CollectedAt.IsZero() {
-		return evidence.Cluster{}, &ProjectionError{Code: InvalidInput}
-	}
-	object, err := decodeObject(raw, options.Limits)
-	if err != nil {
-		return evidence.Cluster{}, err
-	}
-	if required(object, "apiVersion") != info.APIVersion || required(object, "kind") != "OpenBaoCluster" {
-		return evidence.Cluster{}, &ProjectionError{Code: ResourceMismatch}
-	}
-	identity := evidence.Identity{
-		Origin: options.Origin, Group: info.APIGroup, Kind: "OpenBaoCluster",
-		Namespace: required(object, "metadata", "namespace"), Name: required(object, "metadata", "name"),
-		UID: required(object, "metadata", "uid"),
-	}
-	if identity.Validate() != nil {
-		return evidence.Cluster{}, &ProjectionError{Code: InvalidInput}
-	}
-	collected := options.CollectedAt.UTC()
 	result := evidence.Cluster{
-		SchemaVersion: evidence.SchemaVersion, AdapterContract: string(options.Contract),
-		Reference: evidence.Reference{
-			Identity: identity, APIVersion: info.APIVersion, ResourceVersion: text(object, false, "metadata", "resourceVersion"),
-			CollectedAt: evidence.Timestamp{State: evidence.ValueReported, Value: &collected},
-		},
-		CreatedAt:  timestamp(object, "metadata", "creationTimestamp"),
-		Generation: integer(object, "metadata", "generation"), ObservedGeneration: integer(object, "status", "observedGeneration"),
-		DesiredVersion: version(object, "spec", "version"), ObservedVersion: version(object, "status", "currentVersion"),
-		Phase:           text(object, true, "status", "phase"),
-		DesiredReplicas: count(object, "spec", "replicas"), ReadyReplicas: count(object, "status", "readyReplicas"),
-		Paused: boolean(object, "spec", "paused"), Conditions: projectConditions(object, options.Limits.MaxConditions),
+		SchemaVersion:      evidence.SchemaVersion,
+		AdapterContract:    string(options.Contract),
+		Reference:          ref,
+		CreatedAt:          timestamp(object, "metadata", "creationTimestamp"),
+		Generation:         integer(object, "metadata", "generation"),
+		ObservedGeneration: integer(object, "status", "observedGeneration"),
+		DesiredVersion:     version(object, "spec", "version"),
+		ObservedVersion:    version(object, "status", "currentVersion"),
+		Phase:              text(object, true, "status", "phase"),
+		DesiredReplicas:    count(object, "spec", "replicas"),
+		ReadyReplicas:      count(object, "status", "readyReplicas"),
+		Paused:             boolean(object, "spec", "paused"),
+		Conditions:         projectConditions(object, options.Limits.MaxConditions, "status", "conditions"),
 	}
+	projectOperationalFields(object, &result, options.Limits)
 	if options.Contract == V1Alpha1Snapshot {
 		inferOmissions(object, &result)
 	}
@@ -81,8 +65,8 @@ func inferOmissions(object map[string]any, result *evidence.Cluster) {
 	}
 }
 
-func projectConditions(object map[string]any, limit int) evidence.Conditions {
-	value, state := field(object, "status", "conditions")
+func projectConditions(object map[string]any, limit int, path ...string) evidence.Conditions {
+	value, state := field(object, path...)
 	if state != evidence.ValueReported {
 		return evidence.Conditions{State: state}
 	}

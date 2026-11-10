@@ -59,6 +59,7 @@ browsers, a real Kubernetes API server, or an operator integration environment.
 | Console issue IDs are deployment/rule pairs; CLI findings have no subject identity | Adopt subject/subsubject keys and deliberate console mappings: `findings.json`, `history.json`. Preserve first-seen for one-to-one mappings only. |
 | CLI snapshots and reports include command exit codes and thresholds | Keep those fields in wrappers: `projection.json` and replay boundary tests. Container termination codes remain evidence. |
 | CLI status attention and doctor can interpret the same fields separately | Use the combined [rule catalog](rules.md) and map missing evidence to coverage. |
+| Console assumes native recovery, remote replication, and `RestoreSubmitted` fields absent from the pinned API | Keep those paths unsupported. Native association fixtures require unconfirmed results. Production tests reject the kind, omit remote fields, and mark the stage invalid. See [source corrections](extraction.md#source-corrections). |
 
 Fixture filenames in the corrections table are under `internal/contracttest/testdata`, except generation fixtures under
 `evidence/testdata`. Reference projection uses a small normalized field subset; it is not an implementation of the full

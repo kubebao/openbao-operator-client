@@ -5,7 +5,7 @@ Scaffolding and tooling conventions were adapted from:
   github.com/kubebao/openbao-operator-cli
   commit adbe0f42fac62bdc6dd2d7995a8aecb36102e9a3
 
-Applicable engineering and repository governance conventions were adapted from:
+Engineering, repository governance, and public API projection contracts were adapted from:
   github.com/kubebao/openbao-operator
   commit 9671c30623d609f948cf073e167f376de4ea9a85
 

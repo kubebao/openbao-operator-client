@@ -264,6 +264,7 @@ func TestContractDescriptionDoesNotShareMutableState(t *testing.T) {
 
 func FuzzProjectCluster(f *testing.F) {
 	f.Add(clusterFixture(f))
+	f.Add(operationalFixture(f))
 	f.Add([]byte(`null`))
 	f.Add([]byte(`{"uid":"\ud800"}`))
 	f.Fuzz(func(t *testing.T, data []byte) {

@@ -32,9 +32,10 @@ Move small slices after their contract tests pass: cluster identity/conditions/g
 replication, restore-test and recovery evidence; StatefulSets, Pods, restore correlation, bounded collection; pure rules.
 Keep facts separate from interpretation. Include the CLI's status attention logic in the diagnostic inventory.
 
-In progress: the first production slice implements cluster evidence and approved JSON projection, plus timestamp and
-collection-outcome primitives. [Extraction status](extraction.md) tracks the remaining observations, associations, reads,
-and rules. Consumer migration remains in milestones 4 and 5.
+In progress: production slices implement cluster and operational evidence, approved cluster/restore JSON projection,
+timestamps, and collection outcomes. Source inspection corrected the native-recovery and remote-replication assumptions:
+the pinned operator has no public definitions for those paths. [Extraction status](extraction.md) tracks these unsupported
+capabilities and the remaining associations, reads, and rules. Consumer migration remains in milestones 4 and 5.
 
 Gate: cover malformed fields, sensitive-data canaries, incomplete reads, pagination/size/duration limits, replacement,
 conflicting identities, deterministic ordering, and serialized replay. Product orchestration remains in consumers.

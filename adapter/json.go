@@ -44,10 +44,11 @@ func (e *ProjectionError) Error() string {
 type ProjectionLimits struct {
 	MaxBytes      int
 	MaxConditions int
+	MaxEntries    int
 }
 
 func DefaultProjectionLimits() ProjectionLimits {
-	return ProjectionLimits{MaxBytes: 1024 * 1024, MaxConditions: 256}
+	return ProjectionLimits{MaxBytes: 1024 * 1024, MaxConditions: 256, MaxEntries: 256}
 }
 
 var identifier = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$`)
@@ -62,7 +63,7 @@ var versionIdentifier = regexp.MustCompile(
 // decodeValue rejects duplicate object keys, invalid UTF-8, trailing data, and
 // excessive nesting. Numbers never pass through floating point.
 func decodeObject(raw []byte, limits ProjectionLimits) (map[string]any, error) {
-	if limits.MaxBytes <= 0 || limits.MaxConditions <= 0 {
+	if limits.MaxBytes <= 0 || limits.MaxConditions <= 0 || limits.MaxEntries <= 0 {
 		return nil, &ProjectionError{Code: InvalidInput}
 	}
 	if len(raw) > limits.MaxBytes {

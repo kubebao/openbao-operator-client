@@ -3,7 +3,8 @@
 Shared Go library for the [OpenBao Operator](https://github.com/kubebao/openbao-operator) console and CLI.
 
 This project is in initial development. It implements typed cluster evidence, generation acknowledgement, timestamps,
-collection outcomes, and approved JSON projection for selected v1alpha1 contracts. Live collection and diagnostic rules
+collection outcomes, operational observations, and approved cluster/restore JSON projection for v1alpha1 contracts.
+Native recovery and remote replication are unsupported by the pinned operator API. Live collection and diagnostic rules
 are planned. Neither application uses the module yet. No operator capability is integration-qualified.
 The [extraction status](docs/extraction.md) records implemented and pending milestone 3 slices.
 
@@ -12,7 +13,7 @@ The [extraction status](docs/extraction.md) records implemented and pending mile
 | Package | Responsibility | Implementation |
 | --- | --- | --- |
 | `evidence` | Typed observations, identities, outcomes, times, associations, and references | Cluster facts, field states, identities, references, times, collection outcomes |
-| `adapter` | Approved public API projections and capability definitions | Cluster JSON projection and explicit contract descriptions |
+| `adapter` | Approved public API projections and capability definitions | Cluster/operational and restore JSON projection; explicit contracts |
 | `collect` | Bounded discovery, resource reads, pagination, and identity verification | Package boundary only |
 | `diagnose` | Pure rules, findings, coverage, and evaluation policy | Package boundary only |
 

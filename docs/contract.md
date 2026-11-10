@@ -1,8 +1,8 @@
 # Evidence contract decisions
 
 Milestone 1 defines the extraction target through synthetic fixtures, executable reference specifications, and tests of
-the recorded consumer source. Milestone 3 now implements cluster evidence and projection, identity validation, times,
-and collection outcomes. Matching fixtures call production code. Remaining specifications are test-only; production
+the recorded consumer source. Milestone 3 now implements cluster and operational evidence/projection, identity validation,
+times, and collection outcomes. Matching fixtures call production code. Remaining specifications are test-only; production
 collection, association logic, and diagnostic rules are pending. See [extraction status](extraction.md).
 
 Source baselines:
@@ -45,11 +45,14 @@ The initial source contract permits two omission interpretations:
   no acknowledgement. A missing spec object remains unknown.
 
 These follow the non-pointer `omitempty` fields in operator `api/v1alpha1/openbaocluster_status_types.go` and
-`openbaocluster_types.go`. Other absent counters, booleans, and objects remain unknown until their adapter contract defines
-omission semantics. Do not default missing failure counts to zero or history-conflict flags to false generically.
+`openbaocluster_types.go`. Other absent primitive values remain unknown until their adapter contract defines omission
+semantics. Optional objects record whether the field is absent within an observed parent; this does not imply a counter,
+boolean, health, or operation result. Do not default missing failure counts to zero or history-conflict flags to false.
 
-Explicit nulls, wrong types, fractional/negative counts, and out-of-range integers are invalid. Malformed ancestors
-invalidate their fields. Preserve independent valid observations. Keep generations exact above the floating-point range.
+Explicit null primitive values, wrong types, fractional/negative counts, and out-of-range integers are invalid. Optional
+objects preserve null, absence, unknown ancestors, and malformed values separately. Null objects retain no child facts and
+imply no health or operation result. Malformed ancestors invalidate their fields. Preserve independent valid observations.
+Keep generations exact above the floating-point range.
 Raft indexes must be canonical unsigned decimal strings within `uint64`; never convert them through floating point.
 
 Condition types are unique and nonempty. Status is `True`, `False`, or `Unknown`. Invalid types, statuses, observed
@@ -93,8 +96,9 @@ StatefulSet. Every edge stays within origin and namespace. Replacing either pare
 
 Names and creation times retain candidates for display, never confirmed recovery findings. Among confirmed requests with
 valid creation times, display newest first and break equal-time ties by UID ascending. This order does not prove causality
-or acceptance. Native recovery maps `spec.clusterRef.name` and `status.clusterRef.uid` to the target identity. Its confirmed
-basis is `status.clusterRef.uid`; restore annotations and execution fields do not substitute for that binding.
+or acceptance. Source inspection found no public `OpenBaoRecovery` API in the pinned operator. This contract cannot confirm
+that kind even when synthetic fields match a UID. Native association fixtures were corrected to require unconfirmed
+results. See [source corrections](extraction.md#source-corrections).
 
 ## Findings and severity
 
