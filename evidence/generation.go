@@ -33,3 +33,10 @@ func CompareGeneration(generation, observed *int64) GenerationState {
 		return GenerationCurrent
 	}
 }
+
+func compareGenerationFields(generation, observed Integer) GenerationState {
+	if generation.Validate() != nil || observed.Validate() != nil {
+		return GenerationInconsistent
+	}
+	return CompareGeneration(generation.Value, observed.Value)
+}

@@ -1,0 +1,36 @@
+{
+  "apiVersion": "openbao.org/v1alpha1",
+  "kind": "OpenBaoCluster",
+  "metadata": {
+    "name": "bao",
+    "namespace": "team",
+    "uid": "cluster-1",
+    "resourceVersion": "9007199254741007",
+    "generation": 9007199254741007,
+    "creationTimestamp": "2026-11-10T08:00:00+01:00",
+    "annotations": {"arbitrary": "ANNOTATION_CANARY"}
+  },
+  "spec": {
+    "replicas": 3,
+    "version": "2.7.0+ent",
+    "credentials": {"value": "SPEC_CANARY"}
+  },
+  "status": {
+    "observedGeneration": 9007199254741007,
+    "currentVersion": "2.7.0+ent",
+    "phase": "Running",
+    "message": "STATUS_CANARY",
+    "backup": {"lastFailureMessage": "BACKUP_CANARY"},
+    "conditions": [
+      {"type": "OpenBaoSealed", "status": "False", "observedGeneration": 9007199254741007},
+      {
+        "type": "Available",
+        "status": "False",
+        "observedGeneration": 9007199254741006,
+        "reason": "Waiting",
+        "message": "PROVIDER_CANARY",
+        "lastTransitionTime": "2026-01-01T12:00:00+01:00"
+      }
+    ]
+  }
+}

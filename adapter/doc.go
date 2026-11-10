@@ -1,3 +1,4 @@
-// Package adapter reserves the boundary for approved public operator API projections.
-// Projection implementations and operator compatibility qualification are planned.
+// Package adapter projects approved public operator API fields into client-neutral evidence.
+// Cluster JSON projection is implemented for explicitly selected v1alpha1 contracts.
+// No operator version or capability is integration-qualified.
 package adapter

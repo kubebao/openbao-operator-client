@@ -18,9 +18,9 @@ type safeProjection struct {
 	ContainerCode  *int64      `json:"containerExitCode"`
 }
 
-func project(raw map[string]any, contract string) safeProjection {
-	result := safeProjection{Ready: readiness(raw, contract)}
-	result.Conditions, result.ConditionState = conditions(raw)
+func project(t *testing.T, raw map[string]any, contract string) safeProjection {
+	result := safeProjection{Ready: readiness(t, raw, contract)}
+	result.Conditions, result.ConditionState = conditions(t, raw)
 	if value, state := field(raw, "status", "index"); state == "present" {
 		if text, ok := value.(string); ok {
 			parsed, err := strconv.ParseUint(text, 10, 64)
@@ -82,7 +82,7 @@ func TestSafeProjection(t *testing.T) {
 	}](t, "projection")
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			got := project(tc.Raw, tc.Contract)
+			got := project(t, tc.Raw, tc.Contract)
 			equal(t, got, tc.Want)
 			encoded, err := json.Marshal(got)
 			if err != nil {
