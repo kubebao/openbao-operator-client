@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: OpenBao Operator issues
+    url: https://github.com/kubebao/openbao-operator/issues
+    about: Report operator reconciliation and lifecycle problems in the operator repository.

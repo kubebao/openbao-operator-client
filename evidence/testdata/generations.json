@@ -1,0 +1,16 @@
+[
+  {"name":"absent","want":"unknown","wantCondition":"unknown"},
+  {"name":"unacknowledged","resource":3,"want":"unknown","wantCondition":"unknown"},
+  {"name":"zero omitted acknowledgement","resource":3,"status":0,"condition":0,"want":"unknown","wantCondition":"unknown"},
+  {"name":"absent resource","status":3,"condition":3,"want":"unknown","wantCondition":"unknown"},
+  {"name":"zero resource","resource":0,"status":3,"condition":3,"want":"unknown","wantCondition":"unknown"},
+  {"name":"stale","resource":3,"status":2,"condition":2,"want":"stale","wantCondition":"stale"},
+  {"name":"current","resource":3,"status":3,"condition":3,"want":"current","wantCondition":"current"},
+  {"name":"future","resource":3,"status":4,"condition":4,"want":"inconsistent","wantCondition":"inconsistent"},
+  {"name":"resource current condition stale","resource":3,"status":3,"condition":2,"want":"current","wantCondition":"stale"},
+  {"name":"resource stale condition current","resource":3,"status":2,"condition":3,"want":"stale","wantCondition":"current"},
+  {"name":"resource current condition absent","resource":3,"status":3,"want":"current","wantCondition":"unknown"},
+  {"name":"resource absent condition current","resource":3,"condition":3,"want":"unknown","wantCondition":"current"},
+  {"name":"negative resource","resource":-1,"status":3,"condition":3,"want":"inconsistent","wantCondition":"inconsistent"},
+  {"name":"negative acknowledgement","resource":3,"status":-1,"condition":-1,"want":"inconsistent","wantCondition":"inconsistent"}
+]

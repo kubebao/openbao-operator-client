@@ -1,0 +1,11 @@
+/bin/
+/dist/
+/coverage/
+/.local/
+/.state/
+/.env
+.DS_Store
+/go.work
+/go.work.sum
+__pycache__/
+*.pyc

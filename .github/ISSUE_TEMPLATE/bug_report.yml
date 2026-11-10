@@ -1,0 +1,20 @@
+name: Bug report
+description: Report a reproducible library defect
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not attach credentials, raw resources, kubeconfigs, or sensitive logs. Report vulnerabilities privately.
+  - type: input
+    id: version
+    attributes:
+      label: Library version or commit
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Include a synthetic example, expected result, actual result, and relevant consumer/operator versions.
+    validations:
+      required: true

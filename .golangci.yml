@@ -1,0 +1,51 @@
+version: "2"
+
+run:
+  go: "1.27"
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - errorlint
+    - gocognit
+    - gocritic
+    - gosec
+    - lll
+    - misspell
+    - nolintlint
+    - perfsprint
+    - revive
+    - unconvert
+    - unparam
+    - usestdlibvars
+  settings:
+    gocognit:
+      min-complexity: 30
+    lll:
+      line-length: 140
+      tab-width: 4
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+  exclusions:
+    generated: strict
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+    - golines
+  settings:
+    golines:
+      max-len: 140
+      tab-len: 4
+      reformat-tags: false
+    goimports:
+      local-prefixes:
+        - github.com/kubebao/openbao-operator-client
+  exclusions:
+    generated: strict

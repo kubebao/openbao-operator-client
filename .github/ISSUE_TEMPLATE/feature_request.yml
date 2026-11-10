@@ -1,0 +1,16 @@
+name: Feature request
+description: Propose a shared client capability
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Operational problem
+      description: Describe the evidence or operation that consumers need.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Identify public API requirements, collection scope, and verification evidence.

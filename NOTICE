@@ -1,0 +1,13 @@
+OpenBao Operator client
+Copyright 2026 OpenBao Operator client contributors
+
+Scaffolding and tooling conventions were adapted from:
+  github.com/kubebao/openbao-operator-cli
+  commit adbe0f42fac62bdc6dd2d7995a8aecb36102e9a3
+
+Applicable engineering and repository governance conventions were adapted from:
+  github.com/kubebao/openbao-operator
+  commit 9671c30623d609f948cf073e167f376de4ea9a85
+
+Both reference projects use the Apache License, Version 2.0.
+Console and CLI implementation extraction is tracked in docs/plan.md.
