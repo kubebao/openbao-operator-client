@@ -81,22 +81,6 @@ jobs:
           CGO_ENABLED: "0"
         run: make build
 
-  dco:
-    name: DCO
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: Verify author sign-off
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: python3 scripts/check-dco.py "$BASE_SHA" "$HEAD_SHA"
-
   standards:
     name: PR standards
     runs-on: ubuntu-24.04
@@ -127,7 +111,7 @@ jobs:
   required:
     name: CI Required
     if: always()
-    needs: [go, vulnerabilities, licenses, platforms, dco, standards]
+    needs: [go, vulnerabilities, licenses, platforms, standards]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}

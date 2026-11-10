@@ -35,6 +35,7 @@ selected Go toolchain and removes its temporary writable module cache after veri
 ## Hosted checks
 
 Check runs on pull requests, `main` pushes, and manual dispatch. CI Required fails if any prerequisite fails or skips.
+The installed DCO App provides a separately required check; its application ID is bound in the default-branch ruleset.
 CodeQL analyzes Go, Python, and Actions and verifies that SARIF processing completes before CodeQL Required passes.
 Dependency Review evaluates pull-request dependency changes. Scorecard runs on `main` and a schedule as advisory evidence.
 Public consumer tests the published base on pull requests and the exact published commit after a `main` push. The former

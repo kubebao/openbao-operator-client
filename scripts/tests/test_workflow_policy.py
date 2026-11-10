@@ -23,8 +23,12 @@ class WorkflowPolicyTests(unittest.TestCase):
         contexts = next(rule for rule in policy["rules"] if rule["type"] == "required_status_checks")
         workflow_text = "\n".join(path.read_text() for path in (ROOT / ".github/workflows").glob("*.yml"))
         for check in contexts["parameters"]["required_status_checks"]:
-            self.assertIn("name: " + check["context"] + "\n", workflow_text)
-            self.assertEqual(check["integration_id"], 15368)
+            if check["context"] == "DCO":
+                self.assertEqual(check["integration_id"], 974774)
+                self.assertNotIn("name: DCO\n", workflow_text)
+            else:
+                self.assertIn("name: " + check["context"] + "\n", workflow_text)
+                self.assertEqual(check["integration_id"], 15368)
 
     def test_go_tags_are_immutable_without_bypasses(self):
         policy = json.loads((ROOT / ".github/repository/release-tags.json").read_text())
