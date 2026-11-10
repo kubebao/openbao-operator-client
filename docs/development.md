@@ -28,7 +28,9 @@ go work init ./openbao-operator-client ./openbao-operator-console ./openbao-oper
 Workspace builds are development feedback. Final builds use a pinned version with `GOWORK=off` and no local replacements.
 This public module does not need `GOPRIVATE` or download credentials. Avoid matching it with a broader private prefix
 when testing public proxy/checksum resolution. The external-consumer script disables Go authentication, ignores system
-and global Git configuration, clears common token/SSH-agent variables, and uses fresh module/build caches.
+and global Git configuration, clears GitHub/Git/SSH environment variables, and uses the public Go proxy without direct
+Git fallback. It uses fresh module/build caches and reuses the
+selected Go toolchain and removes its temporary writable module cache after verification.
 
 ## Hosted checks
 

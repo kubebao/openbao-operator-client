@@ -1,6 +1,7 @@
 # Repository configuration
 
 The repository is public at `kubebao/openbao-operator-client`. Desired settings are committed in `.github/repository`.
+The organization controls the effective action allowlist and web commit sign-off requirement.
 After the initial branch exists, an administrator applies and verifies them with:
 
 ```sh
@@ -8,8 +9,11 @@ python3 scripts/repository-settings.py --apply
 python3 scripts/repository-settings.py --check
 ```
 
-The script targets only this repository. It does not change organization policy or reference repositories. Review policy
-changes before applying them; CI never applies administrator settings. Verification reads GitHub state and fails on drift.
+The script targets only this repository. It verifies inherited controls without writing organization-owned settings.
+The `selected-actions.json` file records the action paths required by the workflows; it does not replace the inherited
+allowlist. The verifier checks that every exact workflow pin is permitted and broad owner/verified-action trust is off.
+Review policy changes before applying them; CI never applies administrator settings. Verification reads GitHub state
+and fails on drift.
 
 ## Applicable operator controls
 
@@ -32,8 +36,8 @@ The library implements DCO validation in its own workflow instead of requiring a
 installation. The rule requires the workflow's `DCO` check from GitHub Actions. A valid sign-off trailer must name the
 commit author. Cryptographic commit signing remains enabled in the maintainer's local Git configuration.
 
-Action allowlist entries name the used action paths; repository SHA-pinning and pinned workflow references constrain
-their versions. CodeQL and Scorecard upload actions are included so selected-action policy does not prevent scans.
+Repository SHA-pinning and pinned workflow references constrain action versions. CodeQL and Scorecard upload pins must
+be permitted by the inherited allowlist. The verifier rejects an action update that the effective policy does not allow.
 
 The operator's release-PR gate, release branches, Pages branch, artifact publishing, deployment environments, and
 release-app-only tag creation do not apply to this initial library. No release tag is created by scaffolding.

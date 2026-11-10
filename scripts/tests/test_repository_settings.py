@@ -22,3 +22,12 @@ class SettingsTests(unittest.TestCase):
 
     def test_disabled_policy_is_rejected(self):
         self.assertFalse(settings.matches({"enforcement": "disabled"}, {"enforcement": "active"}))
+
+    def test_inherited_allowlist_must_allow_every_current_pin(self):
+        reference = "github/codeql-action/init@" + "a" * 40
+        policy = {"github_owned_allowed": False, "verified_allowed": False, "patterns_allowed": [reference]}
+        self.assertTrue(settings.workflow_actions_allowed(policy, [reference]))
+        self.assertFalse(settings.workflow_actions_allowed(policy, [reference.replace("init@", "analyze@")]))
+
+    def test_inherited_policy_cannot_enable_all_verified_actions(self):
+        self.assertFalse(settings.workflow_actions_allowed({"verified_allowed": True, "patterns_allowed": ["*"]}, []))
