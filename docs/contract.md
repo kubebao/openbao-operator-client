@@ -115,8 +115,9 @@ informational except break glass, which remains warning. Findings can coexist wi
 
 ## Collection scope and history
 
-Coverage distinguishes `excluded`, `not_requested`, `not_applicable`, `insufficient`, and `evaluated`. Preserve underlying
-scope outcomes: denied, unsupported, timeout, cancellation, malformed data, pagination/size limits, deletion, replacement.
+Coverage distinguishes `excluded`, `not_requested`, `not_applicable`, `insufficient`, and `evaluated`. Each entry retains
+full resource identity, including origin; UIDs alone do not identify subjects across Kubernetes clusters. Preserve scope
+outcomes: denied, unsupported, timeout, cancellation, malformed data, pagination/size limits, deletion, replacement.
 Denied or unsupported reads are insufficient, never successful empty lists. Only known applicability justifies
 `not_applicable`. Evaluated rules can have no findings. Empty findings do not establish health.
 

@@ -70,7 +70,8 @@ operator schema. Existing consumer tests retain the broader backup, upgrade, rep
 empty results, repeated multi-subject findings, replacement, identity mapping, and a new episode after resolution.
 `ownership.json` covers cluster and StatefulSet replacement. `selection.json` and `replay.json` reverse resource/request
 order and rule selection. `conditions.json` normalizes condition order. Fixed reference time and policy make serialized
-analysis byte-for-byte repeatable. Unknown versions and duplicate resource identities are rejected.
+analysis byte-for-byte repeatable. Coverage retains full resource identity, including when two Kubernetes origins report
+the same UID. Unknown versions and duplicate resource identities are rejected.
 
 ## Extraction handoff
 

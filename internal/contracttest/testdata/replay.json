@@ -67,12 +67,26 @@
       "coverage": [
         {
           "rule": "KBAO-BACKUP-003",
-          "subject": "cluster-1",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
           "state": "evaluated"
         },
         {
           "rule": "KBAO-CLUSTER-003",
-          "subject": "cluster-1",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
           "state": "evaluated"
         }
       ]
@@ -134,12 +148,26 @@
       "coverage": [
         {
           "rule": "KBAO-BACKUP-003",
-          "subject": "cluster-1",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
           "state": "evaluated"
         },
         {
           "rule": "KBAO-CLUSTER-003",
-          "subject": "cluster-1",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
           "state": "insufficient"
         }
       ]
@@ -200,12 +228,26 @@
       "coverage": [
         {
           "rule": "KBAO-BACKUP-003",
-          "subject": "cluster-1",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
           "state": "evaluated"
         },
         {
           "rule": "KBAO-CLUSTER-003",
-          "subject": "cluster-1",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
           "state": "excluded"
         }
       ]
@@ -253,12 +295,26 @@
       "coverage": [
         {
           "rule": "KBAO-BACKUP-003",
-          "subject": "cluster-1",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
           "state": "evaluated"
         },
         {
           "rule": "KBAO-CLUSTER-003",
-          "subject": "cluster-1",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
           "state": "evaluated"
         }
       ]
@@ -306,12 +362,26 @@
       "coverage": [
         {
           "rule": "KBAO-BACKUP-003",
-          "subject": "cluster-1",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
           "state": "not_applicable"
         },
         {
           "rule": "KBAO-CLUSTER-003",
-          "subject": "cluster-1",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
           "state": "evaluated"
         }
       ]
@@ -430,22 +500,50 @@
       "coverage": [
         {
           "rule": "KBAO-BACKUP-003",
-          "subject": "cluster-1",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
           "state": "evaluated"
         },
         {
           "rule": "KBAO-BACKUP-003",
-          "subject": "cluster-2",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao-2",
+            "uid": "cluster-2"
+          },
           "state": "evaluated"
         },
         {
           "rule": "KBAO-CLUSTER-003",
-          "subject": "cluster-1",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
           "state": "evaluated"
         },
         {
           "rule": "KBAO-CLUSTER-003",
-          "subject": "cluster-2",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao-2",
+            "uid": "cluster-2"
+          },
           "state": "evaluated"
         }
       ]
@@ -678,5 +776,141 @@
       "coverage": []
     },
     "error": "duplicate subject"
+  },
+  {
+    "name": "same-uid-in-two-origins",
+    "capture": {
+      "evidenceVersion": "1",
+      "adapterContract": "openbao.org/v1alpha1@9671c306",
+      "observations": [
+        {
+          "identity": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
+          "generation": 4,
+          "observed": 4,
+          "desired": 3,
+          "ready": 0,
+          "paused": false,
+          "created": "2026-11-10T09:00:00Z",
+          "backup": true,
+          "success": "2026-11-09T09:00:00Z"
+        },
+        {
+          "identity": {
+            "origin": "cluster-b",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
+          "generation": 4,
+          "observed": 4,
+          "desired": 3,
+          "ready": 3,
+          "paused": false,
+          "created": "2026-11-10T09:00:00Z",
+          "backup": false,
+          "success": "2026-11-09T09:00:00Z"
+        }
+      ]
+    },
+    "policy": {
+      "ruleVersion": "1",
+      "rules": [
+        "KBAO-CLUSTER-003",
+        "KBAO-BACKUP-003"
+      ],
+      "reference": "2026-11-10T10:00:00Z",
+      "backupAge": 86400,
+      "startupGrace": 60
+    },
+    "want": {
+      "findings": [
+        {
+          "rule": "KBAO-CLUSTER-003",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
+          "subsubject": "",
+          "severity": "critical"
+        },
+        {
+          "rule": "KBAO-BACKUP-003",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
+          "subsubject": "",
+          "severity": "warning"
+        }
+      ],
+      "coverage": [
+        {
+          "rule": "KBAO-BACKUP-003",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
+          "state": "evaluated"
+        },
+        {
+          "rule": "KBAO-BACKUP-003",
+          "subject": {
+            "origin": "cluster-b",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
+          "state": "not_applicable"
+        },
+        {
+          "rule": "KBAO-CLUSTER-003",
+          "subject": {
+            "origin": "cluster-a",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
+          "state": "evaluated"
+        },
+        {
+          "rule": "KBAO-CLUSTER-003",
+          "subject": {
+            "origin": "cluster-b",
+            "group": "openbao.org",
+            "kind": "OpenBaoCluster",
+            "namespace": "team",
+            "name": "bao",
+            "uid": "cluster-1"
+          },
+          "state": "evaluated"
+        }
+      ]
+    },
+    "error": ""
   }
 ]

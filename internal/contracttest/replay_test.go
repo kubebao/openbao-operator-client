@@ -46,9 +46,9 @@ type evaluationPolicy struct {
 }
 
 type ruleCoverage struct {
-	Rule    string `json:"rule"`
-	Subject string `json:"subject"`
-	State   string `json:"state"`
+	Rule    string   `json:"rule"`
+	Subject identity `json:"subject"`
+	State   string   `json:"state"`
 }
 
 type analysis struct {
@@ -127,7 +127,7 @@ func replay(data []byte, policy evaluationPolicy) (analysis, error) {
 					state, severity = backupFinding(o, policy, reference)
 				}
 			}
-			result.Coverage = append(result.Coverage, ruleCoverage{Rule: rule, Subject: o.Identity.UID, State: state})
+			result.Coverage = append(result.Coverage, ruleCoverage{Rule: rule, Subject: o.Identity, State: state})
 			if severity != "" {
 				result.Findings = append(result.Findings, finding{Rule: rule, Subject: o.Identity, Severity: severity})
 			}
@@ -135,7 +135,10 @@ func replay(data []byte, policy evaluationPolicy) (analysis, error) {
 	}
 	order(result.Findings)
 	slices.SortFunc(result.Coverage, func(a, b ruleCoverage) int {
-		return strings.Compare(a.Rule+"/"+a.Subject, b.Rule+"/"+b.Subject)
+		return slices.Compare(
+			findingParts(finding{Rule: a.Rule, Subject: a.Subject}),
+			findingParts(finding{Rule: b.Rule, Subject: b.Subject}),
+		)
 	})
 	return result, nil
 }
