@@ -20,7 +20,7 @@
       "strict_required_status_checks_policy":true,
       "do_not_enforce_on_create":false,
       "required_status_checks":[
-        {"context":"DCO","integration_id":15368},
+        {"context":"DCO","integration_id":974774},
         {"context":"CI Required","integration_id":15368},
         {"context":"CodeQL Required","integration_id":15368},
         {"context":"Dependency Review","integration_id":15368}
