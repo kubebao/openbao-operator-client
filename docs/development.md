@@ -37,7 +37,8 @@ selected Go toolchain and removes its temporary writable module cache after veri
 Check runs on pull requests, `main` pushes, and manual dispatch. CI Required fails if any prerequisite fails or skips.
 CodeQL analyzes Go, Python, and Actions and verifies that SARIF processing completes before CodeQL Required passes.
 Dependency Review evaluates pull-request dependency changes. Scorecard runs on `main` and a schedule as advisory evidence.
-Public consumer runs after publication to `main`; its external download cannot run against unpublished local code.
+Public consumer tests the published base on pull requests and the exact published commit after a `main` push. The former
+verifies smoke-test tooling; only the latter qualifies download/build of the newly published module commit.
 
 No workflow publishes release tags, releases, images, or deployments. Cross-compilation checks package build coverage,
 not runtime or operator compatibility. No credentials are needed to fetch the library from its public repository.
