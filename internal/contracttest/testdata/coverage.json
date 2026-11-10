@@ -1,0 +1,257 @@
+[
+  {
+    "name": "complete-empty",
+    "scope": {
+      "selected": true,
+      "requested": true,
+      "applicable": true,
+      "outcome": "complete",
+      "valid": true,
+      "count": 0
+    },
+    "want": {
+      "state": "evaluated",
+      "absent": true
+    }
+  },
+  {
+    "name": "observed",
+    "scope": {
+      "selected": true,
+      "requested": true,
+      "applicable": true,
+      "outcome": "complete",
+      "valid": true,
+      "count": 1
+    },
+    "want": {
+      "state": "evaluated",
+      "absent": false
+    }
+  },
+  {
+    "name": "excluded",
+    "scope": {
+      "selected": false,
+      "requested": true,
+      "applicable": true,
+      "outcome": "complete",
+      "valid": true,
+      "count": 0
+    },
+    "want": {
+      "state": "excluded",
+      "absent": false
+    }
+  },
+  {
+    "name": "unrequested",
+    "scope": {
+      "selected": true,
+      "requested": false,
+      "applicable": true,
+      "outcome": "complete",
+      "valid": true,
+      "count": 0
+    },
+    "want": {
+      "state": "not_requested",
+      "absent": false
+    }
+  },
+  {
+    "name": "not-applicable",
+    "scope": {
+      "selected": true,
+      "requested": true,
+      "applicable": false,
+      "outcome": "complete",
+      "valid": true,
+      "count": 0
+    },
+    "want": {
+      "state": "not_applicable",
+      "absent": false
+    }
+  },
+  {
+    "name": "invalid-projection",
+    "scope": {
+      "selected": true,
+      "requested": true,
+      "applicable": true,
+      "outcome": "complete",
+      "valid": false,
+      "count": 0
+    },
+    "want": {
+      "state": "insufficient",
+      "absent": false
+    }
+  },
+  {
+    "name": "not_collected",
+    "scope": {
+      "selected": true,
+      "requested": true,
+      "applicable": true,
+      "outcome": "not_collected",
+      "valid": true,
+      "count": 0
+    },
+    "want": {
+      "state": "insufficient",
+      "absent": false
+    }
+  },
+  {
+    "name": "denied",
+    "scope": {
+      "selected": true,
+      "requested": true,
+      "applicable": true,
+      "outcome": "denied",
+      "valid": true,
+      "count": 0
+    },
+    "want": {
+      "state": "insufficient",
+      "absent": false
+    }
+  },
+  {
+    "name": "unsupported",
+    "scope": {
+      "selected": true,
+      "requested": true,
+      "applicable": true,
+      "outcome": "unsupported",
+      "valid": true,
+      "count": 0
+    },
+    "want": {
+      "state": "insufficient",
+      "absent": false
+    }
+  },
+  {
+    "name": "partial",
+    "scope": {
+      "selected": true,
+      "requested": true,
+      "applicable": true,
+      "outcome": "partial",
+      "valid": true,
+      "count": 0
+    },
+    "want": {
+      "state": "insufficient",
+      "absent": false
+    }
+  },
+  {
+    "name": "timeout",
+    "scope": {
+      "selected": true,
+      "requested": true,
+      "applicable": true,
+      "outcome": "timeout",
+      "valid": true,
+      "count": 0
+    },
+    "want": {
+      "state": "insufficient",
+      "absent": false
+    }
+  },
+  {
+    "name": "page_limit",
+    "scope": {
+      "selected": true,
+      "requested": true,
+      "applicable": true,
+      "outcome": "page_limit",
+      "valid": true,
+      "count": 0
+    },
+    "want": {
+      "state": "insufficient",
+      "absent": false
+    }
+  },
+  {
+    "name": "size_limit",
+    "scope": {
+      "selected": true,
+      "requested": true,
+      "applicable": true,
+      "outcome": "size_limit",
+      "valid": true,
+      "count": 0
+    },
+    "want": {
+      "state": "insufficient",
+      "absent": false
+    }
+  },
+  {
+    "name": "pagination_loop",
+    "scope": {
+      "selected": true,
+      "requested": true,
+      "applicable": true,
+      "outcome": "pagination_loop",
+      "valid": true,
+      "count": 0
+    },
+    "want": {
+      "state": "insufficient",
+      "absent": false
+    }
+  },
+  {
+    "name": "deleted",
+    "scope": {
+      "selected": true,
+      "requested": true,
+      "applicable": true,
+      "outcome": "deleted",
+      "valid": true,
+      "count": 0
+    },
+    "want": {
+      "state": "insufficient",
+      "absent": false
+    }
+  },
+  {
+    "name": "replaced",
+    "scope": {
+      "selected": true,
+      "requested": true,
+      "applicable": true,
+      "outcome": "replaced",
+      "valid": true,
+      "count": 0
+    },
+    "want": {
+      "state": "insufficient",
+      "absent": false
+    }
+  },
+  {
+    "name": "invalid",
+    "scope": {
+      "selected": true,
+      "requested": true,
+      "applicable": true,
+      "outcome": "invalid",
+      "valid": true,
+      "count": 0
+    },
+    "want": {
+      "state": "insufficient",
+      "absent": false
+    }
+  }
+]

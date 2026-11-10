@@ -1,0 +1,481 @@
+[
+  {
+    "cluster": {
+      "origin": "cluster-a",
+      "group": "openbao.org",
+      "kind": "OpenBaoCluster",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "cluster-1"
+    },
+    "set": {
+      "origin": "cluster-a",
+      "group": "apps",
+      "kind": "StatefulSet",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "set-1"
+    },
+    "pod": {
+      "origin": "cluster-a",
+      "group": "",
+      "kind": "Pod",
+      "namespace": "team",
+      "name": "bao-0",
+      "uid": "pod-1"
+    },
+    "setOwners": [
+      {
+        "group": "openbao.org",
+        "kind": "OpenBaoCluster",
+        "name": "bao",
+        "uid": "cluster-1",
+        "controller": true
+      }
+    ],
+    "podOwners": [
+      {
+        "group": "apps",
+        "kind": "StatefulSet",
+        "name": "bao",
+        "uid": "set-1",
+        "controller": true
+      }
+    ],
+    "annotation": "",
+    "name": "confirmed-chain",
+    "setState": "confirmed",
+    "podState": "confirmed"
+  },
+  {
+    "cluster": {
+      "origin": "cluster-a",
+      "group": "openbao.org",
+      "kind": "OpenBaoCluster",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "cluster-2"
+    },
+    "set": {
+      "origin": "cluster-a",
+      "group": "apps",
+      "kind": "StatefulSet",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "set-1"
+    },
+    "pod": {
+      "origin": "cluster-a",
+      "group": "",
+      "kind": "Pod",
+      "namespace": "team",
+      "name": "bao-0",
+      "uid": "pod-1"
+    },
+    "setOwners": [
+      {
+        "group": "openbao.org",
+        "kind": "OpenBaoCluster",
+        "name": "bao",
+        "uid": "cluster-1",
+        "controller": true
+      }
+    ],
+    "podOwners": [
+      {
+        "group": "apps",
+        "kind": "StatefulSet",
+        "name": "bao",
+        "uid": "set-1",
+        "controller": true
+      }
+    ],
+    "annotation": "",
+    "name": "replaced-cluster",
+    "setState": "foreign",
+    "podState": "unconfirmed"
+  },
+  {
+    "cluster": {
+      "origin": "cluster-a",
+      "group": "openbao.org",
+      "kind": "OpenBaoCluster",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "cluster-1"
+    },
+    "set": {
+      "origin": "cluster-a",
+      "group": "apps",
+      "kind": "StatefulSet",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "set-2"
+    },
+    "pod": {
+      "origin": "cluster-a",
+      "group": "",
+      "kind": "Pod",
+      "namespace": "team",
+      "name": "bao-0",
+      "uid": "pod-1"
+    },
+    "setOwners": [
+      {
+        "group": "openbao.org",
+        "kind": "OpenBaoCluster",
+        "name": "bao",
+        "uid": "cluster-1",
+        "controller": true
+      }
+    ],
+    "podOwners": [
+      {
+        "group": "apps",
+        "kind": "StatefulSet",
+        "name": "bao",
+        "uid": "set-1",
+        "controller": true
+      }
+    ],
+    "annotation": "",
+    "name": "replaced-statefulset",
+    "setState": "confirmed",
+    "podState": "foreign"
+  },
+  {
+    "cluster": {
+      "origin": "cluster-a",
+      "group": "openbao.org",
+      "kind": "OpenBaoCluster",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "cluster-1"
+    },
+    "set": {
+      "origin": "other",
+      "group": "apps",
+      "kind": "StatefulSet",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "set-1"
+    },
+    "pod": {
+      "origin": "cluster-a",
+      "group": "",
+      "kind": "Pod",
+      "namespace": "team",
+      "name": "bao-0",
+      "uid": "pod-1"
+    },
+    "setOwners": [
+      {
+        "group": "openbao.org",
+        "kind": "OpenBaoCluster",
+        "name": "bao",
+        "uid": "cluster-1",
+        "controller": true
+      }
+    ],
+    "podOwners": [
+      {
+        "group": "apps",
+        "kind": "StatefulSet",
+        "name": "bao",
+        "uid": "set-1",
+        "controller": true
+      }
+    ],
+    "annotation": "",
+    "name": "other-origin",
+    "setState": "foreign",
+    "podState": "unconfirmed"
+  },
+  {
+    "cluster": {
+      "origin": "cluster-a",
+      "group": "openbao.org",
+      "kind": "OpenBaoCluster",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "cluster-1"
+    },
+    "set": {
+      "origin": "cluster-a",
+      "group": "apps",
+      "kind": "StatefulSet",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "set-1"
+    },
+    "pod": {
+      "origin": "cluster-a",
+      "group": "",
+      "kind": "Pod",
+      "namespace": "other",
+      "name": "bao-0",
+      "uid": "pod-1"
+    },
+    "setOwners": [
+      {
+        "group": "openbao.org",
+        "kind": "OpenBaoCluster",
+        "name": "bao",
+        "uid": "cluster-1",
+        "controller": true
+      }
+    ],
+    "podOwners": [
+      {
+        "group": "apps",
+        "kind": "StatefulSet",
+        "name": "bao",
+        "uid": "set-1",
+        "controller": true
+      }
+    ],
+    "annotation": "",
+    "name": "other-pod-namespace",
+    "setState": "confirmed",
+    "podState": "foreign"
+  },
+  {
+    "cluster": {
+      "origin": "cluster-a",
+      "group": "openbao.org",
+      "kind": "OpenBaoCluster",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "cluster-1"
+    },
+    "set": {
+      "origin": "cluster-a",
+      "group": "apps",
+      "kind": "StatefulSet",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "set-1"
+    },
+    "pod": {
+      "origin": "cluster-a",
+      "group": "",
+      "kind": "Pod",
+      "namespace": "team",
+      "name": "bao-0",
+      "uid": "pod-1"
+    },
+    "setOwners": [],
+    "podOwners": [
+      {
+        "group": "apps",
+        "kind": "StatefulSet",
+        "name": "bao",
+        "uid": "set-1",
+        "controller": true
+      }
+    ],
+    "annotation": "cluster-1",
+    "name": "name-label-annotation-alone",
+    "setState": "unconfirmed",
+    "podState": "unconfirmed"
+  },
+  {
+    "cluster": {
+      "origin": "cluster-a",
+      "group": "openbao.org",
+      "kind": "OpenBaoCluster",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "cluster-1"
+    },
+    "set": {
+      "origin": "cluster-a",
+      "group": "apps",
+      "kind": "StatefulSet",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "set-1"
+    },
+    "pod": {
+      "origin": "cluster-a",
+      "group": "",
+      "kind": "Pod",
+      "namespace": "team",
+      "name": "bao-0",
+      "uid": "pod-1"
+    },
+    "setOwners": [
+      {
+        "group": "openbao.org",
+        "kind": "OpenBaoCluster",
+        "name": "bao",
+        "uid": "cluster-1",
+        "controller": true
+      }
+    ],
+    "podOwners": [
+      {
+        "group": "apps",
+        "kind": "StatefulSet",
+        "name": "bao",
+        "uid": "set-1",
+        "controller": true
+      }
+    ],
+    "annotation": "other",
+    "name": "conflicting-annotation",
+    "setState": "conflict",
+    "podState": "unconfirmed"
+  },
+  {
+    "cluster": {
+      "origin": "cluster-a",
+      "group": "openbao.org",
+      "kind": "OpenBaoCluster",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "cluster-1"
+    },
+    "set": {
+      "origin": "cluster-a",
+      "group": "apps",
+      "kind": "StatefulSet",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "set-1"
+    },
+    "pod": {
+      "origin": "cluster-a",
+      "group": "",
+      "kind": "Pod",
+      "namespace": "team",
+      "name": "bao-0",
+      "uid": "pod-1"
+    },
+    "setOwners": [
+      {
+        "group": "openbao.org",
+        "kind": "OpenBaoCluster",
+        "name": "bao",
+        "uid": "cluster-1",
+        "controller": true
+      },
+      {
+        "group": "openbao.org",
+        "kind": "OpenBaoCluster",
+        "name": "bao",
+        "uid": "cluster-1",
+        "controller": true
+      }
+    ],
+    "podOwners": [
+      {
+        "group": "apps",
+        "kind": "StatefulSet",
+        "name": "bao",
+        "uid": "set-1",
+        "controller": true
+      }
+    ],
+    "annotation": "",
+    "name": "multiple-controller-owners",
+    "setState": "unconfirmed",
+    "podState": "unconfirmed"
+  },
+  {
+    "cluster": {
+      "origin": "cluster-a",
+      "group": "openbao.org",
+      "kind": "OpenBaoCluster",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "cluster-1"
+    },
+    "set": {
+      "origin": "cluster-a",
+      "group": "apps",
+      "kind": "StatefulSet",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "set-1"
+    },
+    "pod": {
+      "origin": "cluster-a",
+      "group": "",
+      "kind": "Pod",
+      "namespace": "team",
+      "name": "bao-0",
+      "uid": "pod-1"
+    },
+    "setOwners": [
+      {
+        "group": "openbao.org",
+        "kind": "Other",
+        "name": "bao",
+        "uid": "cluster-1",
+        "controller": true
+      }
+    ],
+    "podOwners": [
+      {
+        "group": "apps",
+        "kind": "StatefulSet",
+        "name": "bao",
+        "uid": "set-1",
+        "controller": true
+      }
+    ],
+    "annotation": "",
+    "name": "owner-kind-conflict",
+    "setState": "conflict",
+    "podState": "unconfirmed"
+  },
+  {
+    "cluster": {
+      "origin": "cluster-a",
+      "group": "openbao.org",
+      "kind": "OpenBaoCluster",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "cluster-1"
+    },
+    "set": {
+      "origin": "cluster-a",
+      "group": "apps",
+      "kind": "StatefulSet",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "set-1"
+    },
+    "pod": {
+      "origin": "cluster-a",
+      "group": "",
+      "kind": "Pod",
+      "namespace": "team",
+      "name": "bao-0",
+      "uid": "pod-1"
+    },
+    "setOwners": [
+      {
+        "group": "other",
+        "kind": "OpenBaoCluster",
+        "name": "bao",
+        "uid": "cluster-1",
+        "controller": true
+      }
+    ],
+    "podOwners": [
+      {
+        "group": "apps",
+        "kind": "StatefulSet",
+        "name": "bao",
+        "uid": "set-1",
+        "controller": true
+      }
+    ],
+    "annotation": "",
+    "name": "owner-group-conflict",
+    "setState": "conflict",
+    "podState": "unconfirmed"
+  }
+]

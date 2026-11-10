@@ -10,8 +10,9 @@ workload evidence, references, and collection safeguards. Resolve missing values
 text, finding identity/severity, time, diagnostic scope, and partial collection before moving their implementations.
 Record preserved behavior and intentional corrections separately.
 
-Gate: each difference has a documented decision and an executable expected-result test. Generation fixtures are present;
-the remaining baseline tests are pending. This milestone is not complete.
+Gate: each difference has a documented decision and an executable expected-result test. Complete through the test-only
+reference specifications and archived consumer suites recorded in [behavioral baselines](baselines.md). Production
+extraction follows in milestone 3; fixtures do not qualify an operator integration.
 
 ## 2. Establish the public repository and development workflow
 

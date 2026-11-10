@@ -1,0 +1,161 @@
+[
+  {
+    "name": "allowlist-and-process-boundary",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3,
+        "token": "SPEC_CANARY"
+      },
+      "status": {
+        "observedGeneration": 4,
+        "index": "18446744073709551615",
+        "containerExitCode": 137,
+        "conditions": [
+          {
+            "type": "Available",
+            "status": "False",
+            "message": "PROVIDER_CANARY"
+          }
+        ],
+        "message": "STATUS_CANARY",
+        "backup": {
+          "lastFailureMessage": "BACKUP_CANARY"
+        },
+        "exitCode": 2
+      }
+    },
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "canaries": [
+      "SPEC_CANARY",
+      "PROVIDER_CANARY",
+      "STATUS_CANARY",
+      "BACKUP_CANARY"
+    ],
+    "want": {
+      "ready": {
+        "state": "implied_zero",
+        "value": 0
+      },
+      "conditions": [
+        {
+          "type": "Available",
+          "status": "False"
+        }
+      ],
+      "conditionState": "reported",
+      "index": "18446744073709551615",
+      "containerExitCode": 137
+    }
+  },
+  {
+    "name": "numeric-index-is-not-exact-evidence",
+    "raw": {
+      "status": {
+        "index": 9007199254741007
+      }
+    },
+    "contract": "unknown",
+    "canaries": [],
+    "want": {
+      "ready": {
+        "state": "unknown"
+      },
+      "conditions": null,
+      "conditionState": "unknown",
+      "index": null,
+      "containerExitCode": null
+    }
+  },
+  {
+    "name": "noncanonical-decimal",
+    "raw": {
+      "status": {
+        "index": "01"
+      }
+    },
+    "contract": "unknown",
+    "canaries": [],
+    "want": {
+      "ready": {
+        "state": "unknown"
+      },
+      "conditions": null,
+      "conditionState": "unknown",
+      "index": null,
+      "containerExitCode": null
+    }
+  },
+  {
+    "name": "container-code-is-not-limited-to-shell-exit-range",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3,
+        "token": "SPEC_CANARY"
+      },
+      "status": {
+        "observedGeneration": 4,
+        "index": "18446744073709551615",
+        "containerExitCode": 1073741819,
+        "conditions": [
+          {
+            "type": "Available",
+            "status": "False",
+            "message": "PROVIDER_CANARY"
+          }
+        ],
+        "message": "STATUS_CANARY",
+        "backup": {
+          "lastFailureMessage": "BACKUP_CANARY"
+        },
+        "exitCode": 2
+      }
+    },
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "canaries": [
+      "SPEC_CANARY",
+      "PROVIDER_CANARY",
+      "STATUS_CANARY",
+      "BACKUP_CANARY"
+    ],
+    "want": {
+      "ready": {
+        "state": "implied_zero",
+        "value": 0
+      },
+      "conditions": [
+        {
+          "type": "Available",
+          "status": "False"
+        }
+      ],
+      "conditionState": "reported",
+      "index": "18446744073709551615",
+      "containerExitCode": 1073741819
+    }
+  },
+  {
+    "name": "overflow-index",
+    "raw": {
+      "status": {
+        "index": "18446744073709551616"
+      }
+    },
+    "contract": "unknown",
+    "canaries": [],
+    "want": {
+      "ready": {
+        "state": "unknown"
+      },
+      "conditions": null,
+      "conditionState": "unknown",
+      "index": null,
+      "containerExitCode": null
+    }
+  }
+]

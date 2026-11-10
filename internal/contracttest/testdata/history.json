@@ -1,0 +1,204 @@
+[
+  {
+    "name": "failed-recovery-then-denied",
+    "events": [
+      {
+        "at": "2026-11-10T10:00:00Z",
+        "outcome": "complete",
+        "findings": [
+          "request-1/recovery"
+        ]
+      },
+      {
+        "at": "2026-11-10T10:01:00Z",
+        "outcome": "denied",
+        "findings": []
+      }
+    ],
+    "want": {
+      "request-1/recovery": {
+        "firstSeen": "2026-11-10T10:00:00Z",
+        "lastChecked": "2026-11-10T10:00:00Z",
+        "state": "last_known"
+      }
+    }
+  },
+  {
+    "name": "partial-retains-independent-findings",
+    "events": [
+      {
+        "at": "2026-11-10T10:00:00Z",
+        "outcome": "complete",
+        "findings": [
+          "request-1/recovery"
+        ]
+      },
+      {
+        "at": "2026-11-10T10:01:00Z",
+        "outcome": "partial",
+        "findings": [
+          "pod-1/ready"
+        ]
+      }
+    ],
+    "want": {
+      "request-1/recovery": {
+        "firstSeen": "2026-11-10T10:00:00Z",
+        "lastChecked": "2026-11-10T10:00:00Z",
+        "state": "last_known"
+      },
+      "pod-1/ready": {
+        "firstSeen": "2026-11-10T10:01:00Z",
+        "lastChecked": "2026-11-10T10:01:00Z",
+        "state": "current"
+      }
+    }
+  },
+  {
+    "name": "complete-empty-resolves",
+    "events": [
+      {
+        "at": "2026-11-10T10:00:00Z",
+        "outcome": "complete",
+        "findings": [
+          "request-1/recovery"
+        ]
+      },
+      {
+        "at": "2026-11-10T10:01:00Z",
+        "outcome": "complete",
+        "findings": []
+      }
+    ],
+    "want": {
+      "request-1/recovery": {
+        "firstSeen": "2026-11-10T10:00:00Z",
+        "lastChecked": "2026-11-10T10:01:00Z",
+        "state": "resolved"
+      }
+    }
+  },
+  {
+    "name": "multiple-subjects-repeat",
+    "events": [
+      {
+        "at": "2026-11-10T10:00:00Z",
+        "outcome": "complete",
+        "findings": [
+          "pod-a/ready",
+          "pod-b/ready"
+        ]
+      },
+      {
+        "at": "2026-11-10T10:01:00Z",
+        "outcome": "complete",
+        "findings": [
+          "pod-b/ready",
+          "pod-a/ready"
+        ]
+      }
+    ],
+    "want": {
+      "pod-a/ready": {
+        "firstSeen": "2026-11-10T10:00:00Z",
+        "lastChecked": "2026-11-10T10:01:00Z",
+        "state": "current"
+      },
+      "pod-b/ready": {
+        "firstSeen": "2026-11-10T10:00:00Z",
+        "lastChecked": "2026-11-10T10:01:00Z",
+        "state": "current"
+      }
+    }
+  },
+  {
+    "name": "replacement-does-not-inherit-first-seen",
+    "events": [
+      {
+        "at": "2026-11-10T10:00:00Z",
+        "outcome": "complete",
+        "findings": [
+          "cluster-1/ready"
+        ]
+      },
+      {
+        "at": "2026-11-10T10:01:00Z",
+        "outcome": "complete",
+        "findings": [
+          "cluster-2/ready"
+        ]
+      }
+    ],
+    "want": {
+      "cluster-1/ready": {
+        "firstSeen": "2026-11-10T10:00:00Z",
+        "lastChecked": "2026-11-10T10:01:00Z",
+        "state": "resolved"
+      },
+      "cluster-2/ready": {
+        "firstSeen": "2026-11-10T10:01:00Z",
+        "lastChecked": "2026-11-10T10:01:00Z",
+        "state": "current"
+      }
+    }
+  },
+  {
+    "name": "one-to-one-legacy-alias",
+    "events": [
+      {
+        "at": "2026-11-10T10:00:00Z",
+        "outcome": "complete",
+        "findings": [
+          "legacy-deployment:sealed"
+        ]
+      },
+      {
+        "at": "2026-11-10T10:01:00Z",
+        "outcome": "complete",
+        "findings": [
+          "cluster-1/sealed"
+        ],
+        "legacyKey": "legacy-deployment:sealed",
+        "newKey": "cluster-1/sealed"
+      }
+    ],
+    "want": {
+      "cluster-1/sealed": {
+        "firstSeen": "2026-11-10T10:00:00Z",
+        "lastChecked": "2026-11-10T10:01:00Z",
+        "state": "current"
+      }
+    }
+  },
+  {
+    "name": "new-episode-after-resolution",
+    "events": [
+      {
+        "at": "2026-11-10T10:00:00Z",
+        "outcome": "complete",
+        "findings": [
+          "cluster-1/sealed"
+        ]
+      },
+      {
+        "at": "2026-11-10T10:01:00Z",
+        "outcome": "complete",
+        "findings": []
+      },
+      {
+        "at": "2026-11-10T10:02:00Z",
+        "outcome": "complete",
+        "findings": [
+          "cluster-1/sealed"
+        ]
+      }
+    ],
+    "want": {
+      "cluster-1/sealed": {
+        "firstSeen": "2026-11-10T10:02:00Z",
+        "lastChecked": "2026-11-10T10:02:00Z",
+        "state": "current"
+      }
+    }
+  }
+]

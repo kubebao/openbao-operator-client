@@ -1,0 +1,21 @@
+[
+  {
+    "name": "default-excludes-all",
+    "enabled": false,
+    "fields": {
+      "condition.message": "CANARY"
+    },
+    "want": {}
+  },
+  {
+    "name": "local-opt-in",
+    "enabled": true,
+    "fields": {
+      "condition.message": "CANARY\nline",
+      "unknown": "DROP"
+    },
+    "want": {
+      "condition.message": "CANARY line"
+    }
+  }
+]

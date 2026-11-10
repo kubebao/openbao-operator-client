@@ -1,0 +1,521 @@
+[
+  {
+    "name": "two-pages",
+    "pages": [
+      {
+        "uids": [
+          "b"
+        ],
+        "next": "next",
+        "outcome": "complete",
+        "elapsed": 1,
+        "bytes": 30
+      },
+      {
+        "uids": [
+          "a"
+        ],
+        "next": "",
+        "outcome": "complete",
+        "elapsed": 2,
+        "bytes": 30
+      }
+    ],
+    "limits": {
+      "pages": 2,
+      "candidates": 3,
+      "bytes": 100,
+      "duration": 10
+    },
+    "before": "cluster-1",
+    "after": "cluster-1",
+    "want": {
+      "outcome": "complete",
+      "uids": [
+        "a",
+        "b"
+      ],
+      "reads": 2
+    }
+  },
+  {
+    "name": "complete-empty",
+    "pages": [
+      {
+        "uids": [],
+        "next": "",
+        "outcome": "complete",
+        "elapsed": 2,
+        "bytes": 30
+      }
+    ],
+    "limits": {
+      "pages": 2,
+      "candidates": 3,
+      "bytes": 100,
+      "duration": 10
+    },
+    "before": "cluster-1",
+    "after": "cluster-1",
+    "want": {
+      "outcome": "complete",
+      "uids": [],
+      "reads": 1
+    }
+  },
+  {
+    "name": "page-limit",
+    "pages": [
+      {
+        "uids": [
+          "b"
+        ],
+        "next": "next",
+        "outcome": "complete",
+        "elapsed": 1,
+        "bytes": 30
+      },
+      {
+        "uids": [
+          "a"
+        ],
+        "next": "",
+        "outcome": "complete",
+        "elapsed": 2,
+        "bytes": 30
+      }
+    ],
+    "limits": {
+      "pages": 1,
+      "candidates": 3,
+      "bytes": 100,
+      "duration": 10
+    },
+    "before": "cluster-1",
+    "after": "cluster-1",
+    "want": {
+      "outcome": "page_limit",
+      "uids": [
+        "b"
+      ],
+      "reads": 1
+    }
+  },
+  {
+    "name": "candidate-limit",
+    "pages": [
+      {
+        "uids": [
+          "b"
+        ],
+        "next": "next",
+        "outcome": "complete",
+        "elapsed": 1,
+        "bytes": 30
+      },
+      {
+        "uids": [
+          "a",
+          "c",
+          "d"
+        ],
+        "next": "",
+        "outcome": "complete",
+        "elapsed": 2,
+        "bytes": 30
+      }
+    ],
+    "limits": {
+      "pages": 2,
+      "candidates": 3,
+      "bytes": 100,
+      "duration": 10
+    },
+    "before": "cluster-1",
+    "after": "cluster-1",
+    "want": {
+      "outcome": "size_limit",
+      "uids": [
+        "b"
+      ],
+      "reads": 2
+    }
+  },
+  {
+    "name": "byte-limit",
+    "pages": [
+      {
+        "uids": [
+          "b"
+        ],
+        "next": "next",
+        "outcome": "complete",
+        "elapsed": 1,
+        "bytes": 30
+      },
+      {
+        "uids": [
+          "a"
+        ],
+        "next": "",
+        "outcome": "complete",
+        "elapsed": 2,
+        "bytes": 71
+      }
+    ],
+    "limits": {
+      "pages": 2,
+      "candidates": 3,
+      "bytes": 100,
+      "duration": 10
+    },
+    "before": "cluster-1",
+    "after": "cluster-1",
+    "want": {
+      "outcome": "size_limit",
+      "uids": [
+        "b"
+      ],
+      "reads": 2
+    }
+  },
+  {
+    "name": "duration-boundary",
+    "pages": [
+      {
+        "uids": [
+          "b"
+        ],
+        "next": "next",
+        "outcome": "complete",
+        "elapsed": 10,
+        "bytes": 30
+      }
+    ],
+    "limits": {
+      "pages": 2,
+      "candidates": 3,
+      "bytes": 100,
+      "duration": 10
+    },
+    "before": "cluster-1",
+    "after": "cluster-1",
+    "want": {
+      "outcome": "timeout",
+      "uids": [],
+      "reads": 1
+    }
+  },
+  {
+    "name": "cancel-after-page",
+    "pages": [
+      {
+        "uids": [
+          "b"
+        ],
+        "next": "next",
+        "outcome": "complete",
+        "elapsed": 1,
+        "bytes": 30
+      },
+      {
+        "uids": [
+          "a"
+        ],
+        "next": "",
+        "outcome": "cancelled",
+        "elapsed": 2,
+        "bytes": 30
+      }
+    ],
+    "limits": {
+      "pages": 2,
+      "candidates": 3,
+      "bytes": 100,
+      "duration": 10
+    },
+    "before": "cluster-1",
+    "after": "cluster-1",
+    "want": {
+      "outcome": "cancelled",
+      "uids": [
+        "b"
+      ],
+      "reads": 2
+    }
+  },
+  {
+    "name": "denied-after-page",
+    "pages": [
+      {
+        "uids": [
+          "b"
+        ],
+        "next": "next",
+        "outcome": "complete",
+        "elapsed": 1,
+        "bytes": 30
+      },
+      {
+        "uids": [
+          "a"
+        ],
+        "next": "",
+        "outcome": "denied",
+        "elapsed": 2,
+        "bytes": 30
+      }
+    ],
+    "limits": {
+      "pages": 2,
+      "candidates": 3,
+      "bytes": 100,
+      "duration": 10
+    },
+    "before": "cluster-1",
+    "after": "cluster-1",
+    "want": {
+      "outcome": "denied",
+      "uids": [
+        "b"
+      ],
+      "reads": 2
+    }
+  },
+  {
+    "name": "repeated-token",
+    "pages": [
+      {
+        "uids": [
+          "b"
+        ],
+        "next": "next",
+        "outcome": "complete",
+        "elapsed": 1,
+        "bytes": 30
+      },
+      {
+        "uids": [
+          "a"
+        ],
+        "next": "next",
+        "outcome": "complete",
+        "elapsed": 2,
+        "bytes": 30
+      }
+    ],
+    "limits": {
+      "pages": 2,
+      "candidates": 3,
+      "bytes": 100,
+      "duration": 10
+    },
+    "before": "cluster-1",
+    "after": "cluster-1",
+    "want": {
+      "outcome": "pagination_loop",
+      "uids": [
+        "b",
+        "a"
+      ],
+      "reads": 2
+    }
+  },
+  {
+    "name": "duplicate-uid",
+    "pages": [
+      {
+        "uids": [
+          "b"
+        ],
+        "next": "next",
+        "outcome": "complete",
+        "elapsed": 1,
+        "bytes": 30
+      },
+      {
+        "uids": [
+          "b"
+        ],
+        "next": "",
+        "outcome": "complete",
+        "elapsed": 2,
+        "bytes": 30
+      }
+    ],
+    "limits": {
+      "pages": 2,
+      "candidates": 3,
+      "bytes": 100,
+      "duration": 10
+    },
+    "before": "cluster-1",
+    "after": "cluster-1",
+    "want": {
+      "outcome": "invalid",
+      "uids": [
+        "b"
+      ],
+      "reads": 2
+    }
+  },
+  {
+    "name": "replacement",
+    "pages": [
+      {
+        "uids": [
+          "b"
+        ],
+        "next": "next",
+        "outcome": "complete",
+        "elapsed": 1,
+        "bytes": 30
+      },
+      {
+        "uids": [
+          "a"
+        ],
+        "next": "",
+        "outcome": "complete",
+        "elapsed": 2,
+        "bytes": 30
+      }
+    ],
+    "limits": {
+      "pages": 2,
+      "candidates": 3,
+      "bytes": 100,
+      "duration": 10
+    },
+    "before": "cluster-1",
+    "after": "cluster-2",
+    "want": {
+      "outcome": "replaced",
+      "uids": [
+        "a",
+        "b"
+      ],
+      "reads": 2
+    }
+  },
+  {
+    "name": "deletion",
+    "pages": [
+      {
+        "uids": [
+          "b"
+        ],
+        "next": "next",
+        "outcome": "complete",
+        "elapsed": 1,
+        "bytes": 30
+      },
+      {
+        "uids": [
+          "a"
+        ],
+        "next": "",
+        "outcome": "complete",
+        "elapsed": 2,
+        "bytes": 30
+      }
+    ],
+    "limits": {
+      "pages": 2,
+      "candidates": 3,
+      "bytes": 100,
+      "duration": 10
+    },
+    "before": "cluster-1",
+    "after": "",
+    "want": {
+      "outcome": "deleted",
+      "uids": [
+        "a",
+        "b"
+      ],
+      "reads": 2
+    }
+  },
+  {
+    "name": "no-unbounded-zero-limit",
+    "pages": [
+      {
+        "uids": [
+          "b"
+        ],
+        "next": "next",
+        "outcome": "complete",
+        "elapsed": 1,
+        "bytes": 30
+      }
+    ],
+    "limits": {
+      "pages": 0,
+      "candidates": 3,
+      "bytes": 100,
+      "duration": 10
+    },
+    "before": "cluster-1",
+    "after": "cluster-1",
+    "want": {
+      "outcome": "invalid",
+      "uids": [],
+      "reads": 0
+    }
+  },
+  {
+    "name": "negative-page-size",
+    "pages": [
+      {
+        "uids": [
+          "b"
+        ],
+        "next": "next",
+        "outcome": "complete",
+        "elapsed": 1,
+        "bytes": -1
+      }
+    ],
+    "limits": {
+      "pages": 2,
+      "candidates": 3,
+      "bytes": 100,
+      "duration": 10
+    },
+    "before": "cluster-1",
+    "after": "cluster-1",
+    "want": {
+      "outcome": "invalid",
+      "uids": [],
+      "reads": 1
+    }
+  },
+  {
+    "name": "unclassified-provider-error",
+    "pages": [
+      {
+        "uids": [
+          "b"
+        ],
+        "next": "next",
+        "outcome": "token=CANARY",
+        "elapsed": 1,
+        "bytes": 30
+      }
+    ],
+    "limits": {
+      "pages": 2,
+      "candidates": 3,
+      "bytes": 100,
+      "duration": 10
+    },
+    "before": "cluster-1",
+    "after": "cluster-1",
+    "want": {
+      "outcome": "invalid",
+      "uids": [],
+      "reads": 1
+    }
+  }
+]
