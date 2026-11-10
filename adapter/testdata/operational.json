@@ -1,0 +1,36 @@
+{
+  "apiVersion":"openbao.org/v1alpha1","kind":"OpenBaoCluster",
+  "metadata":{"namespace":"team","name":"bao","uid":"cluster-1","generation":4,
+    "annotations":{"openbao.org/restore-origin":"request-1","openbao.org/restore-hold":"operation-1","arbitrary":"ANNOTATION_CANARY"}},
+  "spec":{"replicas":3,"version":"2.7.0","maintenance":{"enabled":true},"readReplicas":{"replicas":2},
+    "backup":{"schedule":"@daily","credentialsSecretRef":{"name":"SPEC_CANARY"}},
+    "remoteReplica":{"credentials":"UNSUPPORTED_SPEC_CANARY"}},
+  "status":{
+    "observedGeneration":4,"readyReplicas":3,"readReplicas":{"readyReplicas":1},
+    "backup":{
+      "lastBackupTime":"2026-11-10T10:00:00Z","lastAttemptTime":"2026-11-10T11:00:00Z",
+      "nextScheduledBackup":"2026-11-10T12:00:00Z","consecutiveFailures":2,
+      "lastFailureReason":"ProviderDenied","lastFailureMessage":"BACKUP_CANARY","lastFailureTime":"2026-11-10T11:00:00Z",
+      "lastBackupSize":9007199254741007,"lastBackupName":"backups/bao.snap",
+      "latestSnapshot":{"digest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+      "restoreTest":{
+        "lastSuccessTime":"2026-11-09T10:00:00Z","active":{"name":"restore-active"},
+        "last":{"outcome":"Failed","reason":"Mismatch","finishedAt":"2026-11-10T09:00:00Z","key":"backups/previous.snap",
+          "digest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","message":"RESTORE_TEST_CANARY"},
+        "conditions":[{"type":"Passed","status":"False","reason":"SnapshotUnavailable","message":"CONDITION_CANARY"}]
+      }
+    },
+    "upgrade":{"executionID":"upgrade-1","targetVersion":"2.7.1","fromVersion":"2.7.0","startedAt":"2026-11-10T08:00:00Z",
+      "currentPartition":1,"completedPods":[2,0],"failure":{"reason":"Failed","message":"UPGRADE_CANARY","at":"2026-11-10T09:00:00Z"}},
+    "blueGreen":{"phase":"Syncing","operationID":"upgrade-2","greenVersion":"2.7.1","startTime":"2026-11-10T08:00:00Z",
+      "jobFailureCount":1,"lastJobFailure":"failed-job","rollbackReason":"ROLLBACK_CANARY"},
+    "operationLock":{"operation":"Upgrade","holder":"controller/upgrader","message":"LOCK_CANARY",
+      "acquiredAt":"2026-11-10T08:00:00Z","renewedAt":"2026-11-10T09:00:00Z"},
+    "breakGlass":{"active":true,"reason":"RollbackConsensusRepairFailed","enteredAt":"2026-11-10T09:00:00Z",
+      "nonce":"ACKNOWLEDGEMENT_CANARY","message":"BREAK_GLASS_CANARY","steps":["STEP_CANARY"]},
+    "restore":{"name":"historical","uid":"old-request","restartCompletedAt":"2026-11-08T10:00:00Z"},
+    "workload":{"lastError":{"reason":"PolicyFailure","message":"WORKLOAD_CANARY","at":"2026-11-10T09:00:00Z"}},
+    "adminOps":{"lastError":{"reason":"Failed","message":"ADMIN_CANARY","at":"2026-11-10T09:00:00Z"}},
+    "remoteReplicaObservation":{"historyConflict":true,"freshness":{"highestAppliedIndex":"18446744073709551615"},"message":"REMOTE_CANARY"}
+  }
+}

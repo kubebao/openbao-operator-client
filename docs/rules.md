@@ -1,5 +1,9 @@
 # Diagnostic rule catalog
 
+`KBAO-RECOVERY-001` and `KBAO-REPLICATION-001` are reserved inventory. The pinned operator defines neither native recovery
+nor remote-replication observations. These IDs must not produce findings under this contract; see
+[source corrections](extraction.md#source-corrections).
+
 These canonical IDs define the extraction target. Production rules are not implemented yet. The archived consumer tests
 cover existing interpretation. `internal/contracttest/testdata/rules.json` records canonical mappings. Replay, identity,
 severity, and history fixtures define the new boundaries.

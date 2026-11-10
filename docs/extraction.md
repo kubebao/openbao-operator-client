@@ -1,60 +1,96 @@
 # Milestone 3 extraction status
 
-The first production slice implements cluster projection and the evidence values needed to preserve the contract.
-Milestone 3 remains in progress. Neither consumer imports the library yet.
+Production slices implement cluster projection, operational observations, and evidence values. Milestone 3 remains in
+progress. Neither consumer imports the library yet.
 
 | Slice | State | Verification |
 | --- | --- | --- |
-| Resource identities, references, field provenance, generations, condition sets, timestamps, collection outcomes | Implemented | Production unit tests and unchanged milestone 1 value/condition/time fixtures |
-| Approved cluster JSON projection, versions, readiness counts, pause spec value, contract descriptions | Implemented | Source-pinned adapter tests, canaries, malformed input, bounded parsing, serialization, and fuzz seeds |
-| Backup, upgrade, replication, restore-test, restore and native recovery observations | Pending | Archived consumer baselines and reference specifications |
+| Identities, references, field provenance, generations, conditions, timestamps, collection outcomes | Implemented | Production tests and milestone 1 fixtures |
+| Cluster JSON projection, versions, readiness counts, pause, contract descriptions | Implemented | Source-pinned tests, canaries, limits, serialization, fuzz seeds |
+| Backup, rolling/blue-green upgrade, restore-test, restrictions, read-replica counts, snapshot-restore recovery facts | Implemented | Production fixtures, malformed-field tests, serialized replay |
+| Native `OpenBaoRecovery` and remote-replication observations | Unsupported by this contract | No definitions in the pinned public API |
 | StatefulSet/Pod evidence, UID associations, restore correlation | Pending | Reference specifications and archived CLI safeguards |
-| Bounded discovery, reads, pagination, cancellation, and replacement verification | Pending | Transcript specifications; no production reader yet |
-| Findings, coverage, rule catalog, evaluation policy, deterministic diagnostic replay | Pending | Reference specifications; no production rules yet |
+| Bounded discovery, reads, pagination, cancellation, replacement verification | Pending | Transcript specifications; no production reader yet |
+| Findings, coverage, evaluation policy, deterministic diagnostic replay | Pending | Reference specifications; no production rules yet |
 
-## Cluster projection
+## Projection boundary
 
-`adapter.ProjectCluster` accepts JSON bytes and `ProjectionOptions`. Supply a stable origin, collection time, explicit
-contract, and positive projection limits. It does not load Kubernetes configuration or perform reads. The default limits
-are 1 MiB of input and 256 conditions. JSON nesting is limited to 64 levels below the root. Duplicate object keys, invalid UTF-8, trailing
-documents, invalid resource identity, and a mismatched kind/API version reject the projection. Errors expose a bounded
-`ProjectionError.Code`; they do not include raw parser errors, field values, or response bodies.
+`adapter.ProjectCluster` and `adapter.ProjectRestore` accept JSON bytes and `ProjectionOptions`. Supply a stable origin,
+collection time, explicit contract, and positive limits. They perform no reads and use no wall clock. Default limits are
+1 MiB per document, 256 conditions per set, and 256 entries per ordinal set. Nesting is limited to 64 levels below the root.
+Duplicate keys, invalid UTF-8, trailing documents, invalid identity, and mismatched kind/API version reject the document.
+Errors expose a bounded `ProjectionError.Code` without raw parser errors, source values, or response bodies.
 
-Malformed optional fields retain an invalid state while independent facts remain available. Invalid condition type,
-status, observed generation, or duplicate types invalidate the condition set. An invalid optional reason or transition
-time remains a field-level invalid value. A condition-count limit invalidates the set and preserves independent fields.
-An input byte/depth limit rejects the document before any partial resource identity is returned.
+Malformed optional fields retain invalid states while independent facts remain available. Invalid condition types,
+statuses, observed generations, or duplicate types invalidate the condition set. Invalid optional reasons and transition
+times remain field-level invalid values. Set limits invalidate the set and preserve independent fields. Document byte/depth
+limits reject the projection before returning partial resource identity.
 
-Contracts are selected with `adapter.V1Alpha1Snapshot` or `adapter.V1Alpha1Unqualified`. The snapshot contract implements
-the documented omitted-zero/false policy from operator source `9671c30623d609f948cf073e167f376de4ea9a85`. The unqualified
-contract projects the same approved fields without inferring omitted values. Other contract IDs and API groups are
-rejected. `adapter.Describe` reports implemented projection capabilities and source provenance; it does not report API
-discovery, RBAC access, or operator integration qualification.
+Choose `adapter.V1Alpha1Snapshot` or `adapter.V1Alpha1Unqualified`. The snapshot implements the documented omitted-zero/false
+policy from source `9671c30623d609f948cf073e167f376de4ea9a85`. The unqualified contract projects approved fields without
+inferring omitted values. Other contract IDs and API groups are rejected. `adapter.Describe` reports projection coverage
+and provenance. It does not establish API discovery, RBAC access, or integration qualification.
 
-Version fields use the pinned public `spec.version` semantic-version pattern, including optional `v`, prerelease, and build
-metadata. The projection records reported counts and generation acknowledgement separately. Stale counts remain reported
-facts; the adapter never converts them into health. Provider messages, specs beyond approved fields, arbitrary annotations,
-and raw errors are absent from the resulting type. Optional local text remains unimplemented.
+Version fields follow the pinned public semantic-version pattern, including optional `v`, prerelease, and build metadata.
+Counts and generation acknowledgement remain separate facts. Stale counts remain reported; projection never converts them
+into health. Optional local text remains unimplemented.
+
+## Operational observations
+
+Backup observations keep completion, attempt, and failure times separate. Sizes remain exact integers; snapshot keys and
+digests are validated. Missing failure counters stay unknown. Restore tests retain active-object presence, historical
+outcomes, success time, and conditions independently. Running, blocked, and failed interpretations belong to diagnosis.
+
+Upgrade evidence includes execution identity, versions, partition, sorted unique completed ordinals, and structured errors.
+Blue/green evidence includes phase, operation identity, failed Job name, and failure count. Restriction evidence includes
+pause, maintenance, restore origin/hold, operation lock, and break-glass state. Provider messages, acknowledgment nonces,
+recovery instructions, and free-form rollback text are excluded. Controller error reasons and their timestamps remain
+available independently.
+
+Restore projection keeps phase, execution stage, submission-claim presence, reported target application time, cleanup,
+administrator disposition, and managed restart completion separate. It does not infer pending from age, choose a matching
+UID over a conflicting UID, or verify lifecycle actions. Legacy restart metadata is historical evidence, not ownership.
+
+Optional objects distinguish unknown ancestor, absent field, explicit null, reported object, and malformed object. Null
+objects retain no child facts. Absence is not an implied zero, false, healthy state, or completed operation. Primitive nulls
+remain invalid. This preserves nullable public status objects without flattening them into counter defaults.
+
+### Source corrections
+
+The pinned operator defines neither `OpenBaoRecovery` nor the console's `spec.remoteReplica` and
+`status.remoteReplicaObservation` fields. It also does not define an execution stage named `RestoreSubmitted`. Those console
+paths are synthetic assumptions, not public API contracts. The adapter rejects the native kind, omits remote fields, and
+marks the non-API stage invalid. Native association fixtures now require unconfirmed results under this contract.
+
+Native recovery and remote history-conflict rule IDs remain reserved inventory. They must not produce findings for this
+contract. The console migration must remove or capability-gate these paths and their reader permissions. Adding those
+features requires public API definitions and separate contract qualification. Current read-replica counts describe the
+pool inside one OpenBao cluster; they do not qualify remote replication.
 
 ## Evidence and replay
 
+Normalized cluster/restore records use schema version `2`. Operational fields and object-presence states change the draft
+version `1` serialization; validation rejects older records. Neither consumer persists library records yet. Evidence schema,
+adapter contract identity, and future rule-set versions remain separate.
+
 Value states distinguish unknown, reported, implied, and invalid. Invalid fields retain no raw value. Implied integers must
-be zero; implied booleans must be false. Adapters determine whether the selected field and contract permit inference.
-`Validate` checks normalized shapes after construction or JSON decoding. The zero state is invalid: consumers must declare
-unknown fields rather than silently defaulting them. Cluster validation does not select an adapter or qualify its contract.
+be zero; implied booleans must be false. Adapters determine whether a field and contract permit inference. `Validate` checks
+normalized shapes after construction or JSON decoding. The zero state is invalid: consumers must declare unknown fields.
+Cluster validation does not select an adapter or qualify its contract.
 
-References retain full resource identity, API version, resource version, read time, and an optional field selector. Identity
-components are bounded to 253 UTF-8 bytes and reject controls and Unicode replacement characters. Values are never trimmed
-or cleaned into a different identity. The identity checks do not replace Kubernetes schema validation.
+References retain full identity, API version, resource version, read time, and optional field selector. Identity components
+are bounded to 253 UTF-8 bytes and reject controls and Unicode replacement characters. They are never trimmed into a
+different identity. These checks do not replace Kubernetes schema validation.
 
-Collection intervals, producer timestamps, creation timestamps, and condition transitions remain distinct. Freshness
-assessment receives the analysis reference time and age limit; it reads no clock and accepts no clock skew. A valid complete
-empty list establishes absence only within its declared scope. Named GET and discovery results never establish list-scope
-absence. `Collection.Items` counts observed candidates before association filtering.
+Collection intervals, producer times, creation times, and condition transitions remain separate. Freshness receives an
+analysis reference time and age limit, reads no clock, and permits no clock skew. Only valid complete empty lists establish
+absence within their declared scope. Named GET and discovery do not establish list-scope absence. `Collection.Items`
+counts candidates before association filtering.
 
-`internal/contracttest` now calls production code for value, condition, identity-validation, and freshness decisions.
-Field-focused fixtures receive synthetic resource metadata in test setup; the production API always requires identity.
-Expected results are unchanged. Remaining reference models stay until their extraction slice replaces them.
+Value, condition, identity-validation, and freshness fixtures call production code. Field-focused fixtures receive synthetic
+metadata in test setup; production always requires identity. Expected results are unchanged except for the documented
+unsupported-native correction. Remaining reference models stay until their supported extraction slice replaces them.
+Remote-index fixtures remain future specifications, not an API adapter.
 
-Run `go run ./examples/cluster` for a synthetic projection. It prints current generation acknowledgement and an implied
-zero ready count. This is resource evidence, not a health check. No API-server or operator integration is qualified.
+Run `go run ./examples/cluster` for a synthetic projection. Current acknowledgement and an implied zero ready count are
+resource evidence, not a health check. No API-server or operator integration is qualified.

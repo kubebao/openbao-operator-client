@@ -8,7 +8,9 @@ establish compatibility with an installed operator.
 | Not selected | Not applicable | Generation acknowledgement | Synthetic contract fixtures | `evidence/testdata/generations.json` |
 | `9671c30623d609f948cf073e167f376de4ea9a85` | `openbao.org/v1alpha1` | Cluster JSON projection, conditions, versions, readiness fields | Source inspected; production fixture/unit tests; no API-server qualification | `adapter/cluster_test.go`, `internal/contracttest`, `docs/extraction.md` |
 | Source snapshots only | `openbao.org/v1alpha1` | Associations, diagnostic coverage, local text, finding identity, replay | Test-only specifications and archived consumer package suites | `docs/baselines.md`, `internal/contracttest` |
-| `9671c30623d609f948cf073e167f376de4ea9a85` | `openbao.org/v1alpha1` | Operational/workload projection and live collection | Source inspected; implementation pending | `docs/extraction.md` |
+| `9671c30623d609f948cf073e167f376de4ea9a85` | `openbao.org/v1alpha1` | Backup, upgrade, restore-test, restrictions, read-replica counts, snapshot-restore facts | Source inspected; production fixture/unit tests; no integration qualification | `adapter/observations_test.go`, `docs/extraction.md` |
+| `9671c30623d609f948cf073e167f376de4ea9a85` | `openbao.org/v1alpha1` | Native recovery and remote-replication fields assumed by console | Unsupported; no public API definitions | `docs/extraction.md#source-corrections` |
+| `9671c30623d609f948cf073e167f376de4ea9a85` | `openbao.org/v1alpha1` | Workload projection and live collection | Source inspected; implementation pending | `docs/extraction.md` |
 
 Record each qualified capability against an operator commit or version, installed CRD identity, image digest, library
 commit, test command, environment, result, and evidence location. Keep unsupported and untested capabilities identifiable.

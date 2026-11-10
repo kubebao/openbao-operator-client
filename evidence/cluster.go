@@ -2,7 +2,7 @@ package evidence
 
 import "strings"
 
-const SchemaVersion = "1"
+const SchemaVersion = "2"
 
 type ConditionStatus string
 
@@ -69,19 +69,31 @@ func (c Conditions) Validate() error {
 // AdapterContract names projection semantics, not operator integration qualification.
 // Health, history, process results, and provider messages are not part of this value.
 type Cluster struct {
-	SchemaVersion      string     `json:"schemaVersion"`
-	AdapterContract    string     `json:"adapterContract"`
-	Reference          Reference  `json:"reference"`
-	CreatedAt          Timestamp  `json:"createdAt"`
-	Generation         Integer    `json:"generation"`
-	ObservedGeneration Integer    `json:"observedGeneration"`
-	DesiredVersion     Text       `json:"desiredVersion"`
-	ObservedVersion    Text       `json:"observedVersion"`
-	Phase              Text       `json:"phase"`
-	DesiredReplicas    Integer    `json:"desiredReplicas"`
-	ReadyReplicas      Integer    `json:"readyReplicas"`
-	Paused             Boolean    `json:"paused"`
-	Conditions         Conditions `json:"conditions"`
+	SchemaVersion      string          `json:"schemaVersion"`
+	AdapterContract    string          `json:"adapterContract"`
+	Reference          Reference       `json:"reference"`
+	CreatedAt          Timestamp       `json:"createdAt"`
+	Generation         Integer         `json:"generation"`
+	ObservedGeneration Integer         `json:"observedGeneration"`
+	DesiredVersion     Text            `json:"desiredVersion"`
+	ObservedVersion    Text            `json:"observedVersion"`
+	Phase              Text            `json:"phase"`
+	DesiredReplicas    Integer         `json:"desiredReplicas"`
+	ReadyReplicas      Integer         `json:"readyReplicas"`
+	Paused             Boolean         `json:"paused"`
+	Conditions         Conditions      `json:"conditions"`
+	Backup             Backup          `json:"backup"`
+	Upgrade            Upgrade         `json:"upgrade"`
+	BlueGreen          BlueGreen       `json:"blueGreen"`
+	ReadReplicas       ReplicaCounts   `json:"readReplicas"`
+	Maintenance        Maintenance     `json:"maintenance"`
+	RestoreOrigin      Text            `json:"restoreOrigin"`
+	RestoreHold        Text            `json:"restoreHold"`
+	OperationLock      OperationLock   `json:"operationLock"`
+	BreakGlass         BreakGlass      `json:"breakGlass"`
+	LegacyRestore      LegacyRestore   `json:"legacyRestore"`
+	WorkloadError      ControllerError `json:"workloadError"`
+	AdminOpsError      ControllerError `json:"adminOpsError"`
 }
 
 func (c Cluster) Acknowledgement() GenerationState {
@@ -111,6 +123,14 @@ func (c Cluster) Validate() error {
 	}
 	if c.ReadyReplicas.State == ValueImplied && (c.Acknowledgement() != GenerationCurrent || c.DesiredReplicas.State != ValueReported) {
 		return ErrInvalidEvidence
+	}
+	for _, field := range []interface{ Validate() error }{
+		c.Backup, c.Upgrade, c.BlueGreen, c.ReadReplicas, c.Maintenance,
+		c.RestoreOrigin, c.RestoreHold, c.OperationLock, c.BreakGlass, c.LegacyRestore, c.WorkloadError, c.AdminOpsError,
+	} {
+		if field.Validate() != nil {
+			return ErrInvalidEvidence
+		}
 	}
 	return nil
 }

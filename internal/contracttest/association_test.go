@@ -38,14 +38,10 @@ func associate(target identity, r request) association {
 	if target.Origin != r.Identity.Origin || target.Group != r.Identity.Group || target.Namespace != r.Identity.Namespace {
 		return association{State: "foreign"}
 	}
-	if r.Contract != adapterContract || target.Kind != "OpenBaoCluster" ||
-		!slices.Contains([]string{"OpenBaoRestore", "OpenBaoRecovery"}, r.Identity.Kind) {
+	if r.Contract != adapterContract || target.Kind != "OpenBaoCluster" || r.Identity.Kind != "OpenBaoRestore" {
 		return association{State: "unconfirmed"}
 	}
-	if r.Identity.Kind == "OpenBaoRecovery" && r.ExecutionUID != "" {
-		return association{State: "invalid"}
-	}
-	bound := r.Identity.Kind == "OpenBaoRestore" && r.OriginRequestUID != "" && r.OriginRequestUID == r.Identity.UID
+	bound := r.OriginRequestUID != "" && r.OriginRequestUID == r.Identity.UID
 	matched := r.TargetUID == target.UID || r.ExecutionUID == target.UID || bound
 	conflict := r.TargetName != "" && r.TargetName != target.Name
 	conflict = conflict || (r.TargetUID != "" && r.TargetUID != target.UID) ||
@@ -60,9 +56,6 @@ func associate(target identity, r request) association {
 	case r.ExecutionUID == target.UID:
 		return association{State: "confirmed", Basis: "status.execution.targetUID"}
 	case r.TargetUID == target.UID:
-		if r.Identity.Kind == "OpenBaoRecovery" {
-			return association{State: "confirmed", Basis: "status.clusterRef.uid"}
-		}
 		return association{State: "confirmed", Basis: "status.target.uid"}
 	case bound:
 		return association{State: "confirmed", Basis: "metadata.annotations[openbao.org/restore-origin]"}
