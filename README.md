@@ -2,17 +2,17 @@
 
 Shared Go library for the [OpenBao Operator](https://github.com/kubebao/openbao-operator) console and CLI.
 
-This project is in initial development. It implements generation acknowledgement primitives and synthetic contract
-fixtures. API adapters, live collection, and diagnostic rules are planned. Neither application uses the module yet.
-No operator version or capability is integration-qualified. The [contract specifications and consumer baselines](docs/baselines.md)
-record milestone 1 decisions before production extraction.
+This project is in initial development. It implements typed cluster evidence, generation acknowledgement, timestamps,
+collection outcomes, and approved JSON projection for selected v1alpha1 contracts. Live collection and diagnostic rules
+are planned. Neither application uses the module yet. No operator capability is integration-qualified.
+The [extraction status](docs/extraction.md) records implemented and pending milestone 3 slices.
 
 ## Packages
 
 | Package | Responsibility | Implementation |
 | --- | --- | --- |
-| `evidence` | Typed observations, identities, outcomes, times, associations, and references | Generation acknowledgement only |
-| `adapter` | Approved public API projections and capability definitions | Package boundary only |
+| `evidence` | Typed observations, identities, outcomes, times, associations, and references | Cluster facts, field states, identities, references, times, collection outcomes |
+| `adapter` | Approved public API projections and capability definitions | Cluster JSON projection and explicit contract descriptions |
 | `collect` | Bounded discovery, resource reads, pagination, and identity verification | Package boundary only |
 | `diagnose` | Pure rules, findings, coverage, and evaluation policy | Package boundary only |
 
@@ -29,9 +29,11 @@ make check
 make vulncheck
 make check-licenses
 go run ./examples/generation
+go run ./examples/cluster
 ```
 
-The example prints `stale`. It uses synthetic generation values and makes no network requests.
+The generation example prints `stale`. The cluster example prints current acknowledgement and an implied zero ready
+count. Both use synthetic input and make no network requests. The output does not establish application health.
 
 See the [contract decisions](docs/contract.md), [extraction plan](docs/plan.md),
 [development guide](docs/development.md), and [compatibility matrix](docs/compatibility.md).

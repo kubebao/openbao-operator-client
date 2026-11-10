@@ -6,15 +6,14 @@ import (
 	"encoding/json"
 	"io"
 	"reflect"
-	"slices"
-	"strings"
 	"testing"
-	"unicode"
+	"time"
 
+	"github.com/kubebao/openbao-operator-client/adapter"
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
-// All models in this directory are executable specifications, not public library APIs.
+// Value and condition fixtures call production projection. Remaining reference models are test-only.
 const adapterContract = "openbao.org/v1alpha1@9671c306"
 
 //go:embed testdata/*.json
@@ -78,66 +77,65 @@ func field(raw map[string]any, path ...string) (any, string) {
 	return value, "present"
 }
 
-func integer(raw map[string]any, path ...string) number {
-	value, state := field(raw, path...)
-	if state != "present" {
-		return number{State: state}
+// projectFixture supplies resource metadata omitted by the field-focused milestone 1 fixtures.
+// This is test setup only; production projection requires complete resource identity.
+func projectFixture(t *testing.T, raw map[string]any, contract string) evidence.Cluster {
+	t.Helper()
+	object := make(map[string]any, len(raw)+3)
+	for k, v := range raw {
+		object[k] = v
 	}
-	f, ok := value.(json.Number)
-	if !ok {
-		return number{State: "invalid"}
+	metadata := map[string]any{"name": "bao", "namespace": "team", "uid": "cluster-1"}
+	if existing, ok := raw["metadata"].(map[string]any); ok {
+		for k, v := range existing {
+			metadata[k] = v
+		}
 	}
-	n, err := f.Int64()
+	object["apiVersion"], object["kind"], object["metadata"] = "openbao.org/v1alpha1", "OpenBaoCluster", metadata
+	data, err := json.Marshal(object)
 	if err != nil {
-		return number{State: "invalid"}
+		t.Fatal(err)
 	}
-	return number{State: "reported", Value: &n}
-}
-
-func count(raw map[string]any, path ...string) number {
-	result := integer(raw, path...)
-	if result.Value != nil && (*result.Value < 0 || *result.Value > 2147483647) {
-		return number{State: "invalid"}
+	selected := adapter.Contract(contract)
+	if contract == "unknown" {
+		selected = adapter.V1Alpha1Unqualified
+	}
+	result, err := adapter.ProjectCluster(data, adapter.ProjectionOptions{
+		Origin: "contract-cluster", CollectedAt: time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC),
+		Contract: selected, Limits: adapter.DefaultProjectionLimits(),
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 	return result
 }
 
-func readiness(raw map[string]any, contract string) number {
-	ready := count(raw, "status", "readyReplicas")
-	if ready.State != "unknown" || contract != adapterContract {
-		return ready
+func fixtureNumber(value evidence.Integer) number {
+	state := string(value.State)
+	if value.State == evidence.ValueImplied {
+		state = "implied_zero"
 	}
-	generation, observed := integer(raw, "metadata", "generation"), integer(raw, "status", "observedGeneration")
-	desired := count(raw, "spec", "replicas")
-	if desired.State != "reported" || evidence.CompareGeneration(generation.Value, observed.Value) != evidence.GenerationCurrent {
-		return ready
-	}
-	zero := int64(0)
-	return number{State: "implied_zero", Value: &zero}
+	return number{State: state, Value: value.Value}
 }
 
-func paused(raw map[string]any, contract string) string {
-	parent, parentState := field(raw, "spec")
-	if parentState != "present" {
-		return parentState
-	}
-	if _, ok := parent.(map[string]any); !ok {
-		return "invalid"
-	}
-	value, state := field(raw, "spec", "paused")
-	if state == "unknown" && contract == adapterContract {
+func readiness(t *testing.T, raw map[string]any, contract string) number {
+	t.Helper()
+	return fixtureNumber(projectFixture(t, raw, contract).ReadyReplicas)
+}
+
+func paused(t *testing.T, raw map[string]any, contract string) string {
+	t.Helper()
+	value := projectFixture(t, raw, contract).Paused
+	if value.State == evidence.ValueImplied {
 		return "implied_false"
 	}
-	if state != "present" {
-		return state
+	if value.State != evidence.ValueReported {
+		return string(value.State)
 	}
-	if value, ok := value.(bool); ok {
-		if value {
-			return "reported_true"
-		}
-		return "reported_false"
+	if *value.Value {
+		return "reported_true"
 	}
-	return "invalid"
+	return "reported_false"
 }
 
 func TestMissingValues(t *testing.T) {
@@ -151,8 +149,8 @@ func TestMissingValues(t *testing.T) {
 	}](t, "values")
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			equal(t, readiness(tc.Raw, tc.Contract), tc.Ready)
-			equal(t, paused(tc.Raw, tc.Contract), tc.Paused)
+			equal(t, readiness(t, tc.Raw, tc.Contract), tc.Ready)
+			equal(t, paused(t, tc.Raw, tc.Contract), tc.Paused)
 		})
 	}
 }
@@ -163,37 +161,17 @@ type condition struct {
 	Generation *int64 `json:"observedGeneration,omitempty"`
 }
 
-func conditions(raw map[string]any) ([]condition, string) {
-	value, state := field(raw, "status", "conditions")
-	if state != "present" {
-		return nil, state
+func conditions(t *testing.T, raw map[string]any) ([]condition, string) {
+	t.Helper()
+	observed := projectFixture(t, raw, "unknown").Conditions
+	if observed.State != evidence.ValueReported {
+		return nil, string(observed.State)
 	}
-	items, ok := value.([]any)
-	if !ok {
-		return nil, "invalid"
+	values := []condition{}
+	for _, c := range observed.Values {
+		values = append(values, condition{Type: c.Type, Status: string(c.Status), Generation: c.ObservedGeneration.Value})
 	}
-	result := []condition{}
-	seen := map[string]bool{}
-	for _, item := range items {
-		object, ok := item.(map[string]any)
-		if !ok {
-			return nil, "invalid"
-		}
-		name, nameOK := object["type"].(string)
-		status, statusOK := object["status"].(string)
-		if !nameOK || !statusOK || name == "" || len(name) > 128 || strings.ContainsFunc(name, unicode.IsControl) || seen[name] ||
-			!slices.Contains([]string{"True", "False", "Unknown"}, status) {
-			return nil, "invalid"
-		}
-		seen[name] = true
-		observed := integer(object, "observedGeneration")
-		if observed.State == "invalid" {
-			return nil, "invalid"
-		}
-		result = append(result, condition{Type: name, Status: status, Generation: observed.Value})
-	}
-	slices.SortFunc(result, func(a, b condition) int { return strings.Compare(a.Type, b.Type) })
-	return result, "reported"
+	return values, string(observed.State)
 }
 
 func TestConditions(t *testing.T) {
@@ -207,11 +185,11 @@ func TestConditions(t *testing.T) {
 	}](t, "conditions")
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			got, state := conditions(tc.Raw)
+			got, state := conditions(t, tc.Raw)
 			equal(t, state, tc.State)
 			equal(t, got, tc.Want)
 			// Malformed conditions do not discard independent, valid scalar observations.
-			equal(t, readiness(tc.Raw, "unknown"), tc.Ready)
+			equal(t, readiness(t, tc.Raw, "unknown"), tc.Ready)
 		})
 	}
 }

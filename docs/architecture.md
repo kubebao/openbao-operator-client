@@ -31,9 +31,10 @@ The console keeps authorization, history comparison, first-seen tracking, and pe
 kubeconfig loading, output, watch orchestration, and process results. Application mappings can change during initial
 development when the new contract improves semantics; document storage and output changes.
 
-Only generation acknowledgement is implemented. Remaining packages establish boundaries without claiming working API
-adapters, collectors, or rules. Add `operations` and bundle packages with their first implemented features.
+Cluster evidence and JSON projection are implemented. Production collection and diagnostic rules remain pending.
+See [extraction status](extraction.md) for coverage. Add `operations` and bundle packages with their first implemented features.
 
 `internal/contracttest` contains test-only executable specifications and synthetic expected-result fixtures. Its archived
-consumer harnesses run separately against immutable source snapshots. Milestone 3 replaces the reference models with
-production calls without changing expected results unless a contract decision is reviewed and documented.
+consumer harnesses run separately against immutable source snapshots. Value, condition, identity-validation, and freshness
+fixtures now call production code. Milestone 3 replaces the remaining reference models without changing expected results
+unless a contract decision is reviewed and documented.

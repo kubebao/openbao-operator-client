@@ -6,26 +6,13 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"unicode"
+
+	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
-type identity struct {
-	Origin    string `json:"origin"`
-	Group     string `json:"group"`
-	Kind      string `json:"kind"`
-	Namespace string `json:"namespace"`
-	Name      string `json:"name"`
-	UID       string `json:"uid"`
-}
+type identity evidence.Identity
 
-func (id identity) valid() bool {
-	for _, part := range []string{id.Origin, id.Kind, id.Namespace, id.Name, id.UID} {
-		if part == "" || strings.ContainsFunc(part, unicode.IsControl) {
-			return false
-		}
-	}
-	return !strings.ContainsFunc(id.Group, unicode.IsControl)
-}
+func (id identity) valid() bool { return evidence.Identity(id).Validate() == nil }
 
 type request struct {
 	Identity         identity `json:"identity"`

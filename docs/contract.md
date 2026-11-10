@@ -1,8 +1,9 @@
 # Evidence contract decisions
 
 Milestone 1 defines the extraction target through synthetic fixtures, executable reference specifications, and tests of
-the recorded consumer source. Production implementation still consists of `evidence.CompareGeneration`. The remaining
-specifications are test-only. They do not publish evidence schemas, adapters, collectors, or diagnostic APIs.
+the recorded consumer source. Milestone 3 now implements cluster evidence and projection, identity validation, times,
+and collection outcomes. Matching fixtures call production code. Remaining specifications are test-only; production
+collection, association logic, and diagnostic rules are pending. See [extraction status](extraction.md).
 
 Source baselines:
 
@@ -51,8 +52,9 @@ Explicit nulls, wrong types, fractional/negative counts, and out-of-range intege
 invalidate their fields. Preserve independent valid observations. Keep generations exact above the floating-point range.
 Raft indexes must be canonical unsigned decimal strings within `uint64`; never convert them through floating point.
 
-Condition types are unique and nonempty. Status is `True`, `False`, or `Unknown`. Duplicate types or malformed entries
-invalidate the condition set without discarding independent scalars. Sort valid conditions by type. Missing conditions
+Condition types are unique and nonempty. Status is `True`, `False`, or `Unknown`. Invalid types, statuses, observed
+generations, or duplicate types invalidate the condition set without discarding independent scalars. Invalid optional
+reasons and transition times retain field-level invalid states. Sort valid conditions by type. Missing conditions
 remain unknown; a valid empty list records an empty set. Unknown condition types acquire no interpretation automatically.
 
 ## Generations and time

@@ -3,6 +3,8 @@ package contracttest
 import (
 	"testing"
 	"time"
+
+	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
 type times struct {
@@ -23,23 +25,24 @@ func freshness(input times) string {
 	if e1 != nil || e2 != nil || e3 != nil || e4 != nil || input.MaxAge <= 0 {
 		return "invalid"
 	}
-	if completed.Before(started) || collected.Before(started) || collected.After(completed) || completed.After(reference) {
-		return "inconsistent"
+	producer := evidence.Timestamp{State: evidence.ValueUnknown}
+	if input.Producer != "" {
+		parsed, err := time.Parse(time.RFC3339Nano, input.Producer)
+		if err != nil {
+			producer.State = evidence.ValueInvalid
+		} else {
+			producer = evidence.Timestamp{State: evidence.ValueReported, Value: &parsed}
+		}
 	}
-	if input.Producer == "" {
-		return "unknown"
-	}
-	producer, err := time.Parse(time.RFC3339Nano, input.Producer)
-	if err != nil {
-		return "invalid"
-	}
-	if producer.After(collected) {
-		return "inconsistent"
-	}
-	if reference.Sub(producer) > time.Duration(input.MaxAge)*time.Second {
-		return "stale"
-	}
-	return "fresh"
+	return string(
+		evidence.AssessFreshness(
+			evidence.Interval{StartedAt: started, CompletedAt: completed},
+			collected,
+			producer,
+			reference,
+			time.Duration(input.MaxAge)*time.Second,
+		),
+	)
 }
 
 func TestTimeSemantics(t *testing.T) {
