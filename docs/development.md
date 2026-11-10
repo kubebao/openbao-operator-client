@@ -11,11 +11,15 @@ authenticated `gh` with repository administration access. Go selects the require
 | `make licenses` | Generate notices for library/example dependencies and the Go runtime |
 | `make check-licenses` | Generated notice drift |
 | `make consumer REVISION=<published-commit>` | Unauthenticated external-module build from fresh caches, with no workspace or replacement |
+| `python3 scripts/check-baselines.py --console <path> --cli <path>` | Historical consumer suites in temporary archives of pinned source commits |
 | `python3 scripts/repository-settings.py --check` | Live GitHub configuration matches committed policy |
 
 Pinned tools are golangci-lint `v2.14.0`, govulncheck `v1.9.0`, go-licenses `v2.0.1`, and actionlint `v1.7.12`.
 Formatting follows the CLI: gofumpt, goimports, and golines with a 140-character line limit. The scaffold has no Kubernetes
 dependency yet. Introduce Kubernetes `v0.37.2`, matching the baseline consumers, with the first adapter/collector slice.
+
+The optional archived baseline runner requires Python 3.12 or newer. See [behavioral baselines](baselines.md) for its
+scope and [contract decisions](contract.md) for the self-contained tests that run in public CI.
 
 ## Coordinated consumer development
 

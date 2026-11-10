@@ -1,0 +1,386 @@
+[
+  {
+    "name": "documented-current-omission",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3
+      },
+      "status": {
+        "observedGeneration": 4
+      }
+    },
+    "ready": {
+      "state": "implied_zero",
+      "value": 0
+    },
+    "paused": "implied_false"
+  },
+  {
+    "name": "unknown-contract-keeps-omission",
+    "contract": "unknown",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3
+      },
+      "status": {
+        "observedGeneration": 4
+      }
+    },
+    "ready": {
+      "state": "unknown"
+    },
+    "paused": "unknown"
+  },
+  {
+    "name": "missing-acknowledgement",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3
+      },
+      "status": {}
+    },
+    "ready": {
+      "state": "unknown"
+    },
+    "paused": "implied_false"
+  },
+  {
+    "name": "zero-acknowledgement",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3
+      },
+      "status": {
+        "observedGeneration": 0
+      }
+    },
+    "ready": {
+      "state": "unknown"
+    },
+    "paused": "implied_false"
+  },
+  {
+    "name": "stale-acknowledgement",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3
+      },
+      "status": {
+        "observedGeneration": 3
+      }
+    },
+    "ready": {
+      "state": "unknown"
+    },
+    "paused": "implied_false"
+  },
+  {
+    "name": "future-acknowledgement",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3
+      },
+      "status": {
+        "observedGeneration": 5
+      }
+    },
+    "ready": {
+      "state": "unknown"
+    },
+    "paused": "implied_false"
+  },
+  {
+    "name": "negative-acknowledgement",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3
+      },
+      "status": {
+        "observedGeneration": -1
+      }
+    },
+    "ready": {
+      "state": "unknown"
+    },
+    "paused": "implied_false"
+  },
+  {
+    "name": "reported-zero",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3
+      },
+      "status": {
+        "observedGeneration": 4,
+        "readyReplicas": 0
+      }
+    },
+    "ready": {
+      "state": "reported",
+      "value": 0
+    },
+    "paused": "implied_false"
+  },
+  {
+    "name": "reported-three",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3
+      },
+      "status": {
+        "observedGeneration": 4,
+        "readyReplicas": 3
+      }
+    },
+    "ready": {
+      "state": "reported",
+      "value": 3
+    },
+    "paused": "implied_false"
+  },
+  {
+    "name": "reported-negative",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3
+      },
+      "status": {
+        "observedGeneration": 4,
+        "readyReplicas": -1
+      }
+    },
+    "ready": {
+      "state": "invalid"
+    },
+    "paused": "implied_false"
+  },
+  {
+    "name": "reported-fractional",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3
+      },
+      "status": {
+        "observedGeneration": 4,
+        "readyReplicas": 1.5
+      }
+    },
+    "ready": {
+      "state": "invalid"
+    },
+    "paused": "implied_false"
+  },
+  {
+    "name": "reported-overflow",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3
+      },
+      "status": {
+        "observedGeneration": 4,
+        "readyReplicas": 2147483648
+      }
+    },
+    "ready": {
+      "state": "invalid"
+    },
+    "paused": "implied_false"
+  },
+  {
+    "name": "reported-null",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3
+      },
+      "status": {
+        "observedGeneration": 4,
+        "readyReplicas": null
+      }
+    },
+    "ready": {
+      "state": "invalid"
+    },
+    "paused": "implied_false"
+  },
+  {
+    "name": "reported-string",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3
+      },
+      "status": {
+        "observedGeneration": 4,
+        "readyReplicas": "3"
+      }
+    },
+    "ready": {
+      "state": "invalid"
+    },
+    "paused": "implied_false"
+  },
+  {
+    "name": "missing-desired",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {},
+      "status": {
+        "observedGeneration": 4
+      }
+    },
+    "ready": {
+      "state": "unknown"
+    },
+    "paused": "implied_false"
+  },
+  {
+    "name": "null-status",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3
+      },
+      "status": null
+    },
+    "ready": {
+      "state": "invalid"
+    },
+    "paused": "implied_false"
+  },
+  {
+    "name": "reported-false",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3,
+        "paused": false
+      },
+      "status": {
+        "observedGeneration": 4
+      }
+    },
+    "ready": {
+      "state": "implied_zero",
+      "value": 0
+    },
+    "paused": "reported_false"
+  },
+  {
+    "name": "null-paused",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 4
+      },
+      "spec": {
+        "replicas": 3,
+        "paused": null
+      },
+      "status": {
+        "observedGeneration": 4
+      }
+    },
+    "ready": {
+      "state": "implied_zero",
+      "value": 0
+    },
+    "paused": "invalid"
+  },
+  {
+    "name": "exact-large-generation",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "metadata": {
+        "generation": 9007199254741007
+      },
+      "spec": {
+        "replicas": 3
+      },
+      "status": {
+        "observedGeneration": 9007199254741007
+      }
+    },
+    "ready": {
+      "state": "implied_zero",
+      "value": 0
+    },
+    "paused": "implied_false"
+  },
+  {
+    "name": "missing-spec-is-not-false",
+    "contract": "openbao.org/v1alpha1@9671c306",
+    "raw": {
+      "status": {
+        "readyReplicas": 0
+      }
+    },
+    "ready": {
+      "state": "reported",
+      "value": 0
+    },
+    "paused": "unknown"
+  }
+]

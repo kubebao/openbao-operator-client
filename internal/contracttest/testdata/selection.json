@@ -1,0 +1,140 @@
+[
+  {
+    "name": "equal-time-tie-and-newer-candidate",
+    "target": {
+      "origin": "cluster-a",
+      "group": "openbao.org",
+      "kind": "OpenBaoCluster",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "cluster-1"
+    },
+    "requests": [
+      {
+        "identity": {
+          "origin": "cluster-a",
+          "group": "openbao.org",
+          "kind": "OpenBaoRestore",
+          "namespace": "team",
+          "name": "restore",
+          "uid": "request-2"
+        },
+        "targetName": "bao",
+        "targetUID": "",
+        "executionUID": "cluster-1",
+        "contract": "openbao.org/v1alpha1@9671c306",
+        "createdAt": "2026-11-10T10:00:00Z",
+        "originRequestUID": ""
+      },
+      {
+        "identity": {
+          "origin": "cluster-a",
+          "group": "openbao.org",
+          "kind": "OpenBaoRestore",
+          "namespace": "team",
+          "name": "restore",
+          "uid": "request-3"
+        },
+        "targetName": "bao",
+        "targetUID": "",
+        "executionUID": "",
+        "contract": "openbao.org/v1alpha1@9671c306",
+        "createdAt": "2026-11-10T11:00:00Z",
+        "originRequestUID": ""
+      },
+      {
+        "identity": {
+          "origin": "cluster-a",
+          "group": "openbao.org",
+          "kind": "OpenBaoRestore",
+          "namespace": "team",
+          "name": "restore",
+          "uid": "request-1"
+        },
+        "targetName": "bao",
+        "targetUID": "",
+        "executionUID": "cluster-1",
+        "contract": "openbao.org/v1alpha1@9671c306",
+        "createdAt": "2026-11-10T10:00:00Z",
+        "originRequestUID": ""
+      }
+    ],
+    "want": "request-1"
+  },
+  {
+    "name": "no-confirmed-request",
+    "target": {
+      "origin": "cluster-a",
+      "group": "openbao.org",
+      "kind": "OpenBaoCluster",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "cluster-1"
+    },
+    "requests": [
+      {
+        "identity": {
+          "origin": "cluster-a",
+          "group": "openbao.org",
+          "kind": "OpenBaoRestore",
+          "namespace": "team",
+          "name": "restore",
+          "uid": "request-3"
+        },
+        "targetName": "bao",
+        "targetUID": "",
+        "executionUID": "",
+        "contract": "openbao.org/v1alpha1@9671c306",
+        "createdAt": "2026-11-10T11:00:00Z",
+        "originRequestUID": ""
+      }
+    ],
+    "want": ""
+  },
+  {
+    "name": "replacement",
+    "target": {
+      "origin": "cluster-a",
+      "group": "openbao.org",
+      "kind": "OpenBaoCluster",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "cluster-2"
+    },
+    "requests": [
+      {
+        "identity": {
+          "origin": "cluster-a",
+          "group": "openbao.org",
+          "kind": "OpenBaoRestore",
+          "namespace": "team",
+          "name": "restore",
+          "uid": "request-1"
+        },
+        "targetName": "bao",
+        "targetUID": "",
+        "executionUID": "cluster-1",
+        "contract": "openbao.org/v1alpha1@9671c306",
+        "createdAt": "2026-11-10T10:00:00Z",
+        "originRequestUID": ""
+      },
+      {
+        "identity": {
+          "origin": "cluster-a",
+          "group": "openbao.org",
+          "kind": "OpenBaoRestore",
+          "namespace": "team",
+          "name": "restore",
+          "uid": "request-2"
+        },
+        "targetName": "bao",
+        "targetUID": "",
+        "executionUID": "cluster-1",
+        "contract": "openbao.org/v1alpha1@9671c306",
+        "createdAt": "2026-11-10T10:00:00Z",
+        "originRequestUID": ""
+      }
+    ],
+    "want": ""
+  }
+]

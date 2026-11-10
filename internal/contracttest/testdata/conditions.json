@@ -1,0 +1,194 @@
+[
+  {
+    "name": "current-and-stale-independent",
+    "raw": {
+      "status": {
+        "readyReplicas": 2,
+        "conditions": [
+          {
+            "type": "Ready",
+            "status": "True",
+            "observedGeneration": 4
+          },
+          {
+            "type": "Available",
+            "status": "False",
+            "observedGeneration": 3
+          }
+        ]
+      }
+    },
+    "state": "reported",
+    "want": [
+      {
+        "type": "Available",
+        "status": "False",
+        "observedGeneration": 3
+      },
+      {
+        "type": "Ready",
+        "status": "True",
+        "observedGeneration": 4
+      }
+    ],
+    "ready": {
+      "state": "reported",
+      "value": 2
+    }
+  },
+  {
+    "name": "complete-empty",
+    "raw": {
+      "status": {
+        "readyReplicas": 2,
+        "conditions": []
+      }
+    },
+    "state": "reported",
+    "want": [],
+    "ready": {
+      "state": "reported",
+      "value": 2
+    }
+  },
+  {
+    "name": "duplicate-type",
+    "raw": {
+      "status": {
+        "readyReplicas": 2,
+        "conditions": [
+          {
+            "type": "Available",
+            "status": "True"
+          },
+          {
+            "type": "Available",
+            "status": "False"
+          }
+        ]
+      }
+    },
+    "state": "invalid",
+    "want": null,
+    "ready": {
+      "state": "reported",
+      "value": 2
+    }
+  },
+  {
+    "name": "invalid-status",
+    "raw": {
+      "status": {
+        "readyReplicas": 2,
+        "conditions": [
+          {
+            "type": "Available",
+            "status": "true"
+          }
+        ]
+      }
+    },
+    "state": "invalid",
+    "want": null,
+    "ready": {
+      "state": "reported",
+      "value": 2
+    }
+  },
+  {
+    "name": "null-generation",
+    "raw": {
+      "status": {
+        "readyReplicas": 2,
+        "conditions": [
+          {
+            "type": "Available",
+            "status": "True",
+            "observedGeneration": null
+          }
+        ]
+      }
+    },
+    "state": "invalid",
+    "want": null,
+    "ready": {
+      "state": "reported",
+      "value": 2
+    }
+  },
+  {
+    "name": "null-list",
+    "raw": {
+      "status": {
+        "readyReplicas": 2,
+        "conditions": null
+      }
+    },
+    "state": "invalid",
+    "want": null,
+    "ready": {
+      "state": "reported",
+      "value": 2
+    }
+  },
+  {
+    "name": "missing-type",
+    "raw": {
+      "status": {
+        "readyReplicas": 2,
+        "conditions": [
+          {
+            "status": "True"
+          }
+        ]
+      }
+    },
+    "state": "invalid",
+    "want": null,
+    "ready": {
+      "state": "reported",
+      "value": 2
+    }
+  },
+  {
+    "name": "missing-list",
+    "raw": {
+      "status": {
+        "readyReplicas": 2
+      }
+    },
+    "state": "unknown",
+    "want": null,
+    "ready": {
+      "state": "reported",
+      "value": 2
+    }
+  },
+  {
+    "name": "negative-condition-generation-retains-inconsistency",
+    "raw": {
+      "status": {
+        "readyReplicas": 2,
+        "conditions": [
+          {
+            "type": "Available",
+            "status": "True",
+            "observedGeneration": -1
+          }
+        ]
+      }
+    },
+    "state": "reported",
+    "want": [
+      {
+        "type": "Available",
+        "status": "True",
+        "observedGeneration": -1
+      }
+    ],
+    "ready": {
+      "state": "reported",
+      "value": 2
+    }
+  }
+]

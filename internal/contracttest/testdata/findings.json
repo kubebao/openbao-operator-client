@@ -1,0 +1,78 @@
+[
+  {
+    "name": "first-subject",
+    "finding": {
+      "rule": "KBAO-POD-001",
+      "subject": {
+        "origin": "cluster-a",
+        "group": "",
+        "kind": "Pod",
+        "namespace": "team",
+        "name": "pod-a",
+        "uid": "pod-a"
+      },
+      "subsubject": "ready",
+      "severity": "warning"
+    },
+    "key": "[\"KBAO-POD-001\",\"cluster-a\",\"\",\"Pod\",\"team\",\"pod-a\",\"pod-a\",\"ready\"]",
+    "console": "high",
+    "cli": "warning"
+  },
+  {
+    "name": "second-subject",
+    "finding": {
+      "rule": "KBAO-POD-001",
+      "subject": {
+        "origin": "cluster-a",
+        "group": "",
+        "kind": "Pod",
+        "namespace": "team",
+        "name": "pod-b",
+        "uid": "pod-b"
+      },
+      "subsubject": "ready",
+      "severity": "error"
+    },
+    "key": "[\"KBAO-POD-001\",\"cluster-a\",\"\",\"Pod\",\"team\",\"pod-b\",\"pod-b\",\"ready\"]",
+    "console": "high",
+    "cli": "error"
+  },
+  {
+    "name": "container-subsubject",
+    "finding": {
+      "rule": "KBAO-POD-001",
+      "subject": {
+        "origin": "cluster-a",
+        "group": "",
+        "kind": "Pod",
+        "namespace": "team",
+        "name": "pod-a",
+        "uid": "pod-a"
+      },
+      "subsubject": "app/bao",
+      "severity": "critical"
+    },
+    "key": "[\"KBAO-POD-001\",\"cluster-a\",\"\",\"Pod\",\"team\",\"pod-a\",\"pod-a\",\"app/bao\"]",
+    "console": "critical",
+    "cli": "error"
+  },
+  {
+    "name": "informational",
+    "finding": {
+      "rule": "KBAO-POD-001",
+      "subject": {
+        "origin": "cluster-a",
+        "group": "",
+        "kind": "Pod",
+        "namespace": "team",
+        "name": "pod-a",
+        "uid": "pod-a"
+      },
+      "subsubject": "paused",
+      "severity": "info"
+    },
+    "key": "[\"KBAO-POD-001\",\"cluster-a\",\"\",\"Pod\",\"team\",\"pod-a\",\"pod-a\",\"paused\"]",
+    "console": "info",
+    "cli": "info"
+  }
+]

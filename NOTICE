@@ -11,3 +11,8 @@ Applicable engineering and repository governance conventions were adapted from:
 
 Both reference projects use the Apache License, Version 2.0.
 Console and CLI implementation extraction is tracked in docs/plan.md.
+
+Behavioral specifications and synthetic baseline harnesses also reference:
+  github.com/kubebao/openbao-operator-console
+  commit 9e7b6900f781e8fbac736ca42e6a51f7f807087b
+  Licensed under the Apache License, Version 2.0.

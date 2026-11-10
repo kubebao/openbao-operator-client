@@ -4,7 +4,8 @@ Shared Go library for the [OpenBao Operator](https://github.com/kubebao/openbao-
 
 This project is in initial development. It implements generation acknowledgement primitives and synthetic contract
 fixtures. API adapters, live collection, and diagnostic rules are planned. Neither application uses the module yet.
-No operator version or capability is integration-qualified.
+No operator version or capability is integration-qualified. The [contract specifications and consumer baselines](docs/baselines.md)
+record milestone 1 decisions before production extraction.
 
 ## Packages
 
