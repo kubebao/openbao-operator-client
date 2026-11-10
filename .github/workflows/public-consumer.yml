@@ -1,6 +1,7 @@
 name: Public consumer
 
 on:
+  pull_request:
   push:
     branches: [main]
   workflow_dispatch:
@@ -9,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -25,7 +26,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      - name: Fetch the exact published commit and run an external consumer
+      # A PR tests the script against its published base; a main push tests the new published commit.
+      - name: Fetch a published commit and run an external consumer
         env:
-          REVISION: ${{ github.sha }}
+          REVISION: ${{ github.event.pull_request.base.sha || github.sha }}
         run: bash scripts/check-consumer.sh "$REVISION"

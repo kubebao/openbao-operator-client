@@ -2,8 +2,10 @@
 """Apply or verify the committed policy for this repository through GitHub CLI."""
 
 import argparse
+import fnmatch
 import json
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -32,6 +34,13 @@ def matches(actual, expected):
     return type(actual) is type(expected) and actual == expected
 
 
+def workflow_actions_allowed(actual, references):
+    if actual.get("github_owned_allowed") or actual.get("verified_allowed"):
+        return False
+    return all(any(fnmatch.fnmatchcase(reference, pattern) for pattern in actual.get("patterns_allowed", []))
+               for reference in references)
+
+
 def configure(apply):
     failures = []
     if apply:
@@ -39,14 +48,22 @@ def configure(apply):
     for filename, endpoint, method in [
         ("settings.json", "", "PATCH"),
         ("actions.json", "actions/permissions", "PUT"),
-        ("selected-actions.json", "actions/permissions/selected-actions", "PUT"),
         ("workflow-permissions.json", "actions/permissions/workflow", "PUT"),
     ]:
         desired = json.loads((POLICY / filename).read_text())
         if apply:
-            api(endpoint, method, desired)
+            payload = dict(desired)
+            # An organization-enforced sign-off setting rejects even an idempotent PATCH.
+            if filename == "settings.json" and api("").get("web_commit_signoff_required") is True:
+                payload.pop("web_commit_signoff_required", None)
+            api(endpoint, method, payload)
         if not matches(api(endpoint), desired):
             failures.append(filename)
+    references = [reference for path in (ROOT / ".github/workflows").glob("*.yml")
+                  for reference in re.findall(r"uses:\s*([^\s#]+)", path.read_text())]
+    # The organization owns this allowlist. Verify exact workflow references without changing it.
+    if not workflow_actions_allowed(api("actions/permissions/selected-actions"), references):
+        failures.append("inherited action allowlist")
     if api("")["visibility"] != "public":
         failures.append("public visibility")
     for endpoint in ["vulnerability-alerts", "private-vulnerability-reporting"]:
