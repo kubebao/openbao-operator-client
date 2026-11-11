@@ -4,7 +4,7 @@
 state. Identical evidence and policy produce the same report when subject, selected-rule, or reference order changes.
 Empty findings do not establish health or complete coverage.
 
-Rule set `6` implements fifteen rules: availability, sealing, replica readiness, recognized adverse conditions, generation
+Rule set `7` implements fifteen rules: availability, sealing, replica readiness, recognized adverse conditions, generation
 acknowledgement, controller errors, restrictions, three backup concerns, recorded rolling-upgrade failure, restore tests,
 StatefulSet readiness, Pod concerns, and snapshot-restore progress/recovery concerns.
 `SupportedRules` returns the executable inventory. Earlier rule sets are rejected rather than silently extended. Other
@@ -52,7 +52,9 @@ establish an atomic snapshot. A missing, changed, failed, deleted, or replaced v
 The analyzer recomputes associations from normalized owner references and cluster-owner annotations through the same pure
 `evidence` implementation used by adapter entry points. Caller-supplied association assertions are not analysis inputs.
 Only confirmed chains can produce workload findings. Unconfirmed/conflicting candidates make coverage insufficient;
-foreign StatefulSets do not become selected-cluster workload facts.
+foreign StatefulSets do not become selected-cluster workload facts. A Pod whose controller edge and reserved metadata
+consistently bind it to a foreign StatefulSet is excluded from selected-cluster population and coverage. A conflicting
+Pod annotation remains unconfirmed. Parent association assertions are checked against the StatefulSet metadata.
 
 Each workload rule has one coverage entry under the selected cluster, with its primary LIST outcome. Findings identify
 the affected StatefulSet or Pod. Pod coverage also depends on the StatefulSet read. Capture inputs retain both scopes;
@@ -215,4 +217,4 @@ declarations that omit candidates are rejected. A partial list never verifies a 
 A complete LIST confirms unchanged positive generation, changed generation, deletion by name absence, or replacement by
 a new UID for the same name. Missing or invalid generations remain insufficient. The verification retains the LIST
 scope and collection outcome; it never describes a LIST as a GET. This expands admitted verification evidence in rule
-set `6`; older policies are rejected. It does not make the collection atomic or qualify an operator integration.
+set `7`; older policies are rejected. It does not make the collection atomic or qualify an operator integration.

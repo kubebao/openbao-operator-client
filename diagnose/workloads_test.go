@@ -391,3 +391,58 @@ func TestWorkloadReplayPreservesOrderingAndExcludesProducerText(t *testing.T) {
 		t.Fatal("failed Pod severity did not determine finding order")
 	}
 }
+
+func TestForeignPodChainDoesNotLimitTargetCoverage(t *testing.T) {
+	t.Parallel()
+	for _, conflicting := range []bool{false, true} {
+		i := workloadInput(t)
+		baseline, baselineCoverage := runWorkloadRule(t, i, diagnose.RulePod)
+		foreignSet := readWorkloadFixture[evidence.StatefulSet](t, "statefulset")
+		foreignSet.Metadata.Reference.Identity.Name, foreignSet.Metadata.Reference.Identity.UID = "other", "other-set"
+		foreignSet.Metadata.Owners.Values[0].Name, foreignSet.Metadata.Owners.Values[0].UID = "other", "other-cluster"
+		foreignSet.Metadata.ClusterOwnerUID = text("other-cluster")
+		foreignPod := readWorkloadFixture[evidence.Pod](t, "pod")
+		foreignPod.Metadata.Reference.Identity.Name, foreignPod.Metadata.Reference.Identity.UID = "other-0", "other-pod"
+		foreignPod.Metadata.Owners.Values[0].Name, foreignPod.Metadata.Owners.Values[0].UID = "other", "other-set"
+		foreignPod.Metadata.ClusterOwnerUID = text("other-cluster")
+		if conflicting {
+			foreignPod.Metadata.ClusterOwnerUID = text(i.Subject.UID)
+		}
+		i.StatefulSets.Observations = append(i.StatefulSets.Observations, foreignSet)
+		i.StatefulSets.Collection.Items++
+		i.Pods.Observations = append(i.Pods.Observations, foreignPod)
+		i.Pods.Collection.Items++
+		report, coverage := runWorkloadRule(t, i, diagnose.RulePod)
+		if !conflicting && len(report.Findings) != len(baseline.Findings) {
+			t.Fatal("foreign Pod changed target findings")
+		}
+		for _, finding := range report.Findings {
+			if finding.Subject.UID == "other-pod" || finding.Subject.UID == "other-set" {
+				t.Fatal("foreign workload became a finding")
+			}
+		}
+		if conflicting {
+			if coverage.State != diagnose.Insufficient {
+				t.Fatal("conflicting annotation became foreign proof")
+			}
+		} else if coverage.State != baselineCoverage.State {
+			t.Fatalf("foreign Pod changed target coverage: %+v", coverage)
+		}
+	}
+}
+
+func TestSuppliedParentCannotOverrideWorkloadMetadata(t *testing.T) {
+	t.Parallel()
+	i := workloadInput(t)
+	set, pod := i.StatefulSets.Observations[0], i.Pods.Observations[0]
+	parent, err := evidence.AssociateStatefulSet(set, i.Subject)
+	if err != nil {
+		t.Fatal(err)
+	}
+	set.Metadata.Owners.Values[0].UID = "other-cluster"
+	set.Metadata.ClusterOwnerUID = text("other-cluster")
+	got, err := evidence.AssociatePod(pod, set, parent)
+	if err != nil || got.State == evidence.AssociationConfirmed || got.State == evidence.AssociationForeign {
+		t.Fatalf("forged parent established proof: %+v %v", got, err)
+	}
+}

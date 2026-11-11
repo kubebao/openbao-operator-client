@@ -48,8 +48,8 @@ func controllerAssociation(child WorkloadMetadata, parent, cluster Identity) Ass
 	return result
 }
 
-// AssociatePod requires the supplied StatefulSet to be confirmed against a cluster.
-// The parent association must describe this exact set UID and scope.
+// AssociatePod confirms a Pod chain or excludes a proven foreign chain.
+// The parent association must match this exact StatefulSet metadata and scope.
 func AssociatePod(pod Pod, set StatefulSet, parent Association) (Association, error) {
 	if pod.Validate() != nil || set.Validate() != nil || parent.Validate() != nil {
 		return Association{}, ErrInvalidEvidence
@@ -59,9 +59,37 @@ func AssociatePod(pod Pod, set StatefulSet, parent Association) (Association, er
 		Target:  set.Metadata.Reference.Identity,
 		State:   AssociationUnconfirmed,
 	}
-	if parent.State != AssociationConfirmed || parent.Basis != BasisControllerOwner ||
-		parent.Subject != result.Target || parent.Target.Kind != "OpenBaoCluster" {
+	if parent.Subject != result.Target || parent.Target.Kind != "OpenBaoCluster" {
+		return result, nil
+	}
+	expected := controllerAssociation(set.Metadata, parent.Target, parent.Target)
+	if parent != expected {
+		return result, nil
+	}
+	if parent.State == AssociationForeign {
+		return foreignPodAssociation(pod, set, parent), nil
+	}
+	if parent.State != AssociationConfirmed || parent.Basis != BasisControllerOwner {
 		return result, nil
 	}
 	return controllerAssociation(pod.Metadata, result.Target, parent.Target), nil
+}
+
+// A foreign parent excludes a Pod only when both controller edges and reserved
+// annotations agree. An unrelated parent assertion cannot prove exclusion.
+func foreignPodAssociation(pod Pod, set StatefulSet, parent Association) Association {
+	result := Association{Subject: pod.Metadata.Reference.Identity, Target: set.Metadata.Reference.Identity, State: AssociationUnconfirmed}
+	for _, owner := range set.Metadata.Owners.Values {
+		if !owner.Controller || owner.Kind != "OpenBaoCluster" || owner.Group() != parent.Target.Group || owner.UID == parent.Target.UID {
+			continue
+		}
+		foreign := parent.Target
+		foreign.Name, foreign.UID = owner.Name, owner.UID
+		edge := controllerAssociation(pod.Metadata, set.Metadata.Reference.Identity, foreign)
+		if edge.State == AssociationConfirmed {
+			edge.State, edge.Basis = AssociationForeign, ""
+		}
+		return edge
+	}
+	return result
 }

@@ -163,3 +163,13 @@ support remains pending.
 `make check` runs self-contained specifications. [Baseline verification](baselines.md) runs archived source tests.
 Synthetic tests do not qualify Kubernetes defaulting, admission, status writes, real RBAC, reconciliation, or lifecycle
 operations. [Compatibility evidence](compatibility.md) records these limits.
+
+
+## Milestone 5 ownership correction
+
+Rule-set version 7 distinguishes a proven foreign workload chain from an unconfirmed chain. A StatefulSet controller
+reference to another cluster UID, followed by a consistent Pod controller reference to that StatefulSet, establishes
+foreign membership. These Pods do not limit the selected cluster's Pod coverage or population count. Conflicting
+reserved annotations remain unconfirmed or conflicting. A supplied parent association must match the StatefulSet's
+metadata; a caller assertion alone cannot prove ownership or exclusion. The `replaced-cluster` ownership fixture changes
+its Pod expectation from `unconfirmed` to `foreign`. This preserves the CLI's exclusion of proven foreign workloads.
