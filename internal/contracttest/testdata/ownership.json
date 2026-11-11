@@ -93,7 +93,7 @@
     "annotation": "",
     "name": "replaced-cluster",
     "setState": "foreign",
-    "podState": "unconfirmed"
+    "podState": "foreign"
   },
   {
     "cluster": {

@@ -9,7 +9,7 @@ import (
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
-const RuleSetVersion = "6"
+const RuleSetVersion = "7"
 
 var (
 	ErrUnsupportedVersion = errors.New("unsupported contract version")

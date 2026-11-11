@@ -22,8 +22,11 @@ func podReadiness(input ClusterInput, sets map[string]associatedSet, policy Poli
 			populationComplete = false
 			continue
 		}
-		parent, confirmed := podParent(pod, sets)
-		if !confirmed {
+		parent, state := podParent(pod, sets)
+		if state == evidence.AssociationForeign {
+			continue
+		}
+		if state != evidence.AssociationConfirmed {
 			result.insufficient(ReasonAssociation)
 			populationComplete = false
 			continue
@@ -46,19 +49,19 @@ func podReadiness(input ClusterInput, sets map[string]associatedSet, policy Poli
 	}
 }
 
-func podParent(pod evidence.Pod, sets map[string]associatedSet) (string, bool) {
+func podParent(pod evidence.Pod, sets map[string]associatedSet) (string, evidence.AssociationState) {
 	for _, owner := range pod.Metadata.Owners.Values {
 		set, exists := sets[owner.UID]
 		if !owner.Controller || !exists {
 			continue
 		}
 		association, err := evidence.AssociatePod(pod, set.value, set.association)
-		if err != nil || association.State != evidence.AssociationConfirmed {
-			return "", false
+		if err != nil {
+			return "", evidence.AssociationUnconfirmed
 		}
-		return owner.UID, true
+		return owner.UID, association.State
 	}
-	return "", false
+	return "", evidence.AssociationUnconfirmed
 }
 
 func evaluatePod(pod evidence.Pod, result *evaluation) {
