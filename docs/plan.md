@@ -57,6 +57,8 @@ Implemented in console candidate `d079e9f9621ae73fd895ef70f3bfe48cc129ffe0` (PR 
 scoped real operator collection. [Qualification](console-qualification.md) records the installed identities and limits.
 The console PR remains open; milestone 4 is not complete. Hosted Dependency Review needs private-repository Code Security,
 and the Check workflow has a startup failure. No policy or visibility setting is changed to bypass these failures.
+The repository remains private, and PR #24 stays open at the user's request. Resume console qualification and merging
+only when the user asks to continue.
 
 Gate: `make check`, generated artifacts, SQLite/PostgreSQL checks, development/production browser workflows, storage
 workflows, and an isolated operator collection test execute and pass. Preserve read-only scope and redirect handling.

@@ -64,6 +64,8 @@ The private console repository reports Dependency Review unavailable without its
 workflow also has a zero-job startup failure. The inherited organization allowlist omits its pinned
 `pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413` and
 `helm/chart-testing-action@720270857a28afd41e2426521a7801db09e9b510` Actions. GitHub rejects repository-level changes
-because the organization controls this policy. Local validation does not replace hosted results. Keep the console
-candidate unmerged until its repository policy decision and applicable checks are resolved, then update this record
-with the exact qualified consumer commit. The CLI migration and common immutable `v0` tag remain milestones 5 and 6.
+because the organization controls this policy. Local validation does not replace hosted results.
+
+The user chose to keep the console private and leave PR #24 open. Console qualification and merging are deferred until
+the user asks to continue. No security entitlement, visibility, or Actions policy change is authorized by this decision.
+The CLI migration and common immutable `v0` tag remain milestones 5 and 6.
