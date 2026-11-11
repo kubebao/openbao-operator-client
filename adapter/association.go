@@ -1,8 +1,6 @@
 package adapter
 
 import (
-	"strings"
-
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
@@ -35,35 +33,4 @@ func AssociateRestore(target evidence.Cluster, request evidence.Restore) (eviden
 		value.State, value.Basis = evidence.AssociationUnconfirmed, ""
 	}
 	return value, nil
-}
-
-// LatestRestore selects a confirmed request for display. Ties use UID ascending.
-// Selection does not establish causality, submission acceptance, or operation success.
-func LatestRestore(target evidence.Cluster, requests []evidence.Restore) (evidence.Restore, bool, error) {
-	if target.Validate() != nil {
-		return evidence.Restore{}, false, &ProjectionError{Code: InvalidInput}
-	}
-	seen := map[evidence.Identity]bool{}
-	var latest evidence.Restore
-	found := false
-	for _, request := range requests {
-		association, err := AssociateRestore(target, request)
-		if err != nil {
-			return evidence.Restore{}, false, err
-		}
-		id := request.Reference.Identity
-		if seen[id] {
-			return evidence.Restore{}, false, &ProjectionError{Code: InvalidInput}
-		}
-		seen[id] = true
-		if association.State != evidence.AssociationConfirmed || request.CreatedAt.State != evidence.ValueReported ||
-			request.CreatedAt.Value.After(*request.Reference.CollectedAt.Value) {
-			continue
-		}
-		if !found || request.CreatedAt.Value.After(*latest.CreatedAt.Value) ||
-			request.CreatedAt.Value.Equal(*latest.CreatedAt.Value) && strings.Compare(id.UID, latest.Reference.Identity.UID) < 0 {
-			latest, found = request, true
-		}
-	}
-	return latest, found, nil
 }

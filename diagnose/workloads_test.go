@@ -431,6 +431,68 @@ func TestForeignPodChainDoesNotLimitTargetCoverage(t *testing.T) {
 	}
 }
 
+func TestJobPodsDoNotLimitCoverageOrSatisfyStatefulSetPopulation(t *testing.T) {
+	t.Parallel()
+	for _, phase := range []string{"Pending", "Running", "Succeeded", "Failed"} {
+		t.Run(phase, func(t *testing.T) {
+			i := workloadInput(t)
+			jobPod := readWorkloadFixture[evidence.Pod](t, "pod")
+			jobPod.Metadata.Reference.Identity.Name, jobPod.Metadata.Reference.Identity.UID = "backup", "backup-pod"
+			jobPod.Metadata.Owners.Values[0] = evidence.OwnerReference{
+				APIVersion: "batch/v1", Kind: "Job", Name: "backup", UID: "backup-job", Controller: true,
+			}
+			jobPod.Metadata.ClusterOwnerUID = text(i.Subject.UID)
+			jobPod.Phase = text(phase)
+			jobPod.Conditions = evidence.Conditions{State: evidence.ValueUnknown}
+			i.Pods.Observations = append(i.Pods.Observations, jobPod)
+			i.Pods.Collection.Items++
+			i.StatefulSets.Observations[0].DesiredReplicas = integer(2)
+			report, coverage := runWorkloadRule(t, i, diagnose.RulePod)
+			population := 0
+			for _, finding := range report.Findings {
+				if finding.Subject.UID == "backup-pod" {
+					t.Fatal("a Job Pod produced a StatefulSet membership finding")
+				}
+				if finding.Subsubject == "pod-population" {
+					population++
+				}
+			}
+			if coverage.State != diagnose.Evaluated || population != 1 {
+				t.Fatalf("Job Pod changed workload coverage or population: %+v %+v", coverage, report.Findings)
+			}
+		})
+	}
+}
+
+func TestNonStatefulSetExclusionRequiresOneValidController(t *testing.T) {
+	t.Parallel()
+	for _, ambiguous := range []bool{false, true} {
+		i := workloadInput(t)
+		pod := &i.Pods.Observations[0]
+		owner := evidence.OwnerReference{APIVersion: "batch/v1", Kind: "Job", Name: "backup", UID: "backup-job", Controller: ambiguous}
+		pod.Metadata.Owners.Values = []evidence.OwnerReference{owner}
+		if ambiguous {
+			pod.Metadata.Owners, _ = evidence.NewOwners(append(pod.Metadata.Owners.Values,
+				evidence.OwnerReference{APIVersion: "apps/v1", Kind: "StatefulSet", Name: "bao", UID: "set-1", Controller: true}))
+		}
+		_, coverage := runWorkloadRule(t, i, diagnose.RulePod)
+		if coverage.State != diagnose.Insufficient {
+			t.Fatal("a noncontroller or ambiguous controller proved exclusion")
+		}
+	}
+}
+
+func TestNonStatefulSetKindCannotHideKnownStatefulSetUIDConflict(t *testing.T) {
+	t.Parallel()
+	i := workloadInput(t)
+	owner := &i.Pods.Observations[0].Metadata.Owners.Values[0]
+	owner.Kind, owner.APIVersion = "Job", "batch/v1"
+	_, coverage := runWorkloadRule(t, i, diagnose.RulePod)
+	if coverage.State != diagnose.Insufficient || !slices.Contains(coverage.Reasons, diagnose.ReasonAssociation) {
+		t.Fatal("a contradictory controller kind hid a known StatefulSet UID")
+	}
+}
+
 func TestSuppliedParentCannotOverrideWorkloadMetadata(t *testing.T) {
 	t.Parallel()
 	i := workloadInput(t)

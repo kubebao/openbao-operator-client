@@ -97,22 +97,22 @@ type WorkloadMetadata struct {
 }
 
 func (v WorkloadMetadata) Validate() error {
-	if v.Reference.Validate() != nil || v.Owners.Validate() != nil || v.ClusterOwnerUID.Validate() != nil ||
-		v.Maintenance.Validate() != nil ||
-		v.DeletionTimestamp.Validate() != nil {
-		return ErrInvalidEvidence
+	if err := checkFields(fieldCheck{"reference", v.Reference.Validate()}, fieldCheck{"owners", v.Owners.Validate()},
+		fieldCheck{"clusterOwnerUID", v.ClusterOwnerUID.Validate()}, fieldCheck{"maintenance", v.Maintenance.Validate()},
+		fieldCheck{"deletionTimestamp", v.DeletionTimestamp.Validate()}); err != nil {
+		return err
 	}
 	switch v.Reference.Identity.Kind {
 	case "StatefulSet":
 		if v.Reference.APIVersion != "apps/v1" {
-			return ErrInvalidEvidence
+			return At("reference.apiVersion", ErrInvalidEvidence)
 		}
 	case "Pod":
 		if v.Reference.APIVersion != "v1" {
-			return ErrInvalidEvidence
+			return At("reference.apiVersion", ErrInvalidEvidence)
 		}
 	default:
-		return ErrInvalidEvidence
+		return At("reference.identity.kind", ErrInvalidEvidence)
 	}
 	return nil
 }
@@ -132,17 +132,28 @@ func (v StatefulSet) Acknowledgement() GenerationState {
 }
 
 func (v StatefulSet) Validate() error {
-	if v.SchemaVersion != SchemaVersion || !validText(v.AdapterContract, 253, false) || v.Metadata.Validate() != nil ||
-		v.Metadata.Reference.Identity.Kind != "StatefulSet" || v.Generation.Validate() != nil || v.ObservedGeneration.Validate() != nil ||
-		v.Generation.State == ValueImplied || v.ObservedGeneration.State == ValueImplied || validateCount(v.DesiredReplicas) != nil ||
-		v.ReadyReplicas.Validate() != nil {
-		return ErrInvalidEvidence
+	if v.SchemaVersion != SchemaVersion {
+		return At("schemaVersion", ErrInvalidEvidence)
 	}
-	if v.ReadyReplicas.Value != nil && (*v.ReadyReplicas.Value < 0 || *v.ReadyReplicas.Value > 2147483647) {
-		return ErrInvalidEvidence
+	if !validText(v.AdapterContract, 253, false) {
+		return At("adapterContract", ErrInvalidEvidence)
+	}
+	if err := checkFields(fieldCheck{"metadata", v.Metadata.Validate()}, fieldCheck{"generation", v.Generation.Validate()},
+		fieldCheck{"observedGeneration", v.ObservedGeneration.Validate()}, fieldCheck{"desiredReplicas", validateCount(v.DesiredReplicas)},
+		fieldCheck{"readyReplicas", validateReadyCount(v.ReadyReplicas)}); err != nil {
+		return err
+	}
+	if v.Metadata.Reference.Identity.Kind != "StatefulSet" {
+		return At("metadata.reference.identity.kind", ErrInvalidEvidence)
+	}
+	if v.Generation.State == ValueImplied {
+		return At("generation", ErrInvalidEvidence)
+	}
+	if v.ObservedGeneration.State == ValueImplied {
+		return At("observedGeneration", ErrInvalidEvidence)
 	}
 	if v.ReadyReplicas.State == ValueImplied && (v.Acknowledgement() != GenerationCurrent || v.DesiredReplicas.State != ValueReported) {
-		return ErrInvalidEvidence
+		return At("readyReplicas", ErrInvalidEvidence)
 	}
 	return nil
 }
@@ -220,20 +231,31 @@ type Pod struct {
 }
 
 func (v Pod) Validate() error {
-	if v.SchemaVersion != SchemaVersion || !validText(v.AdapterContract, 253, false) || v.Metadata.Validate() != nil ||
-		v.Metadata.Reference.Identity.Kind != "Pod" || v.Generation.Validate() != nil || v.Generation.State == ValueImplied ||
-		v.Phase.Validate() != nil || v.Conditions.Validate() != nil ||
-		v.InitContainers.Validate() != nil || v.Containers.Validate() != nil {
-		return ErrInvalidEvidence
+	if v.SchemaVersion != SchemaVersion {
+		return At("schemaVersion", ErrInvalidEvidence)
+	}
+	if !validText(v.AdapterContract, 253, false) {
+		return At("adapterContract", ErrInvalidEvidence)
+	}
+	if err := checkFields(fieldCheck{"metadata", v.Metadata.Validate()}, fieldCheck{"generation", v.Generation.Validate()},
+		fieldCheck{"phase", v.Phase.Validate()}, fieldCheck{"conditions", v.Conditions.Validate()},
+		fieldCheck{"initContainers", v.InitContainers.Validate()}, fieldCheck{"containers", v.Containers.Validate()}); err != nil {
+		return err
+	}
+	if v.Metadata.Reference.Identity.Kind != "Pod" {
+		return At("metadata.reference.identity.kind", ErrInvalidEvidence)
+	}
+	if v.Generation.State == ValueImplied {
+		return At("generation", ErrInvalidEvidence)
 	}
 	for _, value := range v.InitContainers.Values {
 		if value.Kind != ContainerInit {
-			return ErrInvalidEvidence
+			return At("initContainers", ErrInvalidEvidence)
 		}
 	}
 	for _, value := range v.Containers.Values {
 		if value.Kind != ContainerApp {
-			return ErrInvalidEvidence
+			return At("containers", ErrInvalidEvidence)
 		}
 	}
 	return nil

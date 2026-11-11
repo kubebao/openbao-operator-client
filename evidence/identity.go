@@ -15,13 +15,15 @@ type Identity struct {
 }
 
 func (id Identity) Validate() error {
-	for _, value := range []string{id.Origin, id.Kind, id.Namespace, id.Name, id.UID} {
-		if !validText(value, 253, false) {
-			return ErrInvalidEvidence
+	for _, field := range []struct{ name, value string }{
+		{"origin", id.Origin}, {"kind", id.Kind}, {"namespace", id.Namespace}, {"name", id.Name}, {"uid", id.UID},
+	} {
+		if !validText(field.value, 253, false) {
+			return At(field.name, ErrInvalidEvidence)
 		}
 	}
 	if !validText(id.Group, 253, true) {
-		return ErrInvalidEvidence
+		return At("group", ErrInvalidEvidence)
 	}
 	return nil
 }
@@ -37,18 +39,26 @@ type Reference struct {
 }
 
 func (r Reference) Validate() error {
-	if r.Identity.Validate() != nil || !validText(r.APIVersion, 253, false) ||
-		r.ResourceVersion.Validate() != nil || r.CollectedAt.Validate() != nil ||
-		r.CollectedAt.State != ValueReported || !validText(r.Field, 512, true) {
-		return ErrInvalidEvidence
+	if err := checkFields(fieldCheck{"identity", r.Identity.Validate()}, fieldCheck{"resourceVersion", r.ResourceVersion.Validate()},
+		fieldCheck{"collectedAt", r.CollectedAt.Validate()}); err != nil {
+		return err
+	}
+	if !validText(r.APIVersion, 253, false) {
+		return At("apiVersion", ErrInvalidEvidence)
+	}
+	if r.CollectedAt.State != ValueReported {
+		return At("collectedAt", ErrInvalidEvidence)
+	}
+	if !validText(r.Field, 512, true) {
+		return At("field", ErrInvalidEvidence)
 	}
 	group, version, qualified := strings.Cut(r.APIVersion, "/")
 	if qualified {
 		if group != r.Identity.Group || version == "" || strings.Contains(version, "/") {
-			return ErrInvalidEvidence
+			return At("apiVersion", ErrInvalidEvidence)
 		}
 	} else if r.Identity.Group != "" {
-		return ErrInvalidEvidence
+		return At("apiVersion", ErrInvalidEvidence)
 	}
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kubebao/openbao-operator-client/adapter"
+	"github.com/kubebao/openbao-operator-client/diagnose"
 
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
@@ -146,7 +147,7 @@ func latest(t *testing.T, target identity, requests []request) string {
 		}
 		projected = append(projected, value)
 	}
-	result, found, err := adapter.LatestRestore(owner, projected)
+	result, found, err := diagnose.LatestRestore(owner, projected, string(adapter.V1Alpha1Snapshot), "openbao.org/v1alpha1")
 	if err != nil {
 		t.Fatal(err)
 	}

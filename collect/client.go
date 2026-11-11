@@ -32,11 +32,11 @@ func NewClient(endpoint string, transport http.RoundTripper) (*Client, error) {
 	if err != nil || transport == nil || base == nil || base.Host == "" ||
 		(base.Scheme != "https" && base.Scheme != "http") || base.User != nil ||
 		base.RawQuery != "" || base.ForceQuery || base.Fragment != "" || base.RawPath != "" {
-		return nil, ErrInvalidRequest
+		return nil, evidence.At("endpoint", ErrInvalidRequest)
 	}
 	for _, part := range strings.Split(base.Path, "/") {
 		if part == "." || part == ".." {
-			return nil, ErrInvalidRequest
+			return nil, evidence.At("endpoint", ErrInvalidRequest)
 		}
 	}
 	return &Client{endpoint: *base, transport: transport}, nil
@@ -56,7 +56,7 @@ type Limits struct {
 
 func DefaultLimits() Limits {
 	return Limits{
-		MaxPages: 8, MaxCandidates: 500, MaxBytes: 8 * 1024 * 1024, MaxResponseBytes: 1024 * 1024,
+		MaxPages: 8, MaxCandidates: 500, MaxBytes: 8 * 1024 * 1024, MaxResponseBytes: 8 * 1024 * 1024,
 		MaxRetainedBytes: 8 * 1024 * 1024, PageSize: 100, Timeout: 15 * time.Second,
 	}
 }
@@ -89,56 +89,87 @@ type Result[T any] struct {
 var pathComponent = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]*$`)
 
 func (c *Client) validate(request Request, kind, resource string) error {
-	if c == nil || c.transport == nil || request.Scope.Validate() != nil || !request.Limits.valid() ||
-		request.Projection.MaxBytes <= 0 || request.Projection.MaxConditions <= 0 ||
-		request.Projection.MaxEntries <= 0 || request.Limits.PageSize > request.Projection.MaxEntries {
-		return ErrInvalidRequest
+	if c == nil || c.transport == nil {
+		return evidence.At("client", ErrInvalidRequest)
+	}
+	if err := request.Scope.Validate(); err != nil {
+		return evidence.At("scope", errors.Join(ErrInvalidRequest, err))
+	}
+	if !request.Limits.valid() {
+		return evidence.At("limits", ErrInvalidRequest)
+	}
+	if request.Projection.MaxBytes <= 0 || request.Projection.MaxConditions <= 0 || request.Projection.MaxEntries <= 0 {
+		return evidence.At("projection", ErrInvalidRequest)
+	}
+	if request.Limits.PageSize > request.Projection.MaxEntries {
+		return evidence.At("limits.pageSize", ErrInvalidRequest)
 	}
 	info, err := adapter.Describe(request.Contract)
-	if err != nil || request.Scope.Group != info.APIGroup ||
-		request.Scope.Version != strings.TrimPrefix(info.APIVersion, info.APIGroup+"/") || request.Scope.Resource != resource {
-		return ErrInvalidRequest
+	if err != nil {
+		return evidence.At("contract", ErrInvalidRequest)
+	}
+	if request.Scope.Group != info.APIGroup || request.Scope.Version != strings.TrimPrefix(info.APIVersion, info.APIGroup+"/") ||
+		request.Scope.Resource != resource {
+		return evidence.At("scope", ErrInvalidRequest)
 	}
 	allowed := false
 	for _, candidate := range info.Kinds {
 		allowed = allowed || kind == candidate
 	}
 	if !allowed {
-		return ErrInvalidRequest
+		return evidence.At("contract", ErrInvalidRequest)
 	}
-	for _, value := range []string{
-		request.Scope.Group, request.Scope.Version, request.Scope.Resource,
-		request.Scope.Namespace, request.Scope.Name,
+	if err := validateReadScope(request); err != nil {
+		return err
+	}
+	if request.ExpectedUID != "" {
+		id := evidence.Identity{
+			Origin:    request.Scope.Origin,
+			Group:     info.APIGroup,
+			Kind:      kind,
+			Namespace: request.Scope.Namespace,
+			Name:      request.Scope.Name,
+			UID:       request.ExpectedUID,
+		}
+		if id.Validate() != nil {
+			return evidence.At("expectedUID", ErrInvalidRequest)
+		}
+	}
+	return nil
+}
+
+func validateReadScope(request Request) error {
+	for _, field := range []struct{ name, value string }{
+		{"group", request.Scope.Group},
+		{"version", request.Scope.Version},
+		{"resource", request.Scope.Resource},
+		{"namespace", request.Scope.Namespace},
+		{"name", request.Scope.Name},
 	} {
-		if value != "" && (!pathComponent.MatchString(value) || value == "." || value == "..") {
-			return ErrInvalidRequest
+		if field.value != "" && (!pathComponent.MatchString(field.value) || field.value == "." || field.value == "..") {
+			return evidence.At("scope."+field.name, ErrInvalidRequest)
 		}
 	}
 	switch request.Scope.Action {
 	case evidence.ReadGet:
 		if request.Scope.Namespace == "" {
-			return ErrInvalidRequest
+			return evidence.At("scope.namespace", ErrInvalidRequest)
 		}
 	case evidence.ReadList:
-		if request.ExpectedUID != "" || request.Scope.Namespace == "" && !request.AllowAllNamespaces {
-			return ErrInvalidRequest
+		if request.ExpectedUID != "" {
+			return evidence.At("expectedUID", ErrInvalidRequest)
+		}
+		if request.Scope.Namespace == "" && !request.AllowAllNamespaces {
+			return evidence.At("allowAllNamespaces", ErrInvalidRequest)
 		}
 	case evidence.ReadDiscovery:
 		if request.Scope.Namespace != "" || request.Scope.Selector != "" || request.ExpectedUID != "" {
-			return ErrInvalidRequest
+			return evidence.At("scope", ErrInvalidRequest)
 		}
 	default:
-		return ErrInvalidRequest
+		return evidence.At("scope.action", ErrInvalidRequest)
 	}
-	if request.ExpectedUID != "" {
-		id := evidence.Identity{
-			Origin: request.Scope.Origin, Group: info.APIGroup, Kind: kind, Namespace: request.Scope.Namespace,
-			Name: request.Scope.Name, UID: request.ExpectedUID,
-		}
-		if id.Validate() != nil {
-			return ErrInvalidRequest
-		}
-	}
+
 	return nil
 }
 
@@ -186,6 +217,10 @@ func statusOutcome(status int, action evidence.ReadAction) evidence.CollectionOu
 	switch status {
 	case http.StatusUnauthorized, http.StatusForbidden:
 		return evidence.CollectionDenied
+	case http.StatusGone:
+		return evidence.CollectionExpired
+	case http.StatusTooManyRequests:
+		return evidence.CollectionRateLimited
 	case http.StatusNotFound:
 		if action == evidence.ReadGet {
 			return evidence.CollectionDeleted

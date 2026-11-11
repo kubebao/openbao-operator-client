@@ -9,7 +9,7 @@ import (
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
-const RuleSetVersion = "7"
+const RuleSetVersion = "8"
 
 var (
 	ErrUnsupportedVersion = errors.New("unsupported contract version")
@@ -133,47 +133,115 @@ func (p Policy) validate() error {
 	return nil
 }
 
+func invalidCapture(path string, cause error) error {
+	return evidence.At(path, errors.Join(ErrInvalidCapture, cause))
+}
+
 func (c ClusterInput) validate(p Policy) error {
-	if c.Subject.Validate() != nil || c.Subject.Kind != "OpenBaoCluster" || !validText(c.AdapterContract, 253, false) ||
-		c.Collection.Validate() != nil {
-		return ErrInvalidCapture
+	if err := c.Subject.Validate(); err != nil {
+		return invalidCapture("subject", err)
+	}
+	if c.Subject.Kind != "OpenBaoCluster" {
+		return invalidCapture("subject.kind", nil)
+	}
+	if !validText(c.AdapterContract, 253, false) {
+		return invalidCapture("adapterContract", nil)
+	}
+	if err := c.Collection.Validate(); err != nil {
+		return invalidCapture("collection", err)
 	}
 	if !slices.Contains(p.ApprovedContracts, c.AdapterContract) {
-		return ErrUnsupportedVersion
+		return evidence.At("adapterContract", ErrUnsupportedVersion)
 	}
-	scope := c.Collection.Scope
-	if scope.Origin != c.Subject.Origin || scope.Group != c.Subject.Group || scope.Resource != "openbaoclusters" ||
-		(scope.Action != evidence.ReadGet && scope.Action != evidence.ReadList) ||
-		scope.Action == evidence.ReadGet && scope.Namespace == "" ||
-		scope.Namespace != "" && scope.Namespace != c.Subject.Namespace || scope.Name != "" && scope.Name != c.Subject.Name {
-		return ErrInvalidCapture
+	if err := c.validateScope(); err != nil {
+		return err
 	}
 	if !c.Collection.Interval.CompletedAt.IsZero() && c.Collection.Interval.CompletedAt.After(p.ReferenceTime) {
-		return ErrInvalidCapture
+		return invalidCapture("collection.interval.completedAt", nil)
 	}
-	if c.Observation != nil {
-		o := c.Observation
-		if o.Validate() != nil || o.Reference.Identity != c.Subject || o.AdapterContract != c.AdapterContract ||
-			strings.TrimPrefix(o.Reference.APIVersion, c.Subject.Group+"/") != scope.Version {
-			return ErrInvalidCapture
-		}
-		if c.Collection.Outcome == evidence.CollectionComplete &&
-			(c.Collection.Items == 0 || !c.Collection.Interval.Contains(*o.Reference.CollectedAt.Value)) {
-			return ErrInvalidCapture
-		}
+	if err := c.validateObservation(); err != nil {
+		return err
 	}
-	if c.Verification != nil {
-		if c.Verification.Validate() != nil || c.Verification.Before.Identity != c.Subject ||
-			c.Verification.AdapterContract != c.AdapterContract ||
-			c.Verification.Read.Interval.CompletedAt.After(p.ReferenceTime) {
-			return ErrInvalidCapture
-		}
-		if c.Observation != nil && (!slices.Equal(referenceParts(c.Verification.Before), referenceParts(c.Observation.Reference)) ||
-			!equalInteger(c.Verification.BeforeGeneration, c.Observation.Generation)) {
-			return ErrInvalidCapture
-		}
+	if err := c.validateVerification(p); err != nil {
+		return err
 	}
 	return c.validateRelatedInputs(p)
+}
+
+func (c ClusterInput) validateScope() error {
+	scope := c.Collection.Scope
+	if scope.Origin != c.Subject.Origin || scope.Group != c.Subject.Group || scope.Resource != "openbaoclusters" {
+		return invalidCapture("collection.scope", nil)
+	}
+	if scope.Action != evidence.ReadGet && scope.Action != evidence.ReadList {
+		return invalidCapture("collection.scope.action", nil)
+	}
+	if scope.Action == evidence.ReadGet && scope.Namespace == "" {
+		return invalidCapture("collection.scope.namespace", nil)
+	}
+	if scope.Namespace != "" && scope.Namespace != c.Subject.Namespace {
+		return invalidCapture("collection.scope.namespace", nil)
+	}
+	if scope.Name != "" && scope.Name != c.Subject.Name {
+		return invalidCapture("collection.scope.name", nil)
+	}
+	return nil
+}
+
+func (c ClusterInput) validateObservation() error {
+	if c.Observation == nil {
+		return nil
+	}
+	o := c.Observation
+	if err := o.Validate(); err != nil {
+		return invalidCapture("observation", err)
+	}
+	if o.Reference.Identity != c.Subject {
+		return invalidCapture("observation.reference.identity", nil)
+	}
+	if o.AdapterContract != c.AdapterContract {
+		return invalidCapture("observation.adapterContract", nil)
+	}
+	if strings.TrimPrefix(o.Reference.APIVersion, c.Subject.Group+"/") != c.Collection.Scope.Version {
+		return invalidCapture("observation.reference.apiVersion", nil)
+	}
+	if c.Collection.Outcome == evidence.CollectionComplete {
+		if c.Collection.Items == 0 {
+			return invalidCapture("collection.items", nil)
+		}
+		if !c.Collection.Interval.Contains(*o.Reference.CollectedAt.Value) {
+			return invalidCapture("observation.reference.collectedAt", nil)
+		}
+	}
+	return nil
+}
+
+func (c ClusterInput) validateVerification(p Policy) error {
+	if c.Verification == nil {
+		return nil
+	}
+	v := c.Verification
+	if err := v.Validate(); err != nil {
+		return invalidCapture("verification", err)
+	}
+	if v.Before.Identity != c.Subject {
+		return invalidCapture("verification.before.identity", nil)
+	}
+	if v.AdapterContract != c.AdapterContract {
+		return invalidCapture("verification.adapterContract", nil)
+	}
+	if v.Read.Interval.CompletedAt.After(p.ReferenceTime) {
+		return invalidCapture("verification.read.interval.completedAt", nil)
+	}
+	if c.Observation != nil {
+		if !slices.Equal(referenceParts(v.Before), referenceParts(c.Observation.Reference)) {
+			return invalidCapture("verification.before", nil)
+		}
+		if !equalInteger(v.BeforeGeneration, c.Observation.Generation) {
+			return invalidCapture("verification.beforeGeneration", nil)
+		}
+	}
+	return nil
 }
 
 func equalInteger(a, b evidence.Integer) bool {

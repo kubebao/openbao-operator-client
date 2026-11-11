@@ -13,9 +13,17 @@ import (
 // It neither selects a contract nor starts resource reads.
 func (c *Client) Discover(ctx context.Context, request Request) (result Result[evidence.Discovery], err error) {
 	kind, describeErr := adapter.ResourceKind(request.Contract, request.Scope.Resource)
-	if ctx == nil || describeErr != nil || request.Scope.Action != evidence.ReadDiscovery ||
-		c.validate(request, kind, request.Scope.Resource) != nil {
-		return result, ErrInvalidRequest
+	if ctx == nil {
+		return result, evidence.At("context", ErrInvalidRequest)
+	}
+	if describeErr != nil {
+		return result, evidence.At("contract", ErrInvalidRequest)
+	}
+	if request.Scope.Action != evidence.ReadDiscovery {
+		return result, evidence.At("scope.action", ErrInvalidRequest)
+	}
+	if validationErr := c.validate(request, kind, request.Scope.Resource); validationErr != nil {
+		return result, validationErr
 	}
 	ctx, cancel := context.WithTimeout(ctx, request.Limits.Timeout)
 	defer cancel()

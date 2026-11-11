@@ -33,9 +33,14 @@ type RelatedResult struct {
 }
 
 func (c *Client) validateRelated(target evidence.Cluster, plan RelatedPlan) error {
-	if !plan.Limits.valid() || c.validateTarget(target, plan.Verify) != nil ||
-		plan.StatefulSets == nil && plan.Pods == nil && plan.Restores == nil {
-		return ErrInvalidRequest
+	if !plan.Limits.valid() {
+		return evidence.At("limits", ErrInvalidRequest)
+	}
+	if err := c.validateTarget(target, plan.Verify); err != nil {
+		return evidence.At("verify", err)
+	}
+	if plan.StatefulSets == nil && plan.Pods == nil && plan.Restores == nil {
+		return evidence.At("scopes", ErrInvalidRequest)
 	}
 	for _, item := range []struct {
 		request        *Request
@@ -49,10 +54,15 @@ func (c *Client) validateRelated(target evidence.Cluster, plan RelatedPlan) erro
 			continue
 		}
 		request := *item.request
-		if c.validate(request, item.kind, item.resource) != nil || request.Scope.Action != evidence.ReadList ||
-			request.Scope.Origin != target.Reference.Identity.Origin || request.Scope.Namespace != target.Reference.Identity.Namespace ||
-			item.kind == "OpenBaoRestore" && request.Contract != adapter.Contract(target.AdapterContract) {
-			return ErrInvalidRequest
+		if err := c.validate(request, item.kind, item.resource); err != nil {
+			return evidence.At(item.resource, err)
+		}
+		if request.Scope.Action != evidence.ReadList || request.Scope.Origin != target.Reference.Identity.Origin ||
+			request.Scope.Namespace != target.Reference.Identity.Namespace {
+			return evidence.At(item.resource+".scope", ErrInvalidRequest)
+		}
+		if item.kind == "OpenBaoRestore" && request.Contract != adapter.Contract(target.AdapterContract) {
+			return evidence.At(item.resource+".contract", ErrInvalidRequest)
 		}
 	}
 	return nil
@@ -61,8 +71,11 @@ func (c *Client) validateRelated(target evidence.Cluster, plan RelatedPlan) erro
 // Related collects only declared namespace scopes, then verifies the selected target.
 // It makes no discovery calls and never switches group, name, namespace, or UID.
 func (c *Client) Related(ctx context.Context, target evidence.Cluster, plan RelatedPlan) (result RelatedResult, err error) {
-	if ctx == nil || c.validateRelated(target, plan) != nil {
-		return result, ErrInvalidRequest
+	if ctx == nil {
+		return result, evidence.At("context", ErrInvalidRequest)
+	}
+	if validationErr := c.validateRelated(target, plan); validationErr != nil {
+		return result, validationErr
 	}
 	ctx, cancel := context.WithTimeout(ctx, plan.Limits.Timeout)
 	defer cancel()
@@ -71,13 +84,16 @@ func (c *Client) Related(ctx context.Context, target evidence.Cluster, plan Rela
 		Verification: uncollectedVerification(target, plan.Verify), Associations: []evidence.Association{},
 	}
 	defer func() {
-		associateRelated(target, &result)
 		completed := time.Now()
 		deadline, _ := ctx.Deadline()
 		if ctx.Err() != nil || !completed.Before(deadline) {
 			result.Outcome = contextOutcome(ctx, context.DeadlineExceeded)
 		}
+		// Derived associations do not extend a completed read's interval or deadline.
 		result.Interval.CompletedAt = completed.UTC()
+		if associationErr := associateRelated(target, &result); associationErr != nil {
+			err = associationErr
+		}
 	}()
 	if plan.StatefulSets != nil {
 		read := relatedRead(ctx, *plan.StatefulSets, plan.Limits, &result, c.StatefulSets)
@@ -111,7 +127,7 @@ func (c *Client) Related(ctx context.Context, target evidence.Cluster, plan Rela
 	case evidence.VerificationReplaced:
 		result.Outcome = evidence.CollectionReplaced
 	default:
-		if result.Outcome == evidence.CollectionComplete {
+		if result.Verification.Read.Outcome != evidence.CollectionComplete && result.Outcome == evidence.CollectionComplete {
 			result.Outcome = evidence.CollectionPartial
 		}
 	}
@@ -179,15 +195,14 @@ func relatedRead[T any](ctx context.Context, request Request, limits Limits, res
 	return value
 }
 
-func associateRelated(target evidence.Cluster, result *RelatedResult) {
+func associateRelated(target evidence.Cluster, result *RelatedResult) error {
 	sets := map[string]evidence.StatefulSet{}
 	parents := map[string]evidence.Association{}
 	if result.StatefulSets != nil {
 		for _, set := range result.StatefulSets.Observations {
 			association, err := adapter.AssociateStatefulSet(set, target.Reference.Identity)
 			if err != nil {
-				result.Outcome = evidence.CollectionInvalid
-				return
+				return err
 			}
 			sets[set.Metadata.Reference.Identity.UID], parents[set.Metadata.Reference.Identity.UID] = set, association
 			result.Associations = append(result.Associations, association)
@@ -197,8 +212,7 @@ func associateRelated(target evidence.Cluster, result *RelatedResult) {
 		for _, pod := range result.Pods.Observations {
 			association, err := relatedPod(target.Reference.Identity, pod, sets, parents)
 			if err != nil {
-				result.Outcome = evidence.CollectionInvalid
-				return
+				return err
 			}
 			result.Associations = append(result.Associations, association)
 		}
@@ -207,8 +221,7 @@ func associateRelated(target evidence.Cluster, result *RelatedResult) {
 		for _, restore := range result.Restores.Observations {
 			association, err := adapter.AssociateRestore(target, restore)
 			if err != nil {
-				result.Outcome = evidence.CollectionInvalid
-				return
+				return err
 			}
 			result.Associations = append(result.Associations, association)
 		}
@@ -216,22 +229,26 @@ func associateRelated(target evidence.Cluster, result *RelatedResult) {
 	slices.SortFunc(result.Associations, func(a, b evidence.Association) int {
 		return slices.Compare(identityParts(a.Subject), identityParts(b.Subject))
 	})
-	for _, association := range result.Associations {
-		if result.Outcome == evidence.CollectionComplete &&
-			association.State != evidence.AssociationConfirmed && association.State != evidence.AssociationForeign {
-			result.Outcome = evidence.CollectionPartial
-		}
-	}
+	return nil
 }
 
 func relatedPod(target evidence.Identity, pod evidence.Pod, sets map[string]evidence.StatefulSet,
 	parents map[string]evidence.Association,
 ) (evidence.Association, error) {
+	excluded, err := evidence.PodHasNonStatefulSetController(pod)
+	if err != nil {
+		return evidence.Association{}, err
+	}
 	for _, owner := range pod.Metadata.Owners.Values {
 		set, exists := sets[owner.UID]
 		if owner.Controller && exists {
 			return adapter.AssociatePod(pod, set, parents[owner.UID])
 		}
+	}
+	if excluded {
+		return evidence.Association{
+			Subject: pod.Metadata.Reference.Identity, Target: target, State: evidence.AssociationForeign,
+		}, nil
 	}
 	return evidence.Association{
 		Subject: pod.Metadata.Reference.Identity, Target: target, State: evidence.AssociationUnconfirmed,

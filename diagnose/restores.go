@@ -55,7 +55,7 @@ func evaluateRestores(input ClusterInput, policy Policy, coverage Coverage) (Cov
 	if input.Observation.RestoreHold.State == evidence.ValueReported && !boundHold {
 		result.insufficient(ReasonAssociation)
 	}
-	coverage.State, coverage.Reason = result.state, result.reason
+	coverage.State, coverage.Reason, coverage.Reasons = result.state, result.reason, result.coverageReasons()
 	return coverage, result.findings
 }
 

@@ -1,5 +1,31 @@
 package evidence
 
+// PodHasNonStatefulSetController reports one valid controller reference that
+// identifies another kind or API group. Callers must first reject UID conflicts
+// with known StatefulSets before using this fact to exclude membership.
+// Missing or multiple controller references do not prove exclusion. This does
+// not establish whether a Job or another controller belongs to a cluster.
+func PodHasNonStatefulSetController(pod Pod) (bool, error) {
+	if err := pod.Validate(); err != nil {
+		return false, err
+	}
+	if pod.Metadata.Owners.State != ValueReported {
+		return false, nil
+	}
+	var controller *OwnerReference
+	for _, owner := range pod.Metadata.Owners.Values {
+		if !owner.Controller {
+			continue
+		}
+		if controller != nil {
+			return false, nil
+		}
+		copyOwner := owner
+		controller = &copyOwner
+	}
+	return controller != nil && (controller.Kind != "StatefulSet" || controller.Group() != "apps"), nil
+}
+
 // AssociateStatefulSet confirms a controller edge to the selected cluster.
 // Annotation matches alone never prove ownership.
 func AssociateStatefulSet(set StatefulSet, cluster Identity) (Association, error) {
