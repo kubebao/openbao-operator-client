@@ -1,53 +1,42 @@
 # OpenBao Operator client
 
-Shared Go library for the [OpenBao Operator](https://github.com/kubebao/openbao-operator) console and CLI.
+Shared Go library for the [OpenBao Operator](https://github.com/kubebao/openbao-operator) console and CLI. It reads
+OpenBao Operator and Kubernetes resources, projects approved fields into typed evidence, and evaluates diagnostic rules
+on that evidence.
 
-This project is in initial development. It implements typed cluster and workload evidence, generation acknowledgement,
-timestamps, collection outcomes, operational observations, UID associations, and approved operator/Kubernetes JSON projection.
-Native recovery and remote replication are unsupported by the pinned operator API. Bounded discovery, GET/LIST collection,
-and declared related-resource collection with final target verification are implemented. Diagnosis implements fifteen
-rules for clusters, workloads, backups, recorded upgrade failures, restore tests, and snapshot-restore concerns.
-Neither application uses the module yet. No operator capability is integration-qualified.
-The [extraction status](docs/extraction.md) records the implemented milestone 3 slices and their qualification limits.
+| Package | Responsibility |
+| --- | --- |
+| `evidence` | Typed observations, identities, value states, times, collection outcomes, and UID associations. Standard library only. |
+| `adapter` | Projection of approved public API fields from JSON under an explicit contract. |
+| `collect` | Bounded discovery, GET, and LIST reads through a caller-configured HTTP transport. |
+| `diagnose` | Pure rule evaluation with caller-supplied policy and reference time. Returns findings and coverage. |
 
-## Packages
+The operator owns reconciliation and lifecycle safety. The console and CLI own credentials, kubeconfig loading,
+scheduling, persistence, rendering, and process exit codes.
 
-| Package | Responsibility | Implementation |
-| --- | --- | --- |
-| `evidence` | Typed observations, identities, outcomes, times, associations, and references | Cluster/workload facts, field states, references, times, outcomes, associations |
-| `adapter` | Approved public API projections and capability definitions | Cluster, restore, StatefulSet, Pod projection; UID associations; explicit contracts |
-| `collect` | Bounded discovery, resource reads, pagination, and identity verification | Discovery, scoped GET/LIST, shared budgets, declared related reads, target verification |
-| `diagnose` | Pure rules, findings, coverage, and evaluation policy | Fifteen supported rules, finding identity, coverage, deterministic analysis |
+## Documentation
 
-The operator owns reconciliation and lifecycle safety. Consumer applications own credentials, enrollment, scheduling,
-persistence, rendering, and process exit codes. Operations and bundle handling get separate packages when implemented.
+- [Architecture](docs/architecture.md): package boundaries and what belongs in consumers.
+- [Evidence semantics](docs/semantics.md): value states, projection, identity, time, associations, and collection.
+- [Diagnostics](docs/diagnostics.md): policy, coverage, findings, and the rule catalog.
+- [Compatibility](docs/compatibility.md): supported contracts, the Kubernetes version floor, and validation levels.
+- [Development](docs/development.md): checks, consumer development, and repository settings.
 
 ## Development
 
-Use Go 1.27.4 or a newer compatible toolchain, Make, Bash, and Python 3. Go downloads the pinned development tools.
+Use Go 1.27.4 or later, Make, Bash, and Python 3.
 
 ```sh
-make install
 make check
-make vulncheck
-make check-licenses
-go run ./examples/generation
-go run ./examples/cluster
 go run ./examples/diagnose
 ```
 
-The generation example prints `stale`. The cluster example prints current acknowledgement and an implied zero ready
-count. The diagnostic example prints `2 findings, 15 coverage entries`. These examples use synthetic input and make no
-network requests. The output does not establish application health.
+The example projects a synthetic cluster and prints `2 findings, 15 coverage entries`. It makes no network requests.
 
-See the [contract decisions](docs/contract.md), [extraction plan](docs/plan.md),
-[development guide](docs/development.md), and [compatibility matrix](docs/compatibility.md).
+## Versioning
 
-## Versioning and license
+The module path is `github.com/kubebao/openbao-operator-client`. Releases use immutable `v0` tags, and the API can change
+between them. Until the first tag, consumers pin Go pseudo-versions of published commits.
 
-The module path is `github.com/kubebao/openbao-operator-client`. Initial releases use immutable `v0` tags. The API is
-experimental and can change between versions. No release tag exists yet. Consumers can use Go-generated pseudo-versions
-for published development commits. Final extraction qualification requires both consumers to pin the same tag.
-
-The project uses the [Apache License 2.0](LICENSE). [NOTICE](NOTICE) records scaffold provenance.
+The project uses the [Apache License 2.0](LICENSE). [NOTICE](NOTICE) records scaffold provenance, and
 [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES) records dependency notices.

@@ -1,252 +1,231 @@
-# Diagnostic evaluation
+# Diagnostics
 
-`diagnose.Analyze` receives a typed `Capture` and `Policy`. It reads no clock, network, environment, credentials, or product
-state. Identical evidence and policy produce the same report when subject, selected-rule, or reference order changes.
-Empty findings do not establish health or complete coverage.
+`diagnose.Analyze` evaluates a typed `Capture` with a `Policy` and returns a `Report` of findings and coverage. It reads no
+clock, network, environment, credentials, or product state. Identical evidence and policy produce the same report,
+whatever the order of subjects, rules, or references. Empty findings do not mean health or complete coverage.
 
-Rule set `8` implements fifteen rules: availability, sealing, replica readiness, recognized adverse conditions, generation
-acknowledgement, controller errors, restrictions, three backup concerns, recorded rolling-upgrade failure, restore tests,
-StatefulSet readiness, Pod concerns, and snapshot-restore progress/recovery concerns.
-`SupportedRules` returns the executable inventory. Earlier rule sets are rejected rather than silently extended. Other
-canonical IDs remain in the [catalog](rules.md), but selecting one returns `ErrUnavailableRule`. Unknown IDs return
-`ErrUnknownRule`. Reserved native-recovery and
-remote-replication IDs cannot produce findings. Expanding the executable inventory or changing rule semantics requires a
-new rule-set version. Report layout version `1`, evidence schema `2`, and projection contracts are separate versions.
+Consumers own severity mapping, rendering, first-seen times, history, and process exit codes.
 
-## Inputs and policy
+## Rules
 
-Each `ClusterInput` declares a full subject identity, projection contract, collection outcome, optional normalized cluster,
-and optional target verification. This preserves insufficient coverage for known subjects whose reads failed. Complete
-reads must contain the observation's read time and a positive candidate count. Subject, scope, contract, identity, API
-version, and verification must agree. Duplicate subjects are rejected; identical UIDs in different Kubernetes origins remain
-different subjects. Invalid normalized shapes fail analysis without returning partial findings or raw input values.
+Rule set `8` implements the rules below. `SupportedRules` returns them. Selecting an unknown ID returns `ErrUnknownRule`.
+Selecting a reserved ID returns `ErrUnavailableRule`. Changing a rule's semantics or the executable inventory requires a
+new rule-set version, and `Analyze` rejects every other version.
 
-The caller supplies an approved projection-contract allowlist after selecting adapters. The analyzer checks membership;
-it does not implement adapters, infer a contract from API discovery, or qualify an operator. An unknown evidence or rule-set
-version is rejected. Contracts outside the caller's allowlist are rejected.
+| Rule ID | Meaning | Subsubject |
+| --- | --- | --- |
+| `KBAO-CLUSTER-001` | `Available=False` for the current generation | None |
+| `KBAO-CLUSTER-002` | `OpenBaoSealed=True` for the current generation | None |
+| `KBAO-CLUSTER-003` | Fewer ready replicas than desired | None |
+| `KBAO-WORKLOAD-001` | UID-associated StatefulSet readiness, or no associated StatefulSet | `ready`; `statefulset-population` |
+| `KBAO-POD-001` | UID-associated Pod failure, readiness, or missing Pods | `phase`; `ready`; `pod-population` |
+| `KBAO-RESTRICTION-001` | Pause, maintenance, restore hold, or break glass | Source field path |
+| `KBAO-RESTORE-001` | UID-confirmed snapshot-restore progress or recovery concern | None |
+| `KBAO-UPGRADE-001` | Recorded rolling-upgrade failure | None |
+| `KBAO-BACKUP-001` | Consecutive backup failures | None |
+| `KBAO-BACKUP-002` | Configured backup with no recorded success | None |
+| `KBAO-BACKUP-003` | Backup completion age exceeds the policy limit | None |
+| `KBAO-RESTORETEST-001` | Failed or blocked restore test | None |
+| `KBAO-CONDITION-001` | Other recognized adverse condition | Condition type |
+| `KBAO-CONTROLLER-001` | Recorded workload or administrative controller error | `workload`; `adminOps` |
+| `KBAO-GENERATION-001` | Stale or inconsistent generation acknowledgement | None |
 
-`DefaultPolicy` requires a reference time and contract allowlist. It selects the supported rules and sets a 24-hour backup
-age limit, 1-minute startup grace, 5-minute evidence age limit, and 5,000-subject limit across selected clusters and all
-supplied workload and restore candidates. Durations and subject limits must
-be positive, except startup grace can be zero. Rules and contracts must be unique. A reference time before collection
-completion is invalid. These are evaluation parameters, not process exit thresholds.
+`KBAO-RECOVERY-001` (native recovery) and `KBAO-REPLICATION-001` (replica history conflict) are reserved IDs. The
+supported operator contract has no public API for them, so they cannot produce findings.
 
-`Capture` contains normalized value types, not raw Kubernetes resources. `Analyze` validates typed inputs and versions;
-consumers own JSON decoding and byte limits. Serialized replay tests use trusted fixtures. They do not implement or qualify
-an untrusted bundle parser. Bundle handling remains a separate future package.
+## Inputs
+
+A `Capture` holds normalized evidence, not raw resources. Consumers decode JSON and enforce input byte limits. `Analyze`
+validates shapes and versions and fails without partial findings or raw values.
+
+Each `ClusterInput` declares:
+
+- The full subject identity and its projection contract.
+- The cluster read's `Collection`, and the projected `Observation` when the read produced one. A nil observation keeps
+  coverage for a known subject whose read failed or was not requested.
+- An optional `Verification` from a later target read.
+- Optional `StatefulSets`, `Pods`, and `Restores` resource inputs. Nil means the scope was not requested.
+
+Subject, scope, contract, identity, API version, and verification must agree. A complete read must contain the
+observation's read time and a positive candidate count. Duplicate subjects are rejected. Equal UIDs in different origins
+are different subjects.
 
 ### Related resource inputs
 
-`ClusterInput.StatefulSets`, `Pods`, and `Restores` are optional `ResourceInput` values. Each retains its projection contract,
-declared
-LIST outcome, and every admitted candidate before UID filtering. Nil means no scope was requested. Complete inputs must
-retain all candidates, including foreign resources, and a non-nil empty slice for a valid empty list. Scope, origin,
-namespace, resource, version, contract, read times, and candidate counts must agree. Duplicate UIDs or names are rejected.
-The policy allowlist must include each supplied contract, including an empty or failed read's contract.
+Each `ResourceInput` keeps its projection contract, its LIST `Collection`, and every admitted candidate before UID
+filtering, including foreign resources. A complete input has exactly `Collection.Items` observations, and a valid empty
+list is a non-nil empty slice. Scope, origin, namespace, resource, version, contract, read times, and counts must agree.
+Duplicate UIDs or names are rejected.
 
-Restore reads use the selected cluster's group, version, and projection contract. Related reads follow the selected cluster
-read and precede final verification when verification was attempted. Related-resource
-findings require successful target verification with the original source reference and generation. Verification does not
-establish an atomic snapshot. A missing, changed, failed, deleted, or replaced verification prevents current findings.
+Restore reads use the cluster's group, version, and contract. Related reads happen after the cluster read and before the
+final verification.
 
-The analyzer recomputes associations from normalized owner references and cluster-owner annotations through the same pure
-`evidence` implementation used by adapter entry points. Caller-supplied association assertions are not analysis inputs.
-Only confirmed chains can produce workload findings. Unconfirmed/conflicting candidates make coverage insufficient;
-foreign StatefulSets do not become selected-cluster workload facts. A Pod whose controller edge and reserved metadata
-consistently bind it to a foreign StatefulSet is excluded from selected-cluster population and coverage. A conflicting
-Pod annotation remains unconfirmed. Parent association assertions are checked against the StatefulSet metadata.
+`Analyze` computes associations itself from owner references and reserved annotations, through the `evidence`
+implementation. It accepts no caller-supplied association.
 
-Each workload rule has one coverage entry under the selected cluster, with its primary LIST outcome. Findings identify
-the affected StatefulSet or Pod. Pod coverage also depends on the StatefulSet read. Capture inputs retain both scopes;
-the primary outcome alone does not establish complete coverage. Unrequested workload scopes remain `not_requested` even
-when the selected cluster read fails.
+## Policy
 
-### Restore evaluation policy
+`DefaultPolicy(reference, contracts)` selects all supported rules and sets these values:
 
-`RestoreUIDBindingContracts` is a caller-selected subset of `ApprovedContracts`. Select a contract only when
-`adapter.Describe` declares `CapabilityRestoreUIDBinding`. The inspected operator snapshot declares it; unqualified field
-projection and discovery do not. Empty or duplicate declarations, or bindings outside `ApprovedContracts`, cannot qualify
-restore associations. A missing binding declaration leaves requested restore coverage insufficient. Adapter entry points
-and diagnosis call the same pure UID-binding implementation. The analyzer does not accept caller assertion of ownership.
+| Field | Default | Constraint |
+| --- | --- | --- |
+| `MaxBackupAge` | 24 hours | Positive |
+| `StartupGrace` | 1 minute | Zero or positive |
+| `MaxEvidenceAge` | 5 minutes | Positive |
+| `MaxSubjects` | 5,000 | Positive; counts clusters and all workload and restore candidates |
+| `ReportHistoricalRestores` | `true` | |
 
-`DefaultPolicy` enables `ReportHistoricalRestores` to preserve the console's broader recorded-outcome coverage. Set it to
-false when preserving CLI doctor's exclusion of unheld historical outcomes during migration. Both choices use the same
-rule and retain the same evidence; the policy is serialized in the report. This choice does not change held concerns.
+`ApprovedContracts` is the caller's allowlist of projection contracts. Every supplied contract must be in it, including
+the contract of an empty or failed read. `RestoreUIDBindingContracts` is a subset of `ApprovedContracts`. Include a
+contract only when `adapter.Describe` declares `CapabilityRestoreUIDBinding` for it. Rules and contracts must be unique.
+A reference time before collection completion is invalid. The policy is part of the report.
 
-## Findings and coverage
+## Coverage
+
+`Analyze` returns one coverage entry per cluster and rule. Each entry records the rule, subject, state, reasons, and the
+primary collection outcome.
+
+| State | Meaning |
+| --- | --- |
+| `excluded` | The policy did not select the rule |
+| `not_requested` | The rule needs a scope that was not read |
+| `not_applicable` | The evidence shows the rule does not apply, such as no backup configuration |
+| `insufficient` | The evidence cannot support a complete evaluation |
+| `evaluated` | The rule was fully evaluated; it can have no findings |
+
+`Reasons` lists every insufficiency cause, sorted and deduplicated. `Reason` keeps the primary cause. Reasons include
+`scope_incomplete`, `missing_observation`, `stale_evidence`, `missing_field`, `generation_unconfirmed`, `inconsistent_time`,
+`target_unverified`, `association_unconfirmed`, and `scope_restricted`.
+
+Findings can coexist with insufficient coverage. For example, a confirmed failed Pod still produces a finding when another
+candidate is unconfirmed. Only a complete, valid, empty LIST confirms absence. `ResolveCoverage` derives a coverage state
+from selection, requested scope, applicability, and collection validity, for consumers that run their own checks.
+
+### Evidence that cannot support current findings
+
+- Observations read outside the current collection interval or older than `MaxEvidenceAge`.
+- A subject whose read reports `deleted` or `replaced`.
+- Related-resource findings without `verified` target verification that matches the original reference and generation.
+
+Fresh observations admitted before a later read failure can still support findings, with insufficient coverage. A
+consumer can keep earlier findings as last known without treating them as newly confirmed.
+
+## Findings
 
 A finding key is the JSON string array `(rule, origin, group, kind, namespace, name, UID, subsubject)`. Severity, text,
-timestamps, policy, and resource versions do not change identity. Findings sort by severity descending, then identity.
-References sort by full read identity, field, API version, resource version, and read time. Canonicalization copies reference
-data and rejects duplicate finding identities. Summaries are library-authored text; provider messages are excluded.
-Console/CLI severity mappings, rendering, first-seen times, history, and process results remain consumer responsibilities.
+timestamps, policy, and resource versions do not change identity. Findings sort by severity descending, then by key.
+References sort by identity, field, API version, resource version, and read time. `CanonicalFindings` copies references
+and rejects duplicate keys.
 
-Coverage distinguishes `excluded`, `not_requested`, `not_applicable`, `insufficient`, and `evaluated`. Each entry records
-the rule, full subject, bounded reason, and collection outcome. `ResolveCoverage` combines selection, requested scope,
-known applicability, collection validity, and evidence validity. Only a complete valid empty LIST confirms scoped absence;
-GET and discovery do not.
+Severities are `info`, `warning`, `error`, and `critical`. Summaries are library-authored text. Provider messages, reasons,
+hold values, and instructions never appear in findings.
 
-Fresh observations admitted before a later collection failure can support findings while coverage remains insufficient.
-Old observations outside the current attempt or beyond the evidence age limit cannot produce current findings. A deleted
-or replaced subject cannot produce current findings. Supplied target verification must match the source read, including
-resource version and generation; changed, insufficient, or failed verification prevents current findings. The consumer
-can retain earlier findings as last known without treating them as newly confirmed.
+## Rule behavior
 
-## Implemented rules
+### Cluster conditions
 
-Availability requires positive current resource and individual `Available` condition acknowledgement. Current
-`Available=False` produces a warning. Unconfirmed resource/condition generations or an `Unknown` status yield insufficient
-coverage and no availability finding.
+- **Availability** (`KBAO-CLUSTER-001`) needs current resource acknowledgement and current acknowledgement of the
+  `Available` condition itself. `Available=False` is a warning. An unconfirmed generation or `Unknown` status is
+  insufficient.
+- **Sealing** (`KBAO-CLUSTER-002`) needs a current `OpenBaoSealed` condition and a known pause state.
+  `OpenBaoSealed=True` is critical. Pause suppresses the finding.
+- **Recognized conditions** (`KBAO-CONDITION-001`) cover a fixed list of conditions and polarities. `Degraded=True` and
+  `TLSReady=False` are examples of adverse states, which are warnings. Each condition needs its own current
+  acknowledgement. Unknown names are ignored. `Available` and `OpenBaoSealed` use only their own rules.
+- **Generation** (`KBAO-GENERATION-001`) warns on stale or inconsistent acknowledgement, with separate text. A missing or
+  zero acknowledgement is insufficient, not a finding.
 
-Sealing requires its own current `OpenBaoSealed` condition and known pause state. `OpenBaoSealed=True` is critical when
-reconciliation is not paused. Pause suppresses this finding, preserving console behavior. A condition can be current while
-the resource's overall acknowledgement is stale; the two observations remain separate.
+A malformed transition time, or one after the read time, makes coverage insufficient but keeps a confirmed finding. A
+missing transition time does not block evaluation.
 
-Replica readiness requires positive current resource acknowledgement, known desired/ready counts and pause state, and a
-valid creation time no later than its read. Pause, startup grace, zero desired replicas, or enough ready replicas suppress
-the finding. Zero ready replicas is critical; a positive shortfall is warning. Grace equality is outside the grace period.
-Condition acknowledgement remains separate; this rule does not establish operator availability or client transactions.
+### Readiness
 
-The generic condition rule interprets only the recognized condition names and polarities in the CLI baseline. Adverse
-negative conditions such as `Degraded=True` and positive conditions such as `TLSReady=False` produce warnings. Each
-condition needs its own current acknowledgement and uses its type as a subsubject. Unknown names are ignored; unknown
-status and unconfirmed generations are insufficient. Availability and sealing use their specialized rules without generic
-duplicates. Missing transition times do not block a generation-confirmed status report. A malformed or future transition
-time makes coverage insufficient while retaining an independently confirmed status finding. Transition time is not a heartbeat.
+**Replica readiness** (`KBAO-CLUSTER-003`) needs current resource acknowledgement, known desired and ready counts, known
+pause state, and a creation time at or before the read. These suppress the finding: pause, being within `StartupGrace`
+of creation, zero desired replicas, or enough ready replicas. An age equal to the grace period is outside it. Zero ready
+replicas is critical; any other shortfall is a warning.
 
-The generation rule distinguishes stale from inconsistent acknowledgement with separate warning text. Missing/zero
-acknowledgement is insufficient; it is not a mismatch finding.
+### Restrictions and controller errors
 
-The restriction rule keeps pause, maintenance, restore hold, and break glass independent. Pause, maintenance, and a reported
-hold are informational; active break glass is warning. The exact source field identifies each finding. Maintenance
-propagation is not verified, a hold proves no restore ownership, and these findings authorize no operations. Unknown or
-invalid reported flags make coverage insufficient while preserving independent known restrictions. Absent/null optional
-objects and unreported hold annotations produce no restriction report; this does not infer a false producer value or health.
+- **Restrictions** (`KBAO-RESTRICTION-001`) report pause, maintenance, and a reported restore hold as `info`, and active
+  break glass as `warning`. Each uses its source field as the subsubject. An unknown or invalid flag makes coverage
+  insufficient and keeps the other restrictions. Absent or null objects produce no report. A hold proves no restore
+  ownership, and maintenance propagation to workloads is not verified.
+- **Controller errors** (`KBAO-CONTROLLER-001`) warn on a reported reason in `status.workload.lastError` or
+  `status.adminOps.lastError`. The finding describes a recorded error, not an active failure. A missing or malformed
+  reason is insufficient. An invalid or future error time makes coverage insufficient and keeps the finding.
 
-Controller errors use `workload` or `adminOps` as subsubjects. A reported bounded reason produces a warning about a recorded
-error, not a claim of active failure. Missing or malformed reported reasons are insufficient. Invalid/future error times
-make coverage insufficient while retaining the independently reported error. Absent/null error objects produce no report.
-Provider reasons, messages, hold values, and break-glass instructions are excluded from diagnostic text.
+### Backups
 
-Backup age requires observed backup configuration, reported backup status, a known zero failure count, and a success time
-no later than its read. Known absent configuration is not applicable; missing/invalid configuration, failure counts, or
-timestamps are insufficient. A positive failure count suppresses the age finding to preserve backup-failure precedence.
-Selecting only backup age does not evaluate failures. Completion age must exceed the limit to warn; equality is within the
-limit. Completion age is not measured recovery point objective (RPO).
+All backup rules need reported backup configuration, reported backup status, and a reported failure count. Absent
+configuration is `not_applicable`. Missing or invalid values are insufficient; a missing failure count is never zero.
 
-The backup-failure rule warns on a reported positive consecutive-failure count. Failure time is independent of earlier
-success time. An invalid or future failure time makes coverage insufficient without erasing the reported counter. The
-no-recorded-success rule warns only when configuration and backup status are reported, the failure count is reported zero,
-and the success timestamp is omitted. This describes the observed record; it does not prove that a backup never succeeded.
-Malformed or future success times are insufficient, not missing success. Missing status or counters cannot produce this
-finding. Backup precedence remains failures, no recorded success, then overdue completion, including when the caller
-excludes a higher-priority rule. The adapter does not infer an omitted failure count as zero.
+A positive failure count takes precedence. It makes the other two rules `evaluated` with reason
+`higher_priority_backup_signal` and no finding, even when the policy excludes `KBAO-BACKUP-001`.
 
-The upgrade rule uses the rolling-upgrade failure object's reported reason. It warns about the recorded failure without
-copying the reason or claiming an active failure. Missing or malformed reasons are insufficient. Invalid/future error times
-make coverage insufficient while retaining the recorded failure. Absent/null upgrade or failure objects produce no report.
-Blue/green phases and job-failure counters remain observations; neither implies a rolling-upgrade failure.
+- **Failures** (`KBAO-BACKUP-001`) warn on a positive consecutive-failure count.
+- **No recorded success** (`KBAO-BACKUP-002`) warns when the failure count is zero and no success time is recorded. It
+  describes the observed record; it does not prove that no backup ever succeeded.
+- **Age** (`KBAO-BACKUP-003`) warns when the time since the last success exceeds `MaxBackupAge`. An age equal to the limit
+  is within it. Without a recorded success time, this rule is insufficient. Completion age is not a measured recovery point objective.
 
-The restore-test rule keeps the active reservation, last result, and `Passed` condition separate. A current `Passed=False`
-condition with a reported reason other than `Failed` produces an attention finding before interpreting active or last state.
-The condition needs its own current generation acknowledgement; resource acknowledgement does not substitute for it.
-An active reservation suppresses the earlier failed result, preserving console precedence. It does not verify the child
-request or its progress. Without an active reservation, a reported last `Failed` result produces a recorded-result warning
-limited to that snapshot and disposable target. Missing or invalid active state cannot establish that the last result is
-applicable. Missing, stale, or invalid condition evidence and missing/invalid/future result times retain insufficient
-coverage while preserving independently supported result findings. A missing/invalid outcome does not become `Failed`.
-Absent/null restore-test status produces no report; no finding establishes recovery readiness.
+A malformed success or failure time, or one after the read time, is insufficient.
 
-StatefulSet readiness requires a confirmed cluster UID edge, current positive generation acknowledgement, known replica
-counts, and a nonterminating object. A shortfall warns under the StatefulSet identity. The cluster readiness rule retains
-its separate severity policy. A complete supported scope with no confirmed StatefulSet warns under the cluster identity
-when current voter intent is positive. Partial reads, unresolved candidates, stale evidence, or missing intent cannot
-establish that absence.
+### Upgrades and restore tests
 
-Pod findings require a confirmed controller chain through a captured StatefulSet. `Failed` phase produces an error;
-current `Ready=False` produces a warning when phase is not failed. A missing/unknown or noncurrent Ready condition makes
-coverage insufficient, including when a failed-phase finding remains independently supported. Ready uses the Pod's own
-metadata generation and condition acknowledgement. Kubernetes declares condition acknowledgement optional; omission
-therefore leaves current Pod readiness unconfirmed. Malformed/future transition time makes coverage insufficient without
-erasing a generation-confirmed status. Waiting-container fields add references without copying reasons or messages;
-container state alone does not add a new rule. Unknown/malformed phase retains uncertainty alongside independent readiness.
+- **Upgrade failure** (`KBAO-UPGRADE-001`) warns when `status.upgrade.failure` has a reported reason. It does not claim an
+  active failure. Blue/green phases and job-failure counts are observations only.
+- **Restore test** (`KBAO-RESTORETEST-001`) evaluates in this order:
+  1. A current `Passed=False` condition with a reason other than `Failed` is a warning. The condition needs its own
+     current acknowledgement.
+  2. An active reservation suppresses an earlier failed result.
+  3. Otherwise a last result of `Failed` is a warning that covers only that snapshot and disposable target.
 
-Pod population counts nonterminating confirmed Pods by StatefulSet UID. A shortfall warns under that StatefulSet with
-`pod-population`. It requires both complete scopes, resolved associations, current StatefulSet intent, fresh observations,
-and verified target stability. Independently missing Pod readiness does not erase a confirmed population shortfall.
-Deleting workloads are skipped. Invalid/future deletion times retain insufficient coverage and cannot establish population.
+  Missing or invalid active state, outcome, or times are insufficient. A missing outcome never becomes `Failed`. No
+  finding establishes recovery readiness.
 
-Population/absence coverage accepts an unfiltered namespace LIST or the existing CLI selector
-`openbao.org/cluster=<selected-name>`. Findings describe that declared scope, not all cluster resources. Other selectors
-retain independent positive observations but make coverage insufficient and suppress population/absence findings. No rule
-adds reads, broadens selectors, or changes consumer permissions.
+### Workloads and Pods
 
-Snapshot-restore findings require a confirmed target/execution UID or request-bound restore-origin annotation before any
-hold comparison. Names, creation times, operation IDs, and hold values alone do not confirm ownership. A reported hold
-matches a request UID or its recorded operation ID only after UID association. Multiple matching captured requests leave
-the hold ambiguous and coverage insufficient; no request is selected by age or list order.
+Workload and Pod rules need a confirmed association chain and `verified` target verification. Each rule has one coverage
+entry under the cluster, with its primary LIST outcome. Pod coverage also depends on the StatefulSet read.
 
-A uniquely matched held request with reported `Unknown`/`Failed` phase, unknown execution stage, or failed cleanup produces
-an error. With historical reporting enabled, an unheld recorded concern produces a warning that does not claim active
-failure. With it disabled, those historical outcomes produce no finding. Reported `Pending`, `Validating`, or `Running`
-phase produces an informational finding. The subject is the request identity; changing severity or policy does not change
-its finding key. Display selection remains separate; diagnosis evaluates every confirmed request in the captured scope.
+- **StatefulSet readiness** (`KBAO-WORKLOAD-001`) warns under the StatefulSet when ready replicas are below desired. It
+  needs current acknowledgement, known counts, and no deletion timestamp. When a complete scope has no confirmed
+  StatefulSet and the cluster's desired replicas are positive, it warns under the cluster with `statefulset-population`.
+- **Pod phase** (`KBAO-POD-001`, `phase`) is an error for a `Failed` Pod.
+- **Pod readiness** (`ready`) is a warning for current `Ready=False` when the phase is not `Failed`. It uses the Pod's
+  generation and the condition's own acknowledgement. A missing or `Unknown` `Ready` condition is insufficient with
+  `missing_field`, and an unacknowledged one with `generation_unconfirmed`. Waiting containers add references without copying reasons.
+- **Pod population** (`pod-population`) warns under a StatefulSet when it has fewer non-terminating confirmed Pods than
+  desired replicas. It needs both scopes complete, all associations resolved, fresh observations, and a verified target.
 
-A missing or malformed phase is insufficient and is never inferred from age. An independently unknown held execution can
-still support an error. Submission-claim presence, target application, administrator disposition, execution receipts, and
-managed restart completion do not supply missing phase or authorize replay. Producer times are checked against that
-request's read time, not the earlier cluster read. Future/invalid times or reversed start/completion retain insufficient
-coverage while preserving independently reported concerns. Empty findings and `Completed` phase do not qualify end-to-end
-recovery or client transactions.
+Pods excluded from StatefulSet membership, such as backup Job Pods, and foreign Pods do not affect counts or coverage.
+Deleting workloads are skipped. An invalid or future deletion time is insufficient.
 
-Restore analysis retains the primary LIST outcome. Partial reads can retain independently bound findings; denied reads
-cannot resolve a hold. Nonempty restore selectors retain known observations with insufficient coverage. An unmatched or
-ambiguous hold remains insufficient. Missing binding capability, stale reads, changed verification, deletion, or replacement
-cannot produce current restore findings. Diagnostic text excludes provider messages and raw hold values.
+Population and absence findings need an unfiltered namespace LIST or the selector `openbao.org/cluster=<cluster-name>`.
+Any other selector keeps individual findings but makes coverage insufficient with `scope_restricted`. No rule adds reads
+or broadens a selector.
 
-Run `go run ./examples/diagnose` for synthetic evaluation. Fixture and unit coverage do not qualify an operator integration.
+### Snapshot restores
 
-## Verification with list-only credentials
+`KBAO-RESTORE-001` needs the cluster's contract in `RestoreUIDBindingContracts`, verified target verification, and a
+UID-confirmed request. It evaluates every confirmed request; display selection is separate.
 
-`evidence.NewTargetVerification` compares a selected cluster with an already collected named GET or complete, unfiltered
-namespace LIST. It performs no I/O. A console can repeat its existing bounded namespace LIST after related reads and
-verify every selected target without adding a GET permission. The LIST must retain every candidate, with matching
-origin, namespace, group, version, contract, interval, and candidate count. Filtered lists, duplicate identities, and
-declarations that omit candidates are rejected. A partial list never verifies a target, even when it includes a match.
+A reported `openbao.org/restore-hold` matches a request UID, or the request's recorded operation ID, only after UID
+confirmation. More than one matching request makes the hold ambiguous and coverage insufficient. No request is chosen by
+age or order.
 
-A complete LIST confirms unchanged positive generation, changed generation, deletion by name absence, or replacement by
-a new UID for the same name. Missing or invalid generations remain insufficient. The verification retains the LIST
-scope and collection outcome; it never describes a LIST as a GET. This expands admitted verification evidence in rule
-set `7`; older policies are rejected. It does not make the collection atomic or qualify an operator integration.
+| Condition | Severity |
+| --- | --- |
+| The held request reports phase `Unknown` or `Failed`, stage `Unknown`, or cleanup `Failed` | `error` |
+| An unheld request reports the same, and `ReportHistoricalRestores` is `true` | `warning` |
+| The request reports phase `Pending`, `Validating`, or `Running` | `info` |
 
-## Pre-release contract corrections
+The subject is the request. A missing or malformed phase is insufficient and is never inferred from age. Submission
+claims, applied targets, dispositions, and restart completion do not stand in for a phase. Producer times are checked
+against the request's own read time. A restore selector, an unmatched hold, or a denied read leaves coverage
+insufficient. `Completed` and empty findings do not prove end-to-end recovery.
 
-Rule set `8` excludes a Pod from StatefulSet membership when exactly one valid controller reference names another kind
-or API group. This includes active and completed backup Job Pods that share the cluster label. They do not contribute
-to StatefulSet Pod counts or limit its coverage. This exclusion does not prove that the Job belongs to another cluster.
-Missing, invalid, noncontroller, and multiple-controller references remain unconfirmed. A controller kind that conflicts
-with a known StatefulSet UID cannot prove exclusion. UID-confirmed StatefulSet chains
-and conflicting reserved metadata retain their existing checks.
+## Example
 
-Coverage retains all observed insufficiency causes in the sorted, deduplicated `Reasons` field. The singular `Reason`
-retains its earlier primary-cause behavior for consumer mappings. Independent confirmed findings remain available.
-Read completion, target verification, and association interpretation remain separate results.
-
-`evidence.ValidationError` provides a field path and preserves sentinel classifications through `errors.Is`.
-Paths use library-owned field names and numeric indices, for example
-`clusters[0].pods.observations[3].metadata.reference.resourceVersion`. Error text contains no field values or underlying
-provider errors. Capture, related-input, target-verification, and request validation report the relevant field or section.
-
-`diagnose.LatestRestore` owns display selection. Its caller supplies the approved UID-binding contract and API version; an empty or
-unmatched contract or API version cannot confirm a request. Creation times only order requests whose association is already confirmed.
-
-## Kubernetes qualification floor
-
-The client targets Kubernetes 1.34 and later. Kubernetes 1.33 is outside the qualification target. In Kubernetes 1.34,
-[`PodObservedGenerationTracking`](https://v1-34.docs.kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features)
-is enabled by default. A local test against 1.34.11 confirms current `Ready=True` and `Ready=False` condition generations.
-[Reproduce the field qualification](kubernetes-qualification.md).
-
-If the feature is disabled, or a Ready condition lacks current acknowledgement, readiness coverage remains insufficient
-with `generation_unconfirmed`. The rule does not infer condition acknowledgement from the Pod's overall status or from
-an omitted generation. An independently reported Failed phase can still produce a finding.
+`go run ./examples/diagnose` projects a synthetic cluster and prints `2 findings, 15 coverage entries`.

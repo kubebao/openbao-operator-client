@@ -1,45 +1,41 @@
 # Architecture
 
-The library separates resource facts from their interpretation and from application behavior.
+The library keeps three things apart: resource facts, their interpretation, and application behavior.
 
 | Package | Allowed first-party dependencies | External boundary |
 | --- | --- | --- |
 | `evidence` | None | Standard-library value types only |
 | `adapter` | `evidence` | Approved public API fields and version contracts |
-| `collect` | `adapter`, `evidence` | Caller-configured Kubernetes readers |
-| `diagnose` | `evidence` | Supplied policy and reference time; no network access |
+| `collect` | `adapter`, `evidence` | Caller-configured HTTP transport |
+| `diagnose` | `evidence` | Supplied policy and reference time; no I/O |
 
-`make architecture` enforces package direction, pure-package import restrictions, and exclusion of operator and consumer
-modules. Unit-test imports follow the same package direction. Collector tests can use Kubernetes clients and test servers.
+`make architecture` enforces this direction, the import restrictions on pure packages, and the exclusion of operator and
+consumer modules. Test imports follow the same direction.
 
-Capability definitions belong to adapters. Evidence records observed discovery/read outcomes and the contract under
-which a projection was made. Diagnosis consumes those value types without importing adapter code. Pure workload UID
-association checks live in `evidence`; adapter entry points delegate to them. Collection and diagnosis use one implementation.
+## Responsibilities
 
-Adapters validate types, ranges, identifiers, and timestamps at the boundary. Preserve reported fields separately from
-derived states. Document zero-value omission semantics against a pinned public operator API/CRD source. A resource API
-version or discovery response alone does not establish compatibility.
+- `evidence` defines normalized values and the pure checks on them: validation, generation comparison, freshness, UID
+  associations, and target verification. Adapter and diagnosis code call the same association implementation.
+- `adapter` validates types, ranges, identifiers, and timestamps at the boundary. It records reported fields separately
+  from derived states. Omission rules come from a pinned public API source, never from discovery or an API version alone.
+- `collect` receives a caller-configured transport, target, scope, context, and limits. It never broadens the verbs,
+  namespaces, API groups, resources, or selectors that the caller declares.
+- `diagnose` receives normalized evidence, selected rules, policy, and a reference time. It returns findings and coverage.
+  Findings can coexist with insufficient coverage. Empty findings do not mean complete evidence or a healthy cluster.
 
-Collection receives a caller-configured reader, target, scope, context, and limits. Keep kubeconfig selection, transport
-policy, credential renewal, enrollment, scheduling, and persistence in applications. Shared primitives must not expand a
-consumer's verbs, namespaces, API groups, resources, selectors, or permissions.
+## Consumer responsibilities
 
-Diagnosis receives normalized evidence, selected rules, evaluation policy, and reference time. It returns findings and
-coverage. Threshold-to-exit-code mapping and presentation remain consumer responsibilities. Findings can coexist with
-insufficient evidence. Empty findings do not imply complete evidence or a healthy cluster.
+| Consumer | Keeps |
+| --- | --- |
+| Console | Authorization, enrollment, history comparison, first-seen tracking, persistence, severity mapping, rendering |
+| CLI | Command parsing, kubeconfig loading, watch orchestration, output, severity mapping, process exit codes |
 
-The console keeps authorization, history comparison, first-seen tracking, and persistence. The CLI keeps command parsing,
-kubeconfig loading, output, watch orchestration, and process results. Application mappings can change during initial
-development when the new contract improves semantics; document storage and output changes.
+Both consumers own transport configuration, credential renewal, and scheduling.
 
-Cluster/workload evidence, JSON projection, UID associations, bounded discovery/GET/LIST collection, and declared related
-reads with final target verification are implemented. Diagnosis implements finding identity, coverage, and fifteen supported
-rules. Native recovery and remote replication remain reserved. HTTP transports belong to callers; diagnosis uses supplied time
-and policy.
-See [extraction status](extraction.md) for coverage. Add `operations` and bundle packages with their first implemented features.
+## Tests
 
-`internal/contracttest` contains test-only executable specifications and synthetic expected-result fixtures. Its archived
-consumer harnesses run separately against immutable source snapshots. Value, condition, identity-validation, freshness,
-association/selection, workload ownership, collection, finding identity, coverage, and representative replay fixtures call
-production code. Supported projection and diagnostic specifications use production code. Remaining models describe consumer mappings
-and history, optional local text, or unsupported remote-index behavior; they are not supported production implementations.
+`internal/contracttest` holds synthetic fixtures with hand-authored expected results. Its tests call production code.
+`internal/integration` holds Kubernetes field checks that run only against a disposable cluster; see
+[development](development.md#kubernetes-field-check).
+
+Add an `operations` or bundle package together with its first implemented feature.
