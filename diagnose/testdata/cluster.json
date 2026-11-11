@@ -1,0 +1,251 @@
+{
+  "schemaVersion": "2",
+  "adapterContract": "openbao.org/v1alpha1@9671c306",
+  "reference": {
+    "identity": {
+      "origin": "cluster-a",
+      "group": "openbao.org",
+      "kind": "OpenBaoCluster",
+      "namespace": "team",
+      "name": "bao",
+      "uid": "cluster-1"
+    },
+    "apiVersion": "openbao.org/v1alpha1",
+    "resourceVersion": {
+      "state": "reported",
+      "value": "10"
+    },
+    "collectedAt": {
+      "state": "reported",
+      "value": "2026-11-10T10:00:00Z"
+    }
+  },
+  "createdAt": {
+    "state": "reported",
+    "value": "2026-11-10T09:00:00Z"
+  },
+  "generation": {
+    "state": "reported",
+    "value": 4
+  },
+  "observedGeneration": {
+    "state": "reported",
+    "value": 4
+  },
+  "desiredVersion": {
+    "state": "unknown"
+  },
+  "observedVersion": {
+    "state": "unknown"
+  },
+  "phase": {
+    "state": "unknown"
+  },
+  "desiredReplicas": {
+    "state": "reported",
+    "value": 3
+  },
+  "readyReplicas": {
+    "state": "reported",
+    "value": 0
+  },
+  "paused": {
+    "state": "reported",
+    "value": false
+  },
+  "conditions": {
+    "state": "unknown",
+    "values": null
+  },
+  "backup": {
+    "configuration": "reported",
+    "state": "reported",
+    "lastSuccessAt": {
+      "state": "reported",
+      "value": "2026-11-09T09:00:00Z"
+    },
+    "lastAttemptAt": {
+      "state": "unknown"
+    },
+    "nextScheduledAt": {
+      "state": "unknown"
+    },
+    "consecutiveFailures": {
+      "state": "reported",
+      "value": 0
+    },
+    "lastFailureReason": {
+      "state": "unknown"
+    },
+    "lastFailureAt": {
+      "state": "unknown"
+    },
+    "sizeBytes": {
+      "state": "unknown"
+    },
+    "snapshotKey": {
+      "state": "unknown"
+    },
+    "snapshotDigest": {
+      "state": "unknown"
+    },
+    "restoreTest": {
+      "state": "absent",
+      "active": "unknown",
+      "last": "unknown",
+      "lastOutcome": {
+        "state": "unknown"
+      },
+      "lastReason": {
+        "state": "unknown"
+      },
+      "lastSuccessAt": {
+        "state": "unknown"
+      },
+      "finishedAt": {
+        "state": "unknown"
+      },
+      "snapshotKey": {
+        "state": "unknown"
+      },
+      "snapshotDigest": {
+        "state": "unknown"
+      },
+      "conditions": {
+        "state": "unknown",
+        "values": null
+      }
+    }
+  },
+  "upgrade": {
+    "state": "absent",
+    "executionID": {
+      "state": "unknown"
+    },
+    "targetVersion": {
+      "state": "unknown"
+    },
+    "fromVersion": {
+      "state": "unknown"
+    },
+    "startedAt": {
+      "state": "unknown"
+    },
+    "currentPartition": {
+      "state": "unknown"
+    },
+    "completedPods": {
+      "state": "unknown",
+      "values": null
+    },
+    "failure": {
+      "state": "unknown",
+      "reason": {
+        "state": "unknown"
+      },
+      "at": {
+        "state": "unknown"
+      }
+    }
+  },
+  "blueGreen": {
+    "state": "absent",
+    "phase": {
+      "state": "unknown"
+    },
+    "operationID": {
+      "state": "unknown"
+    },
+    "greenVersion": {
+      "state": "unknown"
+    },
+    "startedAt": {
+      "state": "unknown"
+    },
+    "jobFailureCount": {
+      "state": "unknown"
+    },
+    "lastFailedJob": {
+      "state": "unknown"
+    }
+  },
+  "readReplicas": {
+    "configuration": "absent",
+    "state": "absent",
+    "desired": {
+      "state": "unknown"
+    },
+    "ready": {
+      "state": "unknown"
+    }
+  },
+  "maintenance": {
+    "state": "absent",
+    "enabled": {
+      "state": "unknown"
+    }
+  },
+  "restoreOrigin": {
+    "state": "unknown"
+  },
+  "restoreHold": {
+    "state": "unknown"
+  },
+  "operationLock": {
+    "state": "absent",
+    "operation": {
+      "state": "unknown"
+    },
+    "holder": {
+      "state": "unknown"
+    },
+    "acquiredAt": {
+      "state": "unknown"
+    },
+    "renewedAt": {
+      "state": "unknown"
+    }
+  },
+  "breakGlass": {
+    "state": "absent",
+    "active": {
+      "state": "unknown"
+    },
+    "reason": {
+      "state": "unknown"
+    },
+    "enteredAt": {
+      "state": "unknown"
+    }
+  },
+  "legacyRestore": {
+    "state": "absent",
+    "name": {
+      "state": "unknown"
+    },
+    "uid": {
+      "state": "unknown"
+    },
+    "restartCompletedAt": {
+      "state": "unknown"
+    }
+  },
+  "workloadError": {
+    "state": "unknown",
+    "reason": {
+      "state": "unknown"
+    },
+    "at": {
+      "state": "unknown"
+    }
+  },
+  "adminOpsError": {
+    "state": "unknown",
+    "reason": {
+      "state": "unknown"
+    },
+    "at": {
+      "state": "unknown"
+    }
+  }
+}

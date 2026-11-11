@@ -4,7 +4,8 @@ Milestone 1 defines the extraction target through synthetic fixtures, executable
 the recorded consumer source. Milestone 3 now implements cluster, operational, and workload evidence/projection;
 UID associations; identity validation; times; and collection outcomes. Matching fixtures call production code. Remaining
 specifications are test-only. Bounded discovery, GET/LIST, and declared related-resource collection with final target
-verification are implemented. Diagnostic rules remain pending. See [extraction status](extraction.md).
+verification are implemented. The diagnostic core implements readiness and backup age; other rules remain pending or
+reserved. See [extraction status](extraction.md) and [evaluation behavior](diagnostics.md).
 
 Source baselines:
 
@@ -113,7 +114,7 @@ results. See [source corrections](extraction.md#source-corrections).
 
 The [rule catalog](rules.md) maps all console rules, CLI doctor rules, and CLI status attention. Finding identity is the
 ordered tuple `(rule, origin, group, kind, namespace, name, UID, subsubject)`. Tests encode it as a JSON string array;
-production serialization follows in milestone 3. Use condition type, restriction field, controller domain, or container
+production uses that string-array key through `diagnose.Finding.Key`. Use condition type, restriction field, controller domain, or container
 kind/name for multiple concerns on one resource. Use an empty subsubject for one concern per resource. Exclude severity,
 text, timestamps, policy values, and resource version. Sort by severity descending, then the tuple lexically.
 

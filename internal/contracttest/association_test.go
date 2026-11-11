@@ -13,8 +13,6 @@ import (
 
 type identity evidence.Identity
 
-func (id identity) valid() bool { return evidence.Identity(id).Validate() == nil }
-
 type request struct {
 	Identity         identity `json:"identity"`
 	TargetName       string   `json:"targetName"`

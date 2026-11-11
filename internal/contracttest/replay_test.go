@@ -11,12 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kubebao/openbao-operator-client/adapter"
+	"github.com/kubebao/openbao-operator-client/diagnose"
 	"github.com/kubebao/openbao-operator-client/evidence"
-)
-
-const (
-	readinessRule = "KBAO-CLUSTER-003"
-	backupAgeRule = "KBAO-BACKUP-003"
 )
 
 type observation struct {
@@ -56,39 +53,8 @@ type analysis struct {
 	Coverage []ruleCoverage `json:"coverage"`
 }
 
-func readyFinding(o observation, p evaluationPolicy, reference time.Time) (string, string) {
-	created, err := time.Parse(time.RFC3339Nano, o.Created)
-	if err != nil || created.After(reference) || o.Paused == nil || o.Desired == nil || o.Ready == nil ||
-		*o.Desired < 0 || *o.Ready < 0 || evidence.CompareGeneration(o.Generation, o.Observed) != evidence.GenerationCurrent {
-		return "insufficient", ""
-	}
-	if *o.Paused || reference.Sub(created) < time.Duration(p.StartupGrace)*time.Second || *o.Desired == 0 || *o.Ready >= *o.Desired {
-		return "evaluated", ""
-	}
-	if *o.Ready == 0 {
-		return "evaluated", "critical"
-	}
-	return "evaluated", "warning"
-}
-
-func backupFinding(o observation, p evaluationPolicy, reference time.Time) (string, string) {
-	if o.Backup == nil {
-		return "insufficient", ""
-	}
-	if !*o.Backup {
-		return "not_applicable", ""
-	}
-	success, err := time.Parse(time.RFC3339Nano, o.Success)
-	if err != nil || success.After(reference) {
-		return "insufficient", ""
-	}
-	if reference.Sub(success) > time.Duration(p.BackupAge)*time.Second {
-		return "evaluated", "warning"
-	}
-	return "evaluated", ""
-}
-
-// Replay exercises representative time-dependent rules, not the complete production rule catalog.
+// Replay translates the draft fixture envelope into normalized production input.
+// Byte decoding is test-boundary code; policy, findings, and coverage use diagnose.
 func replay(data []byte, policy evaluationPolicy) (analysis, error) {
 	result := analysis{Findings: []finding{}, Coverage: []ruleCoverage{}}
 	var input capture
@@ -100,46 +66,82 @@ func replay(data []byte, policy evaluationPolicy) (analysis, error) {
 	if err := decoder.Decode(new(any)); err != io.EOF {
 		return result, errors.New("trailing capture content")
 	}
-	if input.EvidenceVersion != "1" || input.AdapterContract != adapterContract || policy.RuleVersion != "1" {
-		return result, errors.New("unsupported contract version")
+	if input.AdapterContract != adapterContract {
+		return result, diagnose.ErrUnsupportedVersion
 	}
 	reference, err := time.Parse(time.RFC3339Nano, policy.Reference)
-	if err != nil || policy.BackupAge <= 0 || policy.StartupGrace < 0 {
-		return result, errors.New("invalid evaluation policy")
+	if err != nil {
+		return result, diagnose.ErrInvalidPolicy
 	}
+	actualPolicy := diagnose.DefaultPolicy(reference, []string{adapterContract})
+	actualPolicy.RuleSetVersion = policy.RuleVersion
+	actualPolicy.Rules = []diagnose.RuleID{}
 	for _, rule := range policy.Rules {
-		if rule != readinessRule && rule != backupAgeRule {
-			return result, fmt.Errorf("unknown rule %s", rule)
-		}
+		actualPolicy.Rules = append(actualPolicy.Rules, diagnose.RuleID(rule))
 	}
-	seen := map[identity]bool{}
+	actualPolicy.MaxBackupAge = time.Duration(policy.BackupAge) * time.Second
+	actualPolicy.StartupGrace = time.Duration(policy.StartupGrace) * time.Second
+	actual := diagnose.Capture{SchemaVersion: evidence.SchemaVersion, Clusters: []diagnose.ClusterInput{}}
+	if input.EvidenceVersion != "1" {
+		actual.SchemaVersion = input.EvidenceVersion
+	}
+	collected := time.Date(2026, 11, 10, 10, 0, 0, 0, time.UTC)
 	for _, o := range input.Observations {
-		if !o.Identity.valid() || seen[o.Identity] {
-			return result, errors.New("invalid or duplicate subject")
+		spec := map[string]any{"replicas": o.Desired, "paused": o.Paused}
+		switch {
+		case o.Backup == nil:
+			spec["backup"] = nil
+		case *o.Backup:
+			spec["backup"] = map[string]any{}
 		}
-		seen[o.Identity] = true
-		for _, rule := range []string{readinessRule, backupAgeRule} {
-			state, severity := "excluded", ""
-			if slices.Contains(policy.Rules, rule) {
-				if rule == readinessRule {
-					state, severity = readyFinding(o, policy, reference)
-				} else {
-					state, severity = backupFinding(o, policy, reference)
-				}
-			}
-			result.Coverage = append(result.Coverage, ruleCoverage{Rule: rule, Subject: o.Identity, State: state})
-			if severity != "" {
-				result.Findings = append(result.Findings, finding{Rule: rule, Subject: o.Identity, Severity: severity})
-			}
+		raw, err := json.Marshal(map[string]any{
+			"apiVersion": "openbao.org/v1alpha1", "kind": "OpenBaoCluster",
+			"metadata": map[string]any{
+				"namespace": o.Identity.Namespace, "name": o.Identity.Name, "uid": o.Identity.UID,
+				"generation": o.Generation, "creationTimestamp": o.Created,
+			},
+			"spec": spec, "status": map[string]any{
+				"observedGeneration": o.Observed, "readyReplicas": o.Ready,
+				"backup": map[string]any{"consecutiveFailures": 0, "lastBackupTime": o.Success},
+			},
+		})
+		if err != nil {
+			return result, err
 		}
+		options := fixtureOptions(o.Identity.Origin, adapter.V1Alpha1Snapshot)
+		options.CollectedAt = collected
+		cluster, err := adapter.ProjectCluster(raw, options)
+		if err != nil {
+			return result, err
+		}
+		scope := evidence.Scope{
+			Origin: o.Identity.Origin, Group: o.Identity.Group, Version: "v1alpha1", Resource: "openbaoclusters",
+			Namespace: o.Identity.Namespace, Name: o.Identity.Name, Action: evidence.ReadGet,
+		}
+		actual.Clusters = append(actual.Clusters, diagnose.ClusterInput{
+			Subject: evidence.Identity(o.Identity), AdapterContract: adapterContract,
+			Observation: &cluster, Collection: evidence.Collection{
+				Scope: scope, Outcome: evidence.CollectionComplete, Items: 1,
+				Interval: evidence.Interval{StartedAt: collected, CompletedAt: collected},
+			},
+		})
 	}
-	order(result.Findings)
-	slices.SortFunc(result.Coverage, func(a, b ruleCoverage) int {
-		return slices.Compare(
-			findingParts(finding{Rule: a.Rule, Subject: a.Subject}),
-			findingParts(finding{Rule: b.Rule, Subject: b.Subject}),
+	report, err := diagnose.Analyze(actual, actualPolicy)
+	if err != nil {
+		return result, err
+	}
+	for _, value := range report.Findings {
+		result.Findings = append(result.Findings, finding{
+			Rule: string(value.Rule), Subject: identity(value.Subject),
+			Subsubject: value.Subsubject, Severity: string(value.Severity),
+		})
+	}
+	for _, value := range report.Coverage {
+		result.Coverage = append(
+			result.Coverage,
+			ruleCoverage{Rule: string(value.Rule), Subject: identity(value.Subject), State: string(value.State)},
 		)
-	})
+	}
 	return result, nil
 }
 

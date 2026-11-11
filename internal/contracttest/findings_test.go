@@ -1,10 +1,11 @@
 package contracttest
 
 import (
-	"cmp"
-	"encoding/json"
 	"slices"
 	"testing"
+
+	"github.com/kubebao/openbao-operator-client/diagnose"
+	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
 type finding struct {
@@ -14,29 +15,43 @@ type finding struct {
 	Severity   string   `json:"severity"`
 }
 
-func findingKey(f finding) string {
-	key, _ := json.Marshal(findingParts(f))
-	return string(key)
-}
-
-func findingParts(f finding) []string {
-	return []string{
-		f.Rule, f.Subject.Origin, f.Subject.Group, f.Subject.Kind,
-		f.Subject.Namespace, f.Subject.Name, f.Subject.UID, f.Subsubject,
+func coreFinding(value finding) diagnose.Finding {
+	return diagnose.Finding{
+		Rule: diagnose.RuleID(value.Rule), Subject: evidence.Identity(value.Subject), Subsubject: value.Subsubject,
+		Severity: diagnose.Severity(value.Severity), Summary: "Synthetic contract finding",
 	}
 }
 
-func rank(severity string) int {
-	return map[string]int{"info": 1, "warning": 2, "error": 3, "critical": 4}[severity]
+func findingKey(value finding) string {
+	key, err := coreFinding(value).Key()
+	if err != nil {
+		return ""
+	}
+	return key
 }
 
 func order(findings []finding) []string {
-	slices.SortFunc(findings, func(a, b finding) int {
-		return cmp.Or(cmp.Compare(rank(b.Severity), rank(a.Severity)), slices.Compare(findingParts(a), findingParts(b)))
-	})
+	values := []diagnose.Finding{}
+	for _, value := range findings {
+		values = append(values, coreFinding(value))
+	}
+	ordered, err := diagnose.CanonicalFindings(values)
+	if err != nil {
+		return nil
+	}
 	keys := []string{}
-	for _, f := range findings {
-		keys = append(keys, findingKey(f))
+	for i, value := range ordered {
+		findings[i] = finding{
+			Rule:       string(value.Rule),
+			Subject:    identity(value.Subject),
+			Subsubject: value.Subsubject,
+			Severity:   string(value.Severity),
+		}
+		key, err := value.Key()
+		if err != nil {
+			return nil
+		}
+		keys = append(keys, key)
 	}
 	return keys
 }
