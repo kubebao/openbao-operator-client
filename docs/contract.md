@@ -4,7 +4,7 @@ Milestone 1 defines the extraction target through synthetic fixtures, executable
 the recorded consumer source. Milestone 3 now implements cluster, operational, and workload evidence/projection;
 UID associations; identity validation; times; and collection outcomes. Matching fixtures call production code. Remaining
 specifications are test-only. Bounded discovery, GET/LIST, and declared related-resource collection with final target
-verification are implemented. The diagnostic core implements readiness and backup age; other rules remain pending or
+verification are implemented. The diagnostic core implements eight cluster rules; other rules remain pending or
 reserved. See [extraction status](extraction.md) and [evaluation behavior](diagnostics.md).
 
 Source baselines:

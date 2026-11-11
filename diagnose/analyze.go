@@ -14,9 +14,9 @@ type Report struct {
 }
 
 type evaluation struct {
-	state   CoverageState
-	reason  CoverageReason
-	finding *Finding
+	state    CoverageState
+	reason   CoverageReason
+	findings []Finding
 }
 
 // Analyze reads no clock or external state. Identical normalized evidence and
@@ -45,11 +45,9 @@ func Analyze(capture Capture, policy Policy) (Report, error) {
 	result.SchemaVersion, result.Policy = "1", canonicalPolicy(policy)
 	for _, input := range capture.Clusters {
 		for _, rule := range SupportedRules() {
-			coverage, finding := evaluate(input, rule, policy)
+			coverage, findings := evaluate(input, rule, policy)
 			result.Coverage = append(result.Coverage, coverage)
-			if finding != nil {
-				result.Findings = append(result.Findings, *finding)
-			}
+			result.Findings = append(result.Findings, findings...)
 		}
 	}
 	findings, err := CanonicalFindings(result.Findings)
@@ -72,7 +70,7 @@ func canonicalPolicy(policy Policy) Policy {
 	return policy
 }
 
-func evaluate(input ClusterInput, rule RuleID, policy Policy) (Coverage, *Finding) {
+func evaluate(input ClusterInput, rule RuleID, policy Policy) (Coverage, []Finding) {
 	coverage := Coverage{Rule: rule, Subject: input.Subject, State: Excluded, Reason: ReasonExcluded, Outcome: input.Collection.Outcome}
 	if !slices.Contains(policy.Rules, rule) {
 		return coverage, nil
@@ -108,13 +106,29 @@ func evaluate(input ClusterInput, rule RuleID, policy Policy) (Coverage, *Findin
 		value = readiness(*input.Observation, policy)
 	case RuleBackupAge:
 		value = backupAge(*input.Observation, policy)
+	case RuleAvailability:
+		value = availability(*input.Observation)
+	case RuleSealed:
+		value = sealed(*input.Observation)
+	case RuleCondition:
+		value = conditions(*input.Observation)
+	case RuleController:
+		value = controllerErrors(*input.Observation)
+	case RuleGeneration:
+		value = generation(*input.Observation)
+	case RuleRestriction:
+		value = restrictions(*input.Observation)
 	}
 	coverage.State, coverage.Reason = value.state, value.reason
 	if input.Collection.Outcome != evidence.CollectionComplete {
 		coverage.State, coverage.Reason = Insufficient, ReasonScopeIncomplete
 	}
-	return coverage, value.finding
+	return coverage, value.findings
 }
+
+func (e *evaluation) add(value *Finding) { e.findings = append(e.findings, *value) }
+
+func (e *evaluation) insufficient(reason CoverageReason) { e.state, e.reason = Insufficient, reason }
 
 func finding(cluster evidence.Cluster, rule RuleID, severity Severity, summary string, fields ...string) *Finding {
 	value := &Finding{

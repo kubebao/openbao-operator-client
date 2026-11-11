@@ -75,6 +75,9 @@ func replay(data []byte, policy evaluationPolicy) (analysis, error) {
 	}
 	actualPolicy := diagnose.DefaultPolicy(reference, []string{adapterContract})
 	actualPolicy.RuleSetVersion = policy.RuleVersion
+	if policy.RuleVersion == "1" {
+		actualPolicy.RuleSetVersion = diagnose.RuleSetVersion
+	}
 	actualPolicy.Rules = []diagnose.RuleID{}
 	for _, rule := range policy.Rules {
 		actualPolicy.Rules = append(actualPolicy.Rules, diagnose.RuleID(rule))
@@ -137,6 +140,9 @@ func replay(data []byte, policy evaluationPolicy) (analysis, error) {
 		})
 	}
 	for _, value := range report.Coverage {
+		if value.Rule != diagnose.RuleReadiness && value.Rule != diagnose.RuleBackupAge {
+			continue
+		}
 		result.Coverage = append(
 			result.Coverage,
 			ruleCoverage{Rule: string(value.Rule), Subject: identity(value.Subject), State: string(value.State)},
