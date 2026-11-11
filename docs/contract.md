@@ -3,7 +3,8 @@
 Milestone 1 defines the extraction target through synthetic fixtures, executable reference specifications, and tests of
 the recorded consumer source. Milestone 3 now implements cluster, operational, and workload evidence/projection;
 UID associations; identity validation; times; and collection outcomes. Matching fixtures call production code. Remaining
-specifications are test-only; production collection and diagnostic rules are pending. See [extraction status](extraction.md).
+specifications are test-only. Scoped GET/LIST collection is implemented; discovery, coordinated related-resource
+collection, and diagnostic rules remain pending. See [extraction status](extraction.md).
 
 Source baselines:
 

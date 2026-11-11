@@ -1,6 +1,7 @@
 # Milestone 3 extraction status
 
-Production slices implement cluster/workload projection, operational observations, evidence values, and UID associations.
+Production slices implement cluster/workload projection, operational observations, evidence values, UID associations,
+and bounded GET/LIST reads.
 Milestone 3 remains in progress. Neither consumer imports the library yet.
 
 | Slice | State | Verification |
@@ -10,7 +11,8 @@ Milestone 3 remains in progress. Neither consumer imports the library yet.
 | Backup, rolling/blue-green upgrade, restore-test, restrictions, read-replica counts, snapshot-restore recovery facts | Implemented | Production fixtures, malformed-field tests, serialized replay |
 | Native `OpenBaoRecovery` and remote-replication observations | Unsupported by this contract | No definitions in the pinned public API |
 | StatefulSet/Pod evidence, UID associations, restore selection | Implemented | Production fixtures, replacement/conflict tests, milestone 1 specifications |
-| Bounded discovery, reads, pagination, cancellation, replacement verification | Pending | Transcript specifications; no production reader yet |
+| Scoped GET/LIST reads, pagination, cancellation, UID-pinned named refresh | Implemented | HTTP fixtures, limits, partial reads, scope and replacement tests |
+| Bounded discovery and final target verification across related reads | Pending | Transcript specifications; consumer orchestration remains separate |
 | Findings, coverage, evaluation policy, deterministic diagnostic replay | Pending | Reference specifications; no production rules yet |
 
 ## Projection boundary
@@ -95,6 +97,47 @@ UID before confirming. Malformed binding objects or fields prevent confirmation.
 operation IDs and creation times establish no ownership. `LatestRestore` selects only confirmed requests with known
 creation times at or before their read time, sorts by newest time then UID ascending, and rejects duplicate identities.
 Selection is for display; it does not verify acceptance, causality, or operation success.
+
+## Bounded resource reads
+
+`collect.NewClient` receives an API-server endpoint and a caller-configured `http.RoundTripper`. The caller owns TLS,
+authentication, credential renewal, proxy policy, and transport rate limits. The transport must honor request contexts
+and must not follow redirects. The library performs GET requests directly through that transport. It loads no credentials,
+follows no redirects, retries no requests, and selects no alternative API group. Endpoint path prefixes are preserved;
+userinfo, query strings, fragments, encoded prefixes, and traversal segments are rejected.
+
+`Client.Clusters`, `Restores`, `StatefulSets`, and `Pods` accept an exact `evidence.Scope`, adapter contract, projection
+limits, and collection limits. Each method permits only its resource and declared contract. A named GET requires a
+namespace. An all-namespace LIST also requires `AllowAllNamespaces`; no read automatically broadens the scope. Label
+selectors pass unchanged as encoded query values. The cluster method adds no Pod, StatefulSet, restore, or discovery reads.
+
+Default limits are 8 requests, 500 candidates, 100 candidates per requested page, 1 MiB per response, 8 MiB across response
+bodies, 8 MiB of serialized observations, and 15 seconds across one GET or LIST. Every limit must be positive. Page size
+cannot exceed candidate or projection entry limits. A shorter caller deadline takes precedence. Response reading uses
+one lookahead byte to detect overflow and closes the body before projection. Byte accounting records fully read successful
+HTTP response bodies, including pages rejected during projection. A failed or oversized response stops the sequence.
+Retention accounting sums serialized observation
+sizes, excluding the result envelope. Counts and page limits bound envelope overhead separately.
+
+List projection validates the typed envelope and requires a resource version. Omitted item API version/kind inherits
+the envelope; present null, empty, or conflicting declarations remain invalid. Continuation tokens are opaque, bounded
+control data and are excluded from serialization. Pagination keeps the list resource version fixed, rejects duplicate
+UIDs and repeated tokens, and stops at the declared bounds. An expired continuation fails without restarting the list.
+
+Pages are admitted atomically. Malformed, conflicting, or over-budget pages do not discard earlier observations. Results
+sort observations by full identity on every outcome. `Collection.Items` counts admitted candidates before association
+filtering. GET/LIST methods return candidates without confirming ownership; use the adapter association functions.
+Only a valid, complete empty list proves absence in its declared scope.
+
+GET requests can declare `ExpectedUID`. A different UID produces `replaced` with no replacement observation. HTTP 404
+produces `deleted` for GET and `unsupported` for LIST; 401/403 produces `denied`; 408/504 produces `timeout`. Other HTTP
+failures produce `failed`. Cancellation and transport timeouts remain distinct. Raw response bodies and client errors
+are never returned or serialized. Invalid caller configuration returns the bounded `ErrInvalidRequest` error before I/O.
+
+Each call has its own bound. Callers must supply a shared deadline when composing several calls. API discovery and a
+coordinated related-read sequence with final target verification remain pending. These HTTP tests do not qualify real
+API-server validation, RBAC, or operator reconciliation. No consumer request scope changes in this slice.
+The milestone 1 collection transcript model remains until the coordinated sequence replaces its final-verification logic.
 
 ## Evidence and replay
 

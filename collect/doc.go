@@ -1,3 +1,4 @@
-// Package collect reserves the boundary for bounded discovery and resource reads.
-// Collection implementations are planned. Callers retain client and credential configuration.
+// Package collect performs bounded, scoped GET and LIST reads through caller-configured
+// HTTP transports. Results retain only projected evidence and classified outcomes.
+// Discovery and coordinated related-resource collection remain planned.
 package collect
