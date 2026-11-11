@@ -26,7 +26,7 @@
         "exitCode": 2
       }
     },
-    "contract": "openbao.org/v1alpha1@9671c306",
+    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
     "canaries": [
       "SPEC_CANARY",
       "PROVIDER_CANARY",
@@ -75,7 +75,7 @@
         "exitCode": 2
       }
     },
-    "contract": "openbao.org/v1alpha1@9671c306",
+    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
     "canaries": [
       "SPEC_CANARY",
       "PROVIDER_CANARY",

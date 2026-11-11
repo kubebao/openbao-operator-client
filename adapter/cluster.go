@@ -29,6 +29,7 @@ func ProjectCluster(raw []byte, options ProjectionOptions) (evidence.Cluster, er
 		AdapterContract:    string(options.Contract),
 		Reference:          ref,
 		CreatedAt:          timestamp(object, "metadata", "creationTimestamp"),
+		DeletionTimestamp:  timestamp(object, "metadata", "deletionTimestamp"),
 		Generation:         integer(object, "metadata", "generation"),
 		ObservedGeneration: integer(object, "status", "observedGeneration"),
 		DesiredVersion:     version(object, "spec", "version"),

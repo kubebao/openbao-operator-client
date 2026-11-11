@@ -1,6 +1,6 @@
 {
-  "schemaVersion": "2",
-  "adapterContract": "openbao.org/v1alpha1@9671c306",
+  "schemaVersion": "3",
+  "adapterContract": "openbao.org/v1alpha1@9671c306/controls-v1",
   "reference": {
     "identity": {
       "origin": "cluster-a",

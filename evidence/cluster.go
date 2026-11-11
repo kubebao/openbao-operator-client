@@ -2,7 +2,7 @@ package evidence
 
 import "strings"
 
-const SchemaVersion = "2"
+const SchemaVersion = "3"
 
 type ConditionStatus string
 
@@ -73,6 +73,7 @@ type Cluster struct {
 	AdapterContract    string          `json:"adapterContract"`
 	Reference          Reference       `json:"reference"`
 	CreatedAt          Timestamp       `json:"createdAt"`
+	DeletionTimestamp  Timestamp       `json:"deletionTimestamp"`
 	Generation         Integer         `json:"generation"`
 	ObservedGeneration Integer         `json:"observedGeneration"`
 	DesiredVersion     Text            `json:"desiredVersion"`
@@ -111,6 +112,7 @@ func (c Cluster) Validate() error {
 	}
 	if err := checkFields(
 		fieldCheck{"reference", c.Reference.Validate()}, fieldCheck{"createdAt", c.CreatedAt.Validate()},
+		fieldCheck{"deletionTimestamp", c.DeletionTimestamp.Validate()},
 		fieldCheck{"generation", c.Generation.Validate()}, fieldCheck{"observedGeneration", c.ObservedGeneration.Validate()},
 		fieldCheck{"conditions", c.Conditions.Validate()}, fieldCheck{"paused", c.Paused.Validate()},
 		fieldCheck{"desiredVersion", c.DesiredVersion.Validate()}, fieldCheck{"observedVersion", c.ObservedVersion.Validate()},

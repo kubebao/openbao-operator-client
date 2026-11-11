@@ -56,6 +56,7 @@ def main():
         run("get", MODULE + "@" + sys.argv[1])
         run("mod", "tidy")
         run("mod", "verify")
+        run("build", "-mod=readonly", MODULE + "/...")
         if run("run", "-mod=readonly", ".") != "stale":
             raise RuntimeError("External consumer returned an unexpected generation result")
         module = json.loads(run("list", "-m", "-json", MODULE))

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "2",
+  "schemaVersion": "3",
   "adapterContract": "kubernetes/apps/v1@v0.37.2",
   "metadata": {
     "reference": {

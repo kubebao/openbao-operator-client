@@ -9,7 +9,7 @@ These versions change independently:
 
 | Version | Current value | Changes when |
 | --- | --- | --- |
-| Evidence schema (`evidence.SchemaVersion`) | `2` | Normalized record shapes change. Validation rejects other versions. |
+| Evidence schema (`evidence.SchemaVersion`) | `3` | Normalized record shapes change. Validation rejects other versions. |
 | Adapter contract (`adapter.Contract`) | See [projection contracts](#projection-contracts) | Approved fields or omission rules change. |
 | Rule set (`diagnose.RuleSetVersion`) | `8` | Rule semantics or the executable rule inventory change. |
 | Report layout (`diagnose.Report.SchemaVersion`) | `1` | The report shape changes. |
@@ -48,14 +48,18 @@ version alone never selects one.
 
 | Contract | Kinds | Omission rules |
 | --- | --- | --- |
-| `openbao.org/v1alpha1@9671c306` (`V1Alpha1Snapshot`) | `OpenBaoCluster`, `OpenBaoRestore` | Yes; also declares restore UID binding |
-| `openbao.org/v1alpha1/unqualified-v1` (`V1Alpha1Unqualified`) | `OpenBaoCluster`, `OpenBaoRestore` | None |
+| `openbao.org/v1alpha1@9671c306/controls-v1` (`V1Alpha1Snapshot`) | `OpenBaoCluster`, `OpenBaoRestore` | Yes; also declares restore UID binding |
+| `openbao.org/v1alpha1/unqualified-v2` (`V1Alpha1Unqualified`) | `OpenBaoCluster`, `OpenBaoRestore` | None |
 | `kubernetes/apps/v1@v0.37.2` (`KubernetesAppsV1`) | `StatefulSet` | Yes |
 | `kubernetes/core/v1@v0.37.2` (`KubernetesCoreV1`) | `Pod` | None |
 
 `V1Alpha1Snapshot` follows operator commit `9671c30623d609f948cf073e167f376de4ea9a85`. The Kubernetes contracts follow the
 public API declarations at `v0.37.2`. `adapter.Describe` returns each contract's kinds and capabilities. It does not
 perform discovery, check RBAC, or qualify an operator.
+
+The controls contract includes `metadata.deletionTimestamp` on clusters. An omitted timestamp remains `unknown`;
+reported and invalid timestamps prevent control preparation. Serialized evidence must use schema `3` and the current
+contract identifiers. Validation rejects earlier schemas; collect a new capture instead of relabeling stored evidence.
 
 ### Omission rules
 

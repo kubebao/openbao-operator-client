@@ -250,7 +250,7 @@ func TestEvidenceSchemaVersionChangesWithOperationalShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cluster.SchemaVersion != "2" || restore.SchemaVersion != "2" {
+	if cluster.SchemaVersion != "3" || restore.SchemaVersion != "3" {
 		t.Fatal("operational records did not declare the schema change")
 	}
 	cluster.SchemaVersion = "1"

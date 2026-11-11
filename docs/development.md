@@ -32,7 +32,8 @@ replacements. The module is public and needs no `GOPRIVATE` setting or credentia
 private module prefix.
 
 `make consumer` disables Go authentication, ignores system and global Git configuration, clears GitHub, Git, and SSH
-environment variables, and resolves the module through the public proxy without a direct Git fallback.
+environment variables, and resolves the module through the public proxy without a direct Git fallback. It compiles all
+packages at the requested published revision, including feature packages that its example program does not import.
 
 ## Kubernetes field check
 
