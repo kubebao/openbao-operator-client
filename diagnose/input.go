@@ -9,7 +9,7 @@ import (
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
-const RuleSetVersion = "2"
+const RuleSetVersion = "3"
 
 var (
 	ErrUnsupportedVersion = errors.New("unsupported contract version")
@@ -23,6 +23,8 @@ var (
 // SupportedRules describes executable rules, separately from the canonical ID inventory.
 func SupportedRules() []RuleID {
 	return []RuleID{
+		RuleBackupFailed,
+		RuleBackupAbsent,
 		RuleBackupAge,
 		RuleAvailability,
 		RuleSealed,
@@ -30,7 +32,9 @@ func SupportedRules() []RuleID {
 		RuleCondition,
 		RuleController,
 		RuleGeneration,
+		RuleRestoreTest,
 		RuleRestriction,
+		RuleUpgrade,
 	}
 }
 

@@ -32,7 +32,7 @@ kubeconfig loading, output, watch orchestration, and process results. Applicatio
 development when the new contract improves semantics; document storage and output changes.
 
 Cluster/workload evidence, JSON projection, UID associations, bounded discovery/GET/LIST collection, and declared related
-reads with final target verification are implemented. Diagnosis implements finding identity, coverage, and eight cluster
+reads with final target verification are implemented. Diagnosis implements finding identity, coverage, and twelve cluster
 rules. Other rules remain pending. HTTP transports belong to callers; diagnosis uses supplied time
 and policy.
 See [extraction status](extraction.md) for coverage. Add `operations` and bundle packages with their first implemented features.

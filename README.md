@@ -18,7 +18,7 @@ The [extraction status](docs/extraction.md) records implemented and pending mile
 | `evidence` | Typed observations, identities, outcomes, times, associations, and references | Cluster/workload facts, field states, references, times, outcomes, associations |
 | `adapter` | Approved public API projections and capability definitions | Cluster, restore, StatefulSet, Pod projection; UID associations; explicit contracts |
 | `collect` | Bounded discovery, resource reads, pagination, and identity verification | Discovery, scoped GET/LIST, shared budgets, declared related reads, target verification |
-| `diagnose` | Pure rules, findings, coverage, and evaluation policy | Eight cluster rules, finding identity, coverage, deterministic analysis |
+| `diagnose` | Pure rules, findings, coverage, and evaluation policy | Twelve cluster rules, finding identity, coverage, deterministic analysis |
 
 The operator owns reconciliation and lifecycle safety. Consumer applications own credentials, enrollment, scheduling,
 persistence, rendering, and process exit codes. Operations and bundle handling get separate packages when implemented.
@@ -38,7 +38,7 @@ go run ./examples/diagnose
 ```
 
 The generation example prints `stale`. The cluster example prints current acknowledgement and an implied zero ready
-count. The diagnostic example prints `2 findings, 8 coverage entries`. These examples use synthetic input and make no
+count. The diagnostic example prints `2 findings, 12 coverage entries`. These examples use synthetic input and make no
 network requests. The output does not establish application health.
 
 See the [contract decisions](docs/contract.md), [extraction plan](docs/plan.md),

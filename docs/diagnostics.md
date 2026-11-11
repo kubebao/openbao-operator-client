@@ -4,9 +4,10 @@
 state. Identical evidence and policy produce the same report when subject, selected-rule, or reference order changes.
 Empty findings do not establish health or complete coverage.
 
-Rule set `2` implements eight rules: availability, sealing, replica readiness, recognized adverse conditions, generation
-acknowledgement, controller errors, restrictions, and backup completion age. `SupportedRules` returns the executable
-inventory. Rule set `1` is rejected rather than silently extended. Other canonical IDs remain in the [catalog](rules.md),
+Rule set `3` implements twelve rules: availability, sealing, replica readiness, recognized adverse conditions, generation
+acknowledgement, controller errors, restrictions, three backup concerns, recorded rolling-upgrade failure, and restore tests.
+`SupportedRules` returns the executable inventory. Earlier rule sets are rejected rather than silently extended. Other
+canonical IDs remain in the [catalog](rules.md),
 but selecting one returns `ErrUnavailableRule`. Unknown IDs return `ErrUnknownRule`. Reserved native-recovery and
 remote-replication IDs cannot produce findings. Expanding the executable inventory or changing rule semantics requires a
 new rule-set version. Report layout version `1`, evidence schema `2`, and projection contracts are separate versions.
@@ -90,7 +91,30 @@ Provider reasons, messages, hold values, and break-glass instructions are exclud
 Backup age requires observed backup configuration, reported backup status, a known zero failure count, and a success time
 no later than its read. Known absent configuration is not applicable; missing/invalid configuration, failure counts, or
 timestamps are insufficient. A positive failure count suppresses the age finding to preserve backup-failure precedence.
-The backup-failure rule remains pending; selecting only backup age does not evaluate failures. Completion age must exceed
-the limit to warn; equality is within the limit. Completion age is not measured recovery point objective (RPO).
+Selecting only backup age does not evaluate failures. Completion age must exceed the limit to warn; equality is within the
+limit. Completion age is not measured recovery point objective (RPO).
+
+The backup-failure rule warns on a reported positive consecutive-failure count. Failure time is independent of earlier
+success time. An invalid or future failure time makes coverage insufficient without erasing the reported counter. The
+no-recorded-success rule warns only when configuration and backup status are reported, the failure count is reported zero,
+and the success timestamp is omitted. This describes the observed record; it does not prove that a backup never succeeded.
+Malformed or future success times are insufficient, not missing success. Missing status or counters cannot produce this
+finding. Backup precedence remains failures, no recorded success, then overdue completion, including when the caller
+excludes a higher-priority rule. The adapter does not infer an omitted failure count as zero.
+
+The upgrade rule uses the rolling-upgrade failure object's reported reason. It warns about the recorded failure without
+copying the reason or claiming an active failure. Missing or malformed reasons are insufficient. Invalid/future error times
+make coverage insufficient while retaining the recorded failure. Absent/null upgrade or failure objects produce no report.
+Blue/green phases and job-failure counters remain observations; neither implies a rolling-upgrade failure.
+
+The restore-test rule keeps the active reservation, last result, and `Passed` condition separate. A current `Passed=False`
+condition with a reported reason other than `Failed` produces an attention finding before interpreting active or last state.
+The condition needs its own current generation acknowledgement; resource acknowledgement does not substitute for it.
+An active reservation suppresses the earlier failed result, preserving console precedence. It does not verify the child
+request or its progress. Without an active reservation, a reported last `Failed` result produces a recorded-result warning
+limited to that snapshot and disposable target. Missing or invalid active state cannot establish that the last result is
+applicable. Missing, stale, or invalid condition evidence and missing/invalid/future result times retain insufficient
+coverage while preserving independently supported result findings. A missing/invalid outcome does not become `Failed`.
+Absent/null restore-test status produces no report; no finding establishes recovery readiness.
 
 Run `go run ./examples/diagnose` for synthetic evaluation. Fixture and unit coverage do not qualify an operator integration.

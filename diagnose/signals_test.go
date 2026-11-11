@@ -292,7 +292,7 @@ func TestRuleSetExpansionRejectsOldPolicyVersion(t *testing.T) {
 	if _, err := diagnose.Analyze(capture(input(t)), p); !errors.Is(err, diagnose.ErrUnsupportedVersion) {
 		t.Fatal("old rule set silently selected new rules")
 	}
-	if len(diagnose.SupportedRules()) != 8 {
+	if len(diagnose.SupportedRules()) != 12 {
 		t.Fatal("unexpected executable inventory")
 	}
 }

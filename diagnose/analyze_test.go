@@ -274,6 +274,14 @@ func FuzzAnalyzeNormalizedCapture(f *testing.F) {
 		f.Fatal(err)
 	}
 	f.Add(withSignals)
+	operations := restoreTestInput(f)
+	operations.Observation.Upgrade = upgrade(f).Observation.Upgrade
+	operations.Observation.Backup.ConsecutiveFailures = integer(2)
+	withOperations, err := json.Marshal(capture(operations))
+	if err != nil {
+		f.Fatal(err)
+	}
+	f.Add(withOperations)
 	f.Add([]byte(`{}`))
 	f.Fuzz(func(t *testing.T, data []byte) {
 		if len(data) > 1024*1024 {
