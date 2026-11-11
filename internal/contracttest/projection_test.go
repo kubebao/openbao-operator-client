@@ -8,6 +8,8 @@ import (
 	"testing"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/kubebao/openbao-operator-client/adapter"
 )
 
 type safeProjection struct {
@@ -29,14 +31,34 @@ func project(t *testing.T, raw map[string]any, contract string) safeProjection {
 			}
 		}
 	}
-	if code, state := field(raw, "status", "containerExitCode"); state == "present" {
-		if value, ok := code.(json.Number); ok {
-			if n, err := value.Int64(); err == nil && n >= -2147483648 && n <= 2147483647 {
-				result.ContainerCode = &n
-			}
-		}
-	}
+	result.ContainerCode = projectedContainerCode(t, raw)
 	return result
+}
+
+// The draft scalar is placed in its public Pod field before production projection.
+// Remote indexes above remain a future specification: the pinned operator has no remote API.
+func projectedContainerCode(t *testing.T, raw map[string]any) *int64 {
+	t.Helper()
+	code, state := field(raw, "status", "containerExitCode")
+	if state != "present" {
+		return nil
+	}
+	object := map[string]any{
+		"apiVersion": "v1", "kind": "Pod",
+		"metadata": map[string]any{"namespace": "team", "name": "bao-0", "uid": "pod-1"},
+		"status": map[string]any{"containerStatuses": []any{map[string]any{
+			"name": "bao", "state": map[string]any{"terminated": map[string]any{"exitCode": code}},
+		}}},
+	}
+	data, err := json.Marshal(object)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, err := adapter.ProjectPod(data, fixtureOptions("origin", adapter.KubernetesCoreV1))
+	if err != nil || len(value.Containers.Values) != 1 {
+		t.Fatal("container fixture could not be projected")
+	}
+	return value.Containers.Values[0].ExitCode.Value
 }
 
 // Rich text is a separate local sidecar. It never becomes part of serializable evidence.
@@ -88,13 +110,17 @@ func TestSafeProjection(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			full, err := json.Marshal(projectFixture(t, tc.Raw, tc.Contract))
+			if err != nil {
+				t.Fatal(err)
+			}
 			for _, canary := range tc.Canaries {
-				if strings.Contains(string(encoded), canary) {
+				if strings.Contains(string(encoded), canary) || strings.Contains(string(full), canary) {
 					t.Fatalf("provider text retained: %s", canary)
 				}
 			}
 			var fields map[string]any
-			if err := json.Unmarshal(encoded, &fields); err != nil {
+			if err := json.Unmarshal(full, &fields); err != nil {
 				t.Fatal(err)
 			}
 			for _, key := range []string{"exitCode", "resultCode", "failureThreshold"} {

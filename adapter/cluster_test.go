@@ -262,6 +262,23 @@ func TestContractDescriptionDoesNotShareMutableState(t *testing.T) {
 	}
 }
 
+func TestRestoreBindingCapabilityRequiresInspectedSemantics(t *testing.T) {
+	t.Parallel()
+	for _, contract := range []adapter.Contract{adapter.V1Alpha1Snapshot, adapter.V1Alpha1Unqualified} {
+		info, err := adapter.Describe(contract)
+		if err != nil {
+			t.Fatal(err)
+		}
+		binding := false
+		for _, capability := range info.Capabilities {
+			binding = binding || capability == adapter.CapabilityRestoreUIDBinding
+		}
+		if binding != (contract == adapter.V1Alpha1Snapshot) {
+			t.Fatal("unqualified projection acquired inspected UID-binding semantics")
+		}
+	}
+}
+
 func FuzzProjectCluster(f *testing.F) {
 	f.Add(clusterFixture(f))
 	f.Add(operationalFixture(f))

@@ -4,8 +4,7 @@ Milestone 1 defines the extraction target through synthetic fixtures, executable
 the recorded consumer source. Milestone 3 now implements cluster, operational, and workload evidence/projection;
 UID associations; identity validation; times; and collection outcomes. Matching fixtures call production code. Remaining
 specifications are test-only. Bounded discovery, GET/LIST, and declared related-resource collection with final target
-verification are implemented. The diagnostic core implements fourteen cluster/workload rules; other rules remain pending or
-reserved. See [extraction status](extraction.md) and [evaluation behavior](diagnostics.md).
+verification are implemented. The diagnostic core implements fifteen supported rules; native recovery and remote replication remain reserved. See [extraction status](extraction.md) and [evaluation behavior](diagnostics.md).
 
 Source baselines:
 
@@ -60,7 +59,8 @@ objects preserve null, absence, unknown ancestors, and malformed values separate
 imply no health or operation result. Malformed ancestors invalidate their fields. Preserve independent valid observations.
 An absent or null metadata annotation map has no reported keys. A malformed map or a null value for a present key is invalid.
 Keep generations exact above the floating-point range.
-Raft indexes must be canonical unsigned decimal strings within `uint64`; never convert them through floating point.
+Future remote-index evidence must use canonical unsigned decimal strings within `uint64`, never floating point. The pinned
+operator has no remote-replication API; these cases remain specifications rather than production adapter support.
 
 Condition types are unique and nonempty. Status is `True`, `False`, or `Unknown`. Invalid types, statuses, observed
 generations, or duplicate types invalidate the condition set without discarding independent scalars. Invalid optional

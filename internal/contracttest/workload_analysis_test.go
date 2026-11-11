@@ -17,10 +17,11 @@ import (
 )
 
 type workloadTransport struct {
-	t        *testing.T
-	denied   bool
-	replaced bool
-	reads    int
+	t           *testing.T
+	denied      bool
+	replaced    bool
+	restoreMode bool
+	reads       int
 }
 
 func (r *workloadTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -44,14 +45,28 @@ func (r *workloadTransport) RoundTrip(req *http.Request) (*http.Response, error)
 			r.t.Fatal(err)
 		}
 		body = fmt.Sprintf(`{"apiVersion":%q,"kind":%q,"metadata":{"resourceVersion":"10"},"items":[%s]}`, api, kind, raw)
+	case strings.HasSuffix(req.URL.Path, "/openbaorestores"):
+		raw, err := os.ReadFile("../../adapter/testdata/restore.json")
+		if err != nil {
+			r.t.Fatal(err)
+		}
+		body = fmt.Sprintf(`{"apiVersion":"openbao.org/v1alpha1","kind":"OpenBaoRestoreList",`+
+			`"metadata":{"resourceVersion":"10"},"items":[%s]}`, raw)
+		if r.denied {
+			status = http.StatusForbidden
+		}
 	case strings.HasSuffix(req.URL.Path, "/openbaoclusters/bao"):
 		uid := "cluster-1"
 		if r.replaced && r.reads > 1 {
 			uid = "replacement"
 		}
+		hold := ""
+		if r.restoreMode {
+			hold = `,"annotations":{"openbao.org/restore-hold":"operation-1"}`
+		}
 		body = fmt.Sprintf(`{"apiVersion":"openbao.org/v1alpha1","kind":"OpenBaoCluster",`+
-			`"metadata":{"namespace":"team","name":"bao","uid":%q,"generation":4},`+
-			`"spec":{"replicas":3},"status":{"observedGeneration":4}}`, uid)
+			`"metadata":{"namespace":"team","name":"bao","uid":%q,"generation":4%s},`+
+			`"spec":{"replicas":3},"status":{"observedGeneration":4}}`, uid, hold)
 	default:
 		r.t.Fatal("diagnosis expanded the declared resource scope")
 	}

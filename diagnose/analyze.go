@@ -37,6 +37,9 @@ func Analyze(capture Capture, policy Policy) (Report, error) {
 		if input.Pods != nil {
 			count += len(input.Pods.Observations)
 		}
+		if input.Restores != nil {
+			count += len(input.Restores.Observations)
+		}
 	}
 	if count > policy.MaxSubjects {
 		return result, ErrInvalidCapture
@@ -73,8 +76,10 @@ func Analyze(capture Capture, policy Policy) (Report, error) {
 func canonicalPolicy(policy Policy) Policy {
 	policy.Rules = append([]RuleID{}, policy.Rules...)
 	policy.ApprovedContracts = append([]string{}, policy.ApprovedContracts...)
+	policy.RestoreUIDBindingContracts = append([]string{}, policy.RestoreUIDBindingContracts...)
 	slices.Sort(policy.Rules)
 	slices.Sort(policy.ApprovedContracts)
+	slices.Sort(policy.RestoreUIDBindingContracts)
 	policy.ReferenceTime = policy.ReferenceTime.UTC()
 	return policy
 }
@@ -86,6 +91,9 @@ func evaluate(input ClusterInput, rule RuleID, policy Policy) (Coverage, []Findi
 	}
 	if rule == RuleWorkload || rule == RulePod {
 		return evaluateWorkloads(input, rule, policy, coverage)
+	}
+	if rule == RuleRestore {
+		return evaluateRestores(input, policy, coverage)
 	}
 	if input.Collection.Outcome == evidence.CollectionNotRequested {
 		coverage.State, coverage.Reason = NotRequested, ReasonNotRequested

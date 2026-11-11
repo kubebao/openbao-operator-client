@@ -30,16 +30,8 @@ func evaluateWorkloads(input ClusterInput, rule RuleID, policy Policy, coverage 
 		return coverage, nil
 	}
 	coverage.State, coverage.Reason = Insufficient, ReasonMissingObservation
-	if input.Observation == nil {
-		return coverage, nil
-	}
-	if input.Collection.Outcome == evidence.CollectionDeleted || input.Collection.Outcome == evidence.CollectionReplaced ||
-		input.Verification == nil || input.Verification.State != evidence.VerificationVerified {
-		coverage.Reason = ReasonVerification
-		return coverage, nil
-	}
-	if !fresh(input.Observation.Reference, input.Collection, policy) {
-		coverage.Reason = ReasonStaleEvidence
+	if reason := relatedTarget(input, policy); reason != ReasonNone {
+		coverage.Reason = reason
 		return coverage, nil
 	}
 	result := evaluation{state: Evaluated, reason: ReasonNone}
@@ -57,6 +49,20 @@ func evaluateWorkloads(input ClusterInput, rule RuleID, policy Policy, coverage 
 	}
 	coverage.State, coverage.Reason = result.state, result.reason
 	return coverage, result.findings
+}
+
+func relatedTarget(input ClusterInput, policy Policy) CoverageReason {
+	if input.Observation == nil {
+		return ReasonMissingObservation
+	}
+	if input.Collection.Outcome == evidence.CollectionDeleted || input.Collection.Outcome == evidence.CollectionReplaced ||
+		input.Verification == nil || input.Verification.State != evidence.VerificationVerified {
+		return ReasonVerification
+	}
+	if !fresh(input.Observation.Reference, input.Collection, policy) {
+		return ReasonStaleEvidence
+	}
+	return ReasonNone
 }
 
 func fresh(ref evidence.Reference, read evidence.Collection, policy Policy) bool {

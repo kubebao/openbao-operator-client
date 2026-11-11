@@ -14,7 +14,7 @@ import (
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
-//go:embed testdata/cluster.json testdata/statefulset.json testdata/pod.json
+//go:embed testdata/cluster.json testdata/statefulset.json testdata/pod.json testdata/restore.json
 var fixtures embed.FS
 
 func input(t testing.TB) diagnose.ClusterInput {
@@ -117,7 +117,7 @@ func TestIncompleteCoverageCanRetainSupportedFindings(t *testing.T) {
 		t.Fatal("incomplete scope discarded independent observed facts")
 	}
 	for _, entry := range report.Coverage {
-		if entry.Rule == diagnose.RuleWorkload || entry.Rule == diagnose.RulePod {
+		if entry.Rule == diagnose.RuleWorkload || entry.Rule == diagnose.RulePod || entry.Rule == diagnose.RuleRestore {
 			if entry.State != diagnose.NotRequested {
 				t.Fatal("unrequested workload scope lost its coverage state")
 			}
@@ -293,9 +293,19 @@ func FuzzAnalyzeNormalizedCapture(f *testing.F) {
 		f.Fatal(err)
 	}
 	f.Add(withWorkloads)
+	restoreSeed := restoreInput(f)
+	restoreSeed.Observation.RestoreHold = text("operation-1")
+	withRestores, err := json.Marshal(capture(restoreSeed))
+	if err != nil {
+		f.Fatal(err)
+	}
+	f.Add(withRestores)
 	f.Add([]byte(`{}`))
 	fuzzPolicy := workloadPolicy(f)
 	fuzzPolicy.Rules = diagnose.SupportedRules()
+	fuzzPolicy.RestoreUIDBindingContracts = []string{input(f).AdapterContract}
+	fuzzPolicy.ReferenceTime = restorePolicy(f).ReferenceTime
+	fuzzPolicy.MaxEvidenceAge = 2 * time.Hour // Exercise the fixed cluster, workload, and later restore seeds together.
 	f.Fuzz(func(t *testing.T, data []byte) {
 		if len(data) > 1024*1024 {
 			return

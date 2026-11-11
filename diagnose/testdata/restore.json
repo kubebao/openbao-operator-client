@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "2",
+  "adapterContract": "openbao.org/v1alpha1@9671c306",
+  "reference": {
+    "identity": {
+      "origin": "cluster-a",
+      "group": "openbao.org",
+      "kind": "OpenBaoRestore",
+      "namespace": "team",
+      "name": "restore-1",
+      "uid": "request-1"
+    },
+    "apiVersion": "openbao.org/v1alpha1",
+    "resourceVersion": {
+      "state": "reported",
+      "value": "101"
+    },
+    "collectedAt": {
+      "state": "reported",
+      "value": "2026-11-10T11:00:00Z"
+    }
+  },
+  "generation": {
+    "state": "reported",
+    "value": 4
+  },
+  "createdAt": {
+    "state": "reported",
+    "value": "2026-11-10T08:00:00Z"
+  },
+  "targetName": {
+    "state": "reported",
+    "value": "bao"
+  },
+  "phase": {
+    "state": "reported",
+    "value": "Unknown"
+  },
+  "startedAt": {
+    "state": "reported",
+    "value": "2026-11-10T09:00:00Z"
+  },
+  "completedAt": {
+    "state": "reported",
+    "value": "2026-11-10T10:00:00Z"
+  },
+  "administratorDisposition": {
+    "state": "reported",
+    "value": "Resume"
+  },
+  "target": {
+    "state": "reported",
+    "uid": {
+      "state": "reported",
+      "value": "cluster-1"
+    },
+    "appliedAt": {
+      "state": "reported",
+      "value": "2026-11-10T09:30:00Z"
+    },
+    "cleanup": {
+      "state": "reported",
+      "value": "Failed"
+    }
+  },
+  "execution": {
+    "state": "reported",
+    "targetUID": {
+      "state": "reported",
+      "value": "cluster-1"
+    },
+    "operationID": {
+      "state": "reported",
+      "value": "operation-1"
+    },
+    "stage": {
+      "state": "reported",
+      "value": "Committed"
+    }
+  },
+  "submissionClaim": "reported",
+  "restart": "reported",
+  "restartCompletedAt": {
+    "state": "reported",
+    "value": "2026-11-10T10:30:00Z"
+  },
+  "conditions": {
+    "state": "reported",
+    "values": [
+      {
+        "type": "RecoveryReleased",
+        "status": "False",
+        "reason": {
+          "state": "reported",
+          "value": "Waiting"
+        },
+        "observedGeneration": {
+          "state": "reported",
+          "value": 4
+        },
+        "lastTransitionAt": {
+          "state": "unknown"
+        }
+      }
+    ]
+  }
+}

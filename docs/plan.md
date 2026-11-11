@@ -32,17 +32,19 @@ Move small slices after their contract tests pass: cluster identity/conditions/g
 replication, restore-test and recovery evidence; StatefulSets, Pods, restore correlation, bounded collection; pure rules.
 Keep facts separate from interpretation. Include the CLI's status attention logic in the diagnostic inventory.
 
-In progress: production slices implement cluster, operational, and workload evidence; approved JSON projection;
+Implemented: production slices include cluster, operational, and workload evidence; approved JSON projection;
 UID associations; timestamps; and collection outcomes. The pinned operator has no public native-recovery or
-remote-replication definitions. [Extraction status](extraction.md) records those unsupported capabilities and the remaining
-rules. Scoped GET/LIST primitives enforce pagination, byte/candidate/duration
+remote-replication definitions. [Extraction status](extraction.md) records those unsupported capabilities and the implemented
+rule inventory. Scoped GET/LIST primitives enforce pagination, byte/candidate/duration
 bounds, cancellation, and named UID pinning. Discovery facts and declared related reads now include shared budgets and
-final UID/generation verification. Finding identity, coverage, and fourteen cluster/workload rules now run through production code
-with deterministic replay. Remaining diagnostic rules are pending or reserved. Consumer migration
+final UID/generation verification. Finding identity, coverage, and fifteen supported rules now run through production code
+with deterministic replay. Native recovery and remote replication remain reserved. Consumer migration
 remains in milestones 4 and 5.
 
-Gate: cover malformed fields, sensitive-data canaries, incomplete reads, pagination/size/duration limits, replacement,
-conflicting identities, deterministic ordering, and serialized replay. Product orchestration remains in consumers.
+Gate: production tests cover malformed fields, sensitive-data canaries, incomplete reads, pagination/size/duration limits,
+replacement, conflicting identities, deterministic ordering, and serialized replay. Local checks and archived consumer
+baselines pass. Published-candidate download/build and hosted required checks qualify the final candidate before merge.
+Product orchestration remains in consumers; no operator integration is qualified by this gate.
 
 ## 4. Migrate the console
 
