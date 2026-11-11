@@ -74,7 +74,7 @@ func TestAnalysisReplayAndInputOrderAreDeterministic(t *testing.T) {
 		t.Fatal(err)
 	}
 	report, err := diagnose.Analyze(data, p)
-	if err != nil || len(report.Findings) != 4 || len(report.Coverage) != 4 {
+	if err != nil || len(report.Findings) != 4 || len(report.Coverage) != 2*len(diagnose.SupportedRules()) {
 		t.Fatalf("findings=%d error=%v", len(report.Findings), err)
 	}
 	first, err := json.Marshal(report)
@@ -261,6 +261,19 @@ func FuzzAnalyzeNormalizedCapture(f *testing.F) {
 		f.Fatal(err)
 	}
 	f.Add(encoded)
+	signals := input(f)
+	setConditions(signals.Observation, condition("Available", evidence.ConditionFalse, 4),
+		condition("OpenBaoSealed", evidence.ConditionTrue, 4), condition("TLSReady", evidence.ConditionFalse, 4))
+	signals.Observation.Maintenance = evidence.Maintenance{State: evidence.ObjectReported, Enabled: flag(true)}
+	signals.Observation.BreakGlass = evidence.BreakGlass{
+		State: evidence.ObjectReported, Active: flag(true),
+		Reason: text("REASON_CANARY"), EnteredAt: evidence.Timestamp{State: evidence.ValueUnknown},
+	}
+	withSignals, err := json.Marshal(capture(signals))
+	if err != nil {
+		f.Fatal(err)
+	}
+	f.Add(withSignals)
 	f.Add([]byte(`{}`))
 	f.Fuzz(func(t *testing.T, data []byte) {
 		if len(data) > 1024*1024 {

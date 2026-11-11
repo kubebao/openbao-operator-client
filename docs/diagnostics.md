@@ -4,8 +4,9 @@
 state. Identical evidence and policy produce the same report when subject, selected-rule, or reference order changes.
 Empty findings do not establish health or complete coverage.
 
-Rule set `1` implements `KBAO-CLUSTER-003` for operator-reported replica readiness and `KBAO-BACKUP-003` for backup completion
-age. `SupportedRules` returns the executable inventory. Other canonical IDs remain recorded in the [catalog](rules.md),
+Rule set `2` implements eight rules: availability, sealing, replica readiness, recognized adverse conditions, generation
+acknowledgement, controller errors, restrictions, and backup completion age. `SupportedRules` returns the executable
+inventory. Rule set `1` is rejected rather than silently extended. Other canonical IDs remain in the [catalog](rules.md),
 but selecting one returns `ErrUnavailableRule`. Unknown IDs return `ErrUnknownRule`. Reserved native-recovery and
 remote-replication IDs cannot produce findings. Expanding the executable inventory or changing rule semantics requires a
 new rule-set version. Report layout version `1`, evidence schema `2`, and projection contracts are separate versions.
@@ -52,10 +53,39 @@ can retain earlier findings as last known without treating them as newly confirm
 
 ## Implemented rules
 
+Availability requires positive current resource and individual `Available` condition acknowledgement. Current
+`Available=False` produces a warning. Unconfirmed resource/condition generations or an `Unknown` status yield insufficient
+coverage and no availability finding.
+
+Sealing requires its own current `OpenBaoSealed` condition and known pause state. `OpenBaoSealed=True` is critical when
+reconciliation is not paused. Pause suppresses this finding, preserving console behavior. A condition can be current while
+the resource's overall acknowledgement is stale; the two observations remain separate.
+
 Replica readiness requires positive current resource acknowledgement, known desired/ready counts and pause state, and a
 valid creation time no later than its read. Pause, startup grace, zero desired replicas, or enough ready replicas suppress
 the finding. Zero ready replicas is critical; a positive shortfall is warning. Grace equality is outside the grace period.
 Condition acknowledgement remains separate; this rule does not establish operator availability or client transactions.
+
+The generic condition rule interprets only the recognized condition names and polarities in the CLI baseline. Adverse
+negative conditions such as `Degraded=True` and positive conditions such as `TLSReady=False` produce warnings. Each
+condition needs its own current acknowledgement and uses its type as a subsubject. Unknown names are ignored; unknown
+status and unconfirmed generations are insufficient. Availability and sealing use their specialized rules without generic
+duplicates. Missing transition times do not block a generation-confirmed status report. A malformed or future transition
+time makes coverage insufficient while retaining an independently confirmed status finding. Transition time is not a heartbeat.
+
+The generation rule distinguishes stale from inconsistent acknowledgement with separate warning text. Missing/zero
+acknowledgement is insufficient; it is not a mismatch finding.
+
+The restriction rule keeps pause, maintenance, restore hold, and break glass independent. Pause, maintenance, and a reported
+hold are informational; active break glass is warning. The exact source field identifies each finding. Maintenance
+propagation is not verified, a hold proves no restore ownership, and these findings authorize no operations. Unknown or
+invalid reported flags make coverage insufficient while preserving independent known restrictions. Absent/null optional
+objects and unreported hold annotations produce no restriction report; this does not infer a false producer value or health.
+
+Controller errors use `workload` or `adminOps` as subsubjects. A reported bounded reason produces a warning about a recorded
+error, not a claim of active failure. Missing or malformed reported reasons are insufficient. Invalid/future error times
+make coverage insufficient while retaining the independently reported error. Absent/null error objects produce no report.
+Provider reasons, messages, hold values, and break-glass instructions are excluded from diagnostic text.
 
 Backup age requires observed backup configuration, reported backup status, a known zero failure count, and a success time
 no later than its read. Known absent configuration is not applicable; missing/invalid configuration, failure counts, or

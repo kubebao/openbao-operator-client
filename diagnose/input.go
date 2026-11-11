@@ -9,7 +9,7 @@ import (
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
-const RuleSetVersion = "1"
+const RuleSetVersion = "2"
 
 var (
 	ErrUnsupportedVersion = errors.New("unsupported contract version")
@@ -21,7 +21,18 @@ var (
 )
 
 // SupportedRules describes executable rules, separately from the canonical ID inventory.
-func SupportedRules() []RuleID { return []RuleID{RuleBackupAge, RuleReadiness} }
+func SupportedRules() []RuleID {
+	return []RuleID{
+		RuleBackupAge,
+		RuleAvailability,
+		RuleSealed,
+		RuleReadiness,
+		RuleCondition,
+		RuleController,
+		RuleGeneration,
+		RuleRestriction,
+	}
+}
 
 // ClusterInput binds a selected identity to its read outcome. A nil observation
 // preserves coverage for a known subject after a failed or unrequested read.

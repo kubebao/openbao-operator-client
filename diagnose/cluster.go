@@ -27,8 +27,8 @@ func readiness(cluster evidence.Cluster, policy Policy) evaluation {
 	if *cluster.ReadyReplicas.Value == 0 {
 		severity = Critical
 	}
-	result.finding = finding(cluster, RuleReadiness, severity, "The operator reports fewer ready replicas than desired.",
-		"metadata.generation", "status.observedGeneration", "status.readyReplicas", "spec.replicas")
+	result.add(finding(cluster, RuleReadiness, severity, "The operator reports fewer ready replicas than desired.",
+		"metadata.generation", "status.observedGeneration", "status.readyReplicas", "spec.replicas"))
 	return result
 }
 
@@ -51,8 +51,8 @@ func backupAge(cluster evidence.Cluster, policy Policy) evaluation {
 	}
 	result := evaluation{state: Evaluated, reason: ReasonNone}
 	if policy.ReferenceTime.Sub(*cluster.Backup.LastSuccessAt.Value) > policy.MaxBackupAge {
-		result.finding = finding(cluster, RuleBackupAge, Warning, "Recorded backup completion age exceeds the configured limit.",
-			"spec.backup", "status.backup.consecutiveFailures", "status.backup.lastBackupTime")
+		result.add(finding(cluster, RuleBackupAge, Warning, "Recorded backup completion age exceeds the configured limit.",
+			"spec.backup", "status.backup.consecutiveFailures", "status.backup.lastBackupTime"))
 	}
 	return result
 }
