@@ -1,5 +1,7 @@
 # Shared client extraction
 
+> Archived. This plan guided the extraction milestones. Its links to removed documents resolve only in Git history.
+
 The extraction ends at milestone 6. Lifecycle features follow separately. The repository is public from its first push;
 publication is no longer a later milestone. Initial releases use immutable `v0` tags.
 

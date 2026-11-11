@@ -18,7 +18,7 @@ Follow the detailed rules in [.agents/rules](.agents/rules).
 - Exclude provider messages by default. Optional local text needs a separate bounded projection policy before serialization.
 - Keep kubeconfig loading, enrollment, credential renewal, scheduling, persistence, rendering, and process results in consumers.
 - Keep observation read-only. Add operations and bundle packages only with their first implemented feature.
-- Mark planned behavior as planned. Fixtures and discovery do not establish operator integration qualification.
+- Document implemented behavior only. Track planned work in issues. Fixtures and discovery do not qualify an operator.
 
 ## Code and verification
 
@@ -39,4 +39,5 @@ Follow the detailed rules in [.agents/rules](.agents/rules).
 - Preserve consumer repositories and existing environments. Use isolated clusters for integration checks.
 - Review generated changes with their source. Never edit generated dependency notices by hand.
 - Use immutable `v0` tags. Qualify consumers against the exact candidate before tagging it.
-- Update the compatibility matrix and migration plan with evidence. Do not report skipped checks as qualification.
+- Record qualification evidence in the pull request and the tag's release notes. Skipped checks are not qualification.
+- Update `docs/compatibility.md` when a validation level changes. Do not add status or history records to `docs/`.

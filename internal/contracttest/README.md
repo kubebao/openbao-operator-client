@@ -11,7 +11,7 @@ tests exercise actual context deadlines. Negative byte declarations map to malfo
 Replay bridges the draft fixture envelope to typed cluster captures, supplies read provenance and a reported zero backup
 failure count, then calls the production analyzer. JSON decoding in that bridge is test code, not an untrusted bundle parser.
 
-`baseline/` contains additional tests for the immutable consumer commits recorded in `docs/contract.md`. Run them with
+`baseline/` contains additional tests for the immutable consumer commits pinned in `scripts/check-baselines.py`. Run them with
 `scripts/check-baselines.py`. That command archives each commit into a temporary directory and leaves the checkouts
 unchanged. Existing consumer package tests run with the added assertions. Historical behavior remains green even when
 it differs from the chosen contract; the documentation identifies each intentional correction.
