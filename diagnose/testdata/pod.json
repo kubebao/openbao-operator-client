@@ -1,0 +1,164 @@
+{
+  "schemaVersion": "2",
+  "adapterContract": "kubernetes/core/v1@v0.37.2",
+  "metadata": {
+    "reference": {
+      "identity": {
+        "origin": "cluster-a",
+        "group": "",
+        "kind": "Pod",
+        "namespace": "team",
+        "name": "bao-0",
+        "uid": "pod-1"
+      },
+      "apiVersion": "v1",
+      "resourceVersion": {
+        "state": "reported",
+        "value": "202"
+      },
+      "collectedAt": {
+        "state": "reported",
+        "value": "2026-11-10T10:00:00Z"
+      }
+    },
+    "owners": {
+      "state": "reported",
+      "values": [
+        {
+          "apiVersion": "apps/v1",
+          "kind": "StatefulSet",
+          "name": "bao",
+          "uid": "set-1",
+          "controller": true
+        }
+      ]
+    },
+    "clusterOwnerUID": {
+      "state": "reported",
+      "value": "cluster-1"
+    },
+    "maintenance": {
+      "state": "reported",
+      "value": "true"
+    },
+    "deletionTimestamp": {
+      "state": "unknown"
+    }
+  },
+  "generation": {
+    "state": "reported",
+    "value": 2
+  },
+  "phase": {
+    "state": "reported",
+    "value": "Running"
+  },
+  "conditions": {
+    "state": "reported",
+    "values": [
+      {
+        "type": "Ready",
+        "status": "False",
+        "reason": {
+          "state": "reported",
+          "value": "ContainersNotReady"
+        },
+        "observedGeneration": {
+          "state": "reported",
+          "value": 2
+        },
+        "lastTransitionAt": {
+          "state": "reported",
+          "value": "2026-11-10T10:00:00Z"
+        }
+      }
+    ]
+  },
+  "initContainers": {
+    "state": "reported",
+    "values": [
+      {
+        "kind": "init",
+        "name": "init",
+        "ready": {
+          "state": "reported",
+          "value": true
+        },
+        "restartCount": {
+          "state": "reported",
+          "value": 0
+        },
+        "state": "reported",
+        "waiting": "absent",
+        "waitingReason": {
+          "state": "unknown"
+        },
+        "terminated": "reported",
+        "terminatedReason": {
+          "state": "reported",
+          "value": "Completed"
+        },
+        "exitCode": {
+          "state": "reported",
+          "value": 0
+        }
+      }
+    ]
+  },
+  "containers": {
+    "state": "reported",
+    "values": [
+      {
+        "kind": "app",
+        "name": "bao",
+        "ready": {
+          "state": "reported",
+          "value": false
+        },
+        "restartCount": {
+          "state": "reported",
+          "value": 3
+        },
+        "state": "reported",
+        "waiting": "reported",
+        "waitingReason": {
+          "state": "reported",
+          "value": "CrashLoopBackOff"
+        },
+        "terminated": "absent",
+        "terminatedReason": {
+          "state": "unknown"
+        },
+        "exitCode": {
+          "state": "unknown"
+        }
+      },
+      {
+        "kind": "app",
+        "name": "worker",
+        "ready": {
+          "state": "reported",
+          "value": false
+        },
+        "restartCount": {
+          "state": "reported",
+          "value": 1
+        },
+        "state": "reported",
+        "waiting": "absent",
+        "waitingReason": {
+          "state": "unknown"
+        },
+        "terminated": "reported",
+        "terminatedReason": {
+          "state": "reported",
+          "value": "Error"
+        },
+        "exitCode": {
+          "state": "reported",
+          "value": 1073741819
+        }
+      }
+    ]
+  }
+}
