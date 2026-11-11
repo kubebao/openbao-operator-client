@@ -14,7 +14,7 @@ Milestone 3 remains in progress. Neither consumer imports the library yet.
 | Scoped GET/LIST reads, pagination, cancellation, UID-pinned named refresh | Implemented | HTTP fixtures, limits, partial reads, scope and replacement tests |
 | Bounded discovery and final target verification across declared related reads | Implemented | HTTP fixtures, shared budgets, verification states, production transcript tests |
 | Finding identity, coverage, evaluation policy, deterministic diagnostic replay | Implemented for cluster inputs | Production tests and milestone 1 fixtures |
-| Availability, sealing, readiness, conditions, generations, controller errors, restrictions, backup age | Implemented in rule set `2` | Source-pinned semantics, boundaries, current/partial/stale evidence tests |
+| Availability, sealing, readiness, conditions, generations, controller errors, restrictions, backup concerns, upgrade failure, restore tests | Implemented in rule set `3` | Source-pinned semantics, boundaries, current/partial/stale evidence tests |
 | Remaining diagnostic rules | Pending or reserved | Canonical catalog; no production interpretation for these IDs yet |
 
 ## Projection boundary
@@ -182,11 +182,11 @@ context deadlines. Negative byte declarations become malformed wire data. The ol
 ## Diagnostic evaluation
 
 `diagnose.Analyze` interprets normalized cluster captures with explicit policy and reference time. It implements stable
-finding identities, per-rule coverage, and eight cluster rules. It imports only
+finding identities, per-rule coverage, and twelve cluster rules. It imports only
 evidence and standard-library code. The [evaluation guide](diagnostics.md) records inputs, default policy, versioning,
-freshness, verification, and serialized replay. Workload, Pod, restore, upgrade, backup-failure, no-recorded-success, and
-restore-test rules remain pending; native recovery and remote replication remain reserved. They cannot be selected
-silently. Findings can coexist with insufficient coverage, and empty findings do not establish health.
+freshness, verification, and serialized replay. Workload, Pod, and restore rules remain pending; native recovery and
+remote replication remain reserved. They cannot be selected silently. Findings can coexist with insufficient coverage,
+and empty findings do not establish health.
 
 ## Evidence and replay
 

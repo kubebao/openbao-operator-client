@@ -33,12 +33,8 @@ func readiness(cluster evidence.Cluster, policy Policy) evaluation {
 }
 
 func backupAge(cluster evidence.Cluster, policy Policy) evaluation {
-	if cluster.Backup.Configuration == evidence.ObjectAbsent {
-		return evaluation{state: NotApplicable, reason: ReasonNotConfigured}
-	}
-	if cluster.Backup.Configuration != evidence.ObjectReported || cluster.Backup.State != evidence.ObjectReported ||
-		cluster.Backup.ConsecutiveFailures.State != evidence.ValueReported {
-		return evaluation{state: Insufficient, reason: ReasonMissingField}
+	if result := backupPrerequisites(cluster.Backup); result.state != Evaluated {
+		return result
 	}
 	if *cluster.Backup.ConsecutiveFailures.Value > 0 {
 		return evaluation{state: Evaluated, reason: ReasonHigherPriority}

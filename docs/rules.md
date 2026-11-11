@@ -4,8 +4,9 @@
 nor remote-replication observations. These IDs must not produce findings under this contract; see
 [source corrections](extraction.md#source-corrections).
 
-These canonical IDs define the extraction target. Rule set `2` implements `KBAO-CLUSTER-001/002/003`, `KBAO-BACKUP-003`,
-`KBAO-CONDITION-001`, `KBAO-CONTROLLER-001`, `KBAO-GENERATION-001`, and `KBAO-RESTRICTION-001`. Remaining rules are pending
+These canonical IDs define the extraction target. Rule set `3` implements `KBAO-CLUSTER-001/002/003`, `KBAO-BACKUP-001/002/003`,
+`KBAO-CONDITION-001`, `KBAO-CONTROLLER-001`, `KBAO-GENERATION-001`, `KBAO-RESTRICTION-001`, `KBAO-UPGRADE-001`, and
+`KBAO-RESTORETEST-001`. Remaining rules are pending
 or reserved. See [evaluation behavior](diagnostics.md). The archived consumer tests cover
 existing interpretation. `internal/contracttest/testdata/rules.json` records consumer mappings. Replay, identity,
 severity, and history fixtures define the shared boundaries.

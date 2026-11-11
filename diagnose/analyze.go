@@ -106,6 +106,14 @@ func evaluate(input ClusterInput, rule RuleID, policy Policy) (Coverage, []Findi
 		value = readiness(*input.Observation, policy)
 	case RuleBackupAge:
 		value = backupAge(*input.Observation, policy)
+	case RuleBackupFailed:
+		value = backupFailures(*input.Observation)
+	case RuleBackupAbsent:
+		value = backupAbsent(*input.Observation)
+	case RuleUpgrade:
+		value = upgradeFailure(*input.Observation)
+	case RuleRestoreTest:
+		value = restoreTest(*input.Observation)
 	case RuleAvailability:
 		value = availability(*input.Observation)
 	case RuleSealed:
