@@ -61,6 +61,42 @@ kind delete cluster --name client-k134 --kubeconfig "$kc"
 The commands pass the disposable kubeconfig explicitly and leave your default kubeconfig unchanged. Both tests must pass.
 The fixture uses kind 0.33.0 and digest-pinned images, and it reads no Secrets.
 
+## Operator control qualification
+
+`TestOperatorControls` writes to four caller-provisioned clusters in a disposable Kind environment. It checks real
+server dry-run, RBAC denial, JSON Patch preconditions, cancellation, and a discarded response after an accepted PATCH.
+It then checks pause/resume acknowledgement and maintenance annotations through the shared collectors and assessments.
+An ordinary `make check` skips this test. A skipped test does not qualify controls.
+
+Provision the operator with its admission policies enabled. Use a namespace named `client-controls-<suffix>` and the
+matching context `kind-client-controls-<suffix>`. Provide four reconciled, unpaused clusters with maintenance disabled:
+
+1. A voter pool with no configured read pool.
+2. A voter pool with a positive read-replica count.
+3. A voter pool with a configured zero-replica read pool.
+4. A settled blue/green cluster with reported phase `Idle`.
+
+Create a `controls-reader` ServiceAccount in that namespace with cluster GET and LIST permission and no PATCH permission.
+Run a loopback `kubectl proxy` with the disposable kubeconfig and context. The proxy must forward the test transport's
+`Impersonate-User` header so the API server evaluates the reader's permissions. Verify the proxy's target before running
+the test; the test validates the declared scope names but cannot verify which kubeconfig started a proxy.
+
+For example, with the native operator and fixture names `voter`, `read-pool`, `zero-read`, and `blue-green`:
+
+```sh
+OPENBAO_CLIENT_CONTROLS_ENDPOINT=http://127.0.0.1:18091 \
+OPENBAO_CLIENT_CONTROLS_CONTEXT=kind-client-controls-native \
+OPENBAO_CLIENT_CONTROLS_NAMESPACE=client-controls-native \
+OPENBAO_CLIENT_CONTROLS_GROUP=kubebao.org \
+OPENBAO_CLIENT_CONTROLS_FIXTURES=voter,read-pool,zero-read,blue-green \
+OPENBAO_CLIENT_CONTROLS_DENIED_USER=system:serviceaccount:client-controls-native:controls-reader \
+GOWORK=off go test -count=1 -timeout=15m -v ./internal/integration -run '^TestOperatorControls$'
+```
+
+Use `openbao.org` for the legacy source contract. Record exact operator sources, images, CRDs, Kubernetes version, and
+test output. The four fixtures do not qualify active blue/green transitions or a revisioned pool after an upgrade unless
+that fixture actually exercises them. After a failure, inspect the remaining fixture state before running the test again.
+
 ## Qualification and releases
 
 Qualify both consumers against the exact candidate commit before you create a `v0` tag. Record the evidence in the pull

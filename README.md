@@ -38,7 +38,7 @@ The example projects a synthetic cluster and prints `2 findings, 15 coverage ent
 ## Versioning
 
 The module path is `github.com/kubebao/openbao-operator-client`. Releases use immutable `v0` tags, and the API can change
-between them. Until the first tag, consumers pin Go pseudo-versions of published commits.
+between them. Consumers pin an immutable release tag or a Go pseudo-version of a published commit.
 
 The project uses the [Apache License 2.0](LICENSE). [NOTICE](NOTICE) records scaffold provenance, and
 [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES) records dependency notices.

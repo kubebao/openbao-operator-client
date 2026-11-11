@@ -83,9 +83,12 @@ func validResourceName(value string) bool {
 // Validate checks the fixed control surface and every optimistic-concurrency precondition.
 // A valid plan can still be rejected by RBAC, admission, or a concurrent resource change.
 func (p Plan) Validate() error {
-	if p.AdapterContract != string(adapter.V1Alpha1Snapshot) || p.Target.Validate() != nil ||
+	contract := adapter.Contract(p.AdapterContract)
+	info, err := adapter.Describe(contract)
+	if err != nil || (contract != adapter.V1Alpha1Snapshot && contract != adapter.KubeBaoV1Alpha1Snapshot) ||
+		p.Target.Validate() != nil ||
 		p.Target.Field != "" || p.Target.Identity.Kind != "OpenBaoCluster" ||
-		p.Target.Identity.Group != "openbao.org" || p.Target.APIVersion != "openbao.org/v1alpha1" {
+		p.Target.Identity.Group != info.APIGroup || p.Target.APIVersion != info.APIVersion {
 		return ErrInvalidPlan
 	}
 	id := p.Target.Identity

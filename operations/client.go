@@ -176,7 +176,8 @@ func (c *Client) Submit(ctx context.Context, plan Plan, options SubmitOptions) (
 
 func (c *Client) requestURL(plan Plan, dryRun bool) string {
 	id := plan.Target.Identity
-	endpoint := c.endpoint.JoinPath("apis", id.Group, "v1alpha1", "namespaces", id.Namespace, "openbaoclusters", id.Name)
+	version := strings.TrimPrefix(plan.Target.APIVersion, id.Group+"/")
+	endpoint := c.endpoint.JoinPath("apis", id.Group, version, "namespaces", id.Namespace, "openbaoclusters", id.Name)
 	if dryRun {
 		endpoint.RawQuery = url.Values{"dryRun": {"All"}}.Encode()
 	}
