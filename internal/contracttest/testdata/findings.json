@@ -14,9 +14,7 @@
       "subsubject": "ready",
       "severity": "warning"
     },
-    "key": "[\"KBAO-POD-001\",\"cluster-a\",\"\",\"Pod\",\"team\",\"pod-a\",\"pod-a\",\"ready\"]",
-    "console": "high",
-    "cli": "warning"
+    "key": "[\"KBAO-POD-001\",\"cluster-a\",\"\",\"Pod\",\"team\",\"pod-a\",\"pod-a\",\"ready\"]"
   },
   {
     "name": "second-subject",
@@ -33,9 +31,7 @@
       "subsubject": "ready",
       "severity": "error"
     },
-    "key": "[\"KBAO-POD-001\",\"cluster-a\",\"\",\"Pod\",\"team\",\"pod-b\",\"pod-b\",\"ready\"]",
-    "console": "high",
-    "cli": "error"
+    "key": "[\"KBAO-POD-001\",\"cluster-a\",\"\",\"Pod\",\"team\",\"pod-b\",\"pod-b\",\"ready\"]"
   },
   {
     "name": "container-subsubject",
@@ -52,9 +48,7 @@
       "subsubject": "app/bao",
       "severity": "critical"
     },
-    "key": "[\"KBAO-POD-001\",\"cluster-a\",\"\",\"Pod\",\"team\",\"pod-a\",\"pod-a\",\"app/bao\"]",
-    "console": "critical",
-    "cli": "error"
+    "key": "[\"KBAO-POD-001\",\"cluster-a\",\"\",\"Pod\",\"team\",\"pod-a\",\"pod-a\",\"app/bao\"]"
   },
   {
     "name": "informational",
@@ -71,8 +65,6 @@
       "subsubject": "paused",
       "severity": "info"
     },
-    "key": "[\"KBAO-POD-001\",\"cluster-a\",\"\",\"Pod\",\"team\",\"pod-a\",\"pod-a\",\"paused\"]",
-    "console": "info",
-    "cli": "info"
+    "key": "[\"KBAO-POD-001\",\"cluster-a\",\"\",\"Pod\",\"team\",\"pod-a\",\"pod-a\",\"paused\"]"
   }
 ]
