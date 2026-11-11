@@ -53,6 +53,11 @@ history, and persistence in the console. Keep library-to-product mappings focuse
 contracts when needed; version changes and document migration or development-reset requirements before applying them.
 Preserve useful deployment history and first-seen semantics. Never resolve findings from failed optional reads.
 
+Implemented in console candidate `d079e9f9621ae73fd895ef70f3bfe48cc129ffe0` (PR #24). Local gates pass, including
+scoped real operator collection. [Qualification](console-qualification.md) records the installed identities and limits.
+The console PR remains open; milestone 4 is not complete. Hosted Dependency Review needs private-repository Code Security,
+and the Check workflow has a startup failure. No policy or visibility setting is changed to bypass these failures.
+
 Gate: `make check`, generated artifacts, SQLite/PostgreSQL checks, development/production browser workflows, storage
 workflows, and an isolated operator collection test execute and pass. Preserve read-only scope and redirect handling.
 Document visible changes and regenerate screenshots where needed. A skipped integration check does not pass this gate.
