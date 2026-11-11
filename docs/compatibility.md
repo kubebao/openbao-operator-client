@@ -26,11 +26,12 @@ Add the migrated API group only when its specific contract and validation eviden
 
 ## Consumer collection coverage
 
-The first common candidate is client `1edeecfd35aedcfa88af9fc57bf1d60dca765c3c`, version
-`v0.0.0-20261111115206-1edeecfd35ae`. CLI `ff2d9b427152b8d602964605b07f350d3e6e6ef8` and console PR #24 candidate
-`19dd2108873add00dcb08384747e75ef8494dea1` pin it. Their fresh-cache independent builds and distribution artifacts pass.
-The private CLI repository keeps GitHub Actions disabled. Console hosted security checks and its latest local
-healthy-cluster assertion remain unresolved. The pre-release corrections require a new common candidate before tagging.
+The corrected common candidate is client `0e0f536c49b4a94c89411b00693aa27672f624b6`, version
+`v0.0.0-20261111134438-0e0f536c49b4`. CLI `2cf9ce231081706141488b580d80301681fab4bf` and console PR #24 candidate
+`678e4b797ca94cbf8db7924b3bae42496f0ecc49` pin it. Their fresh-cache independent builds and distribution artifacts pass.
+The private CLI repository keeps GitHub Actions disabled. Console hosted security checks and a fresh healthy-cluster
+operator assertion remain unresolved. [Common candidate checks](candidate-qualification.md) separate current validation
+from earlier operator integration evidence. Tagging remains on hold.
 
 The earlier [console qualification](console-qualification.md) and [CLI qualification](cli-qualification.md) retain their
 original consumer and library commits. Those bounded integration results do not qualify a later candidate automatically.

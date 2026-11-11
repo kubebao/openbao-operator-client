@@ -55,9 +55,10 @@ Preserve useful deployment history and first-seen semantics. Never resolve findi
 
 Implemented in console candidate `d079e9f9621ae73fd895ef70f3bfe48cc129ffe0` (PR #24). Local gates pass, including
 scoped real operator collection. [Qualification](console-qualification.md) records the installed identities and limits.
-The console PR remains open; milestone 4 is not complete. Qualification resumes for milestone 6 at candidate `19dd210`.
+The console PR remains open; milestone 4 is not complete. Qualification resumes for milestone 6 at candidate `678e4b7`.
 The Check workflow now starts, but CodeQL and Dependency Review require unavailable private-repository security features.
-The latest local healthy-cluster assertion also fails while its disposable OpenBao sample remains uninitialized.
+A fresh healthy-cluster assertion on preceding candidate `19dd210` fails while its disposable OpenBao sample remains
+uninitialized. It does not qualify the corrected candidate.
 The user requests a merge when possible. Keep the repository private and require passing gates before merging.
 
 Gate: `make check`, generated artifacts, SQLite/PostgreSQL checks, development/production browser workflows, storage
@@ -83,15 +84,17 @@ exclusion. Run `make check`, `make vulncheck`, dependency-license checks, and di
 
 ## 6. Pin and qualify one library version
 
-Tagging is on hold at the user's request. The first common candidate is `1edeecf`; CLI `ff2d9b4` and console PR #24
-candidate `19dd210` pin it. Fresh-cache independent builds, dependency notices, both consumers' four-platform archives,
+Tagging is on hold at the user's request. The corrected common candidate is `0e0f536`; CLI `2cf9ce2` and console PR #24
+candidate `678e4b7` pin it. Fresh-cache independent builds, dependency notices, both consumers' four-platform archives,
 and the two-platform console image pass. Console CodeQL and Dependency Review remain blocked by private-repository
-security feature availability. Its current healthy-cluster integration assertion also fails while the disposable
-OpenBao sample remains uninitialized. These results do not complete milestones 4 or 6.
+security feature availability. A fresh healthy-cluster assertion on the preceding common candidate also fails while its
+disposable OpenBao sample remains uninitialized. These results do not complete milestones 4 or 6.
 
-Complete the pre-release contract corrections in [diagnostics](diagnostics.md), then qualify both consumers against a
-new published candidate. Kubernetes field qualification targets 1.34 and later. No client tag is created while these
-gates remain unresolved.
+The [pre-release contract corrections](diagnostics.md#pre-release-contract-corrections) are implemented in rule set `8`.
+Real Kubernetes 1.34.11 checks confirm current Pod Ready-condition acknowledgement for True and False, and completed Job
+Pod exclusion from StatefulSet membership. These checks do not qualify an operator installation.
+[Common candidate checks](candidate-qualification.md) record the exact consumer commits and remaining gates.
+Kubernetes qualification targets 1.34 and later. No client tag is created while these gates remain unresolved.
 
 Qualify both consumers against the same candidate commit. Record consumer commits, library commit, operator/CRD/image
 identity, rule policy, reference time policy, and executed checks. Tag the exact qualified commit, pin the tag in both

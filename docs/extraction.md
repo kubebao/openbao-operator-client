@@ -202,8 +202,9 @@ and empty findings do not establish health.
 ## Evidence and replay
 
 Normalized cluster/restore records use schema version `2`. Operational fields and object-presence states change the draft
-version `1` serialization; validation rejects older records. Neither consumer persists library records yet. Evidence schema,
-adapter contract identity, and rule-set versions remain separate. Workload record types also use schema version
+version `1` serialization; validation rejects older records. The CLI serializes normalized captures in command output.
+The console persists its mapped fleet model. Evidence schema, adapter contract identity, and rule-set versions remain
+separate. Workload record types also use schema version
 `2`; they do not change existing cluster/restore record shapes.
 
 Value states distinguish unknown, reported, implied, and invalid. Invalid fields retain no raw value. Implied integers must

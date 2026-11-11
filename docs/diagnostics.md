@@ -216,8 +216,8 @@ declarations that omit candidates are rejected. A partial list never verifies a 
 
 A complete LIST confirms unchanged positive generation, changed generation, deletion by name absence, or replacement by
 a new UID for the same name. Missing or invalid generations remain insufficient. The verification retains the LIST
-scope and collection outcome; it never describes a LIST as a GET. This expands admitted verification evidence in rule
-set `7`; older policies are rejected. It does not make the collection atomic or qualify an operator integration.
+scope and collection outcome; it never describes a LIST as a GET. Verification does not make the collection atomic or
+qualify an operator integration.
 
 ## Pre-release contract corrections
 
