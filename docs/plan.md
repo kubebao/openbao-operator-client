@@ -71,6 +71,13 @@ watch orchestration, rendering, thresholds, and process results in CLI wrappers.
 boundary, selected API group and UID, bounded timeouts, deletion/replacement behavior, and incomplete-evidence precedence.
 Update provisional JSON deliberately instead of retaining duplicate interpretation solely for old shapes.
 
+Implemented in CLI commit `8cb99104e44974fd6bd8311f818cd9d7a1f36bfd`, pinned to published client commit
+`74412f30a4c0430092dfd603de15435260e7e86e`. [CLI qualification](cli-qualification.md) records the command boundaries,
+intentional corrections, passing local gates, and bounded isolated operator collection. Milestone 5 is complete. GitHub
+Actions remains disabled for the private CLI repository; no hosted CLI result is claimed. The operator check covers a
+Pending workload and empty restore list, not healthy-cluster diagnosis or nonempty restore correlation. Milestone 4
+remains deferred, and milestone 6 has not started.
+
 Gate: command tests verify output, exit codes, actual request scope, timeouts, interruption, replacement, and sensitive-data
 exclusion. Run `make check`, `make vulncheck`, dependency-license checks, and distribution verification.
 
