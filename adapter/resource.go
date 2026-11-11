@@ -1,11 +1,18 @@
 package adapter
 
-import "github.com/kubebao/openbao-operator-client/evidence"
+import (
+	"slices"
+
+	"github.com/kubebao/openbao-operator-client/evidence"
+)
 
 func projectResource(raw []byte, options ProjectionOptions, kind string) (map[string]any, evidence.Reference, error) {
 	info, err := Describe(options.Contract)
 	if err != nil {
 		return nil, evidence.Reference{}, err
+	}
+	if !slices.Contains(info.Kinds, kind) {
+		return nil, evidence.Reference{}, &ProjectionError{Code: UnsupportedContract}
 	}
 	if options.CollectedAt.IsZero() {
 		return nil, evidence.Reference{}, &ProjectionError{Code: InvalidInput}

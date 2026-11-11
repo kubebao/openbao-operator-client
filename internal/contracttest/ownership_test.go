@@ -1,6 +1,12 @@
 package contracttest
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+
+	"github.com/kubebao/openbao-operator-client/adapter"
+	"github.com/kubebao/openbao-operator-client/evidence"
+)
 
 type ownerReference struct {
 	Group      string `json:"group"`
@@ -10,33 +16,30 @@ type ownerReference struct {
 	Controller bool   `json:"controller"`
 }
 
-func ownerAssociation(child, owner identity, refs []ownerReference, annotation string) association {
-	if !child.valid() || !owner.valid() {
-		return association{State: "invalid"}
-	}
-	if child.Origin != owner.Origin || child.Namespace != owner.Namespace {
-		return association{State: "foreign"}
-	}
-	controllers := []ownerReference{}
+func fixtureWorkload(t *testing.T, id identity, refs []ownerReference, annotation string) []byte {
+	t.Helper()
+	owners := []any{}
 	for _, ref := range refs {
-		if ref.Controller {
-			controllers = append(controllers, ref)
-		}
+		owners = append(
+			owners,
+			map[string]any{
+				"apiVersion": fixtureAPIVersion(ref.Group, "v1"),
+				"kind":       ref.Kind,
+				"name":       ref.Name,
+				"uid":        ref.UID,
+				"controller": ref.Controller,
+			},
+		)
 	}
-	if len(controllers) != 1 {
-		return association{State: "unconfirmed"}
+	metadata := map[string]any{"name": id.Name, "namespace": id.Namespace, "uid": id.UID, "ownerReferences": owners}
+	if annotation != "" {
+		metadata["annotations"] = map[string]any{"openbao.org/owner-uid": annotation}
 	}
-	ref := controllers[0]
-	if ref.UID != owner.UID {
-		if annotation == owner.UID {
-			return association{State: "conflict"}
-		}
-		return association{State: "foreign"}
+	data, err := json.Marshal(map[string]any{"apiVersion": fixtureAPIVersion(id.Group, "v1"), "kind": id.Kind, "metadata": metadata})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if ref.Group != owner.Group || ref.Kind != owner.Kind || ref.Name != owner.Name || (annotation != "" && annotation != owner.UID) {
-		return association{State: "conflict"}
-	}
-	return association{State: "confirmed", Basis: "metadata.ownerReferences"}
+	return data
 }
 
 func TestWorkloadOwnership(t *testing.T) {
@@ -54,13 +57,30 @@ func TestWorkloadOwnership(t *testing.T) {
 	}](t, "ownership")
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			set := ownerAssociation(tc.Set, tc.Cluster, tc.SetOwners, tc.Annotation)
-			equal(t, set.State, tc.SetState)
-			pod := association{State: "unconfirmed"}
-			if set.State == "confirmed" {
-				pod = ownerAssociation(tc.Pod, tc.Set, tc.PodOwners, "")
+			set, err := adapter.ProjectStatefulSet(
+				fixtureWorkload(t, tc.Set, tc.SetOwners, tc.Annotation),
+				fixtureOptions(tc.Set.Origin, adapter.KubernetesAppsV1),
+			)
+			if err != nil {
+				t.Fatal(err)
 			}
-			equal(t, pod.State, tc.PodState)
+			pod, err := adapter.ProjectPod(
+				fixtureWorkload(t, tc.Pod, tc.PodOwners, ""),
+				fixtureOptions(tc.Pod.Origin, adapter.KubernetesCoreV1),
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			setAssociation, err := adapter.AssociateStatefulSet(set, evidence.Identity(tc.Cluster))
+			if err != nil {
+				t.Fatal(err)
+			}
+			equal(t, string(setAssociation.State), tc.SetState)
+			podAssociation, err := adapter.AssociatePod(pod, set, setAssociation)
+			if err != nil {
+				t.Fatal(err)
+			}
+			equal(t, string(podAssociation.State), tc.PodState)
 		})
 	}
 }

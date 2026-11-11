@@ -1,0 +1,8 @@
+{
+  "apiVersion":"apps/v1","kind":"StatefulSet",
+  "metadata":{"namespace":"team","name":"bao","uid":"set-1","generation":4,"resourceVersion":"201",
+    "ownerReferences":[{"apiVersion":"openbao.org/v1alpha1","kind":"OpenBaoCluster","name":"bao","uid":"cluster-1","controller":true}],
+    "annotations":{"openbao.org/owner-uid":"cluster-1","openbao.org/maintenance":"false","arbitrary":"ANNOTATION_CANARY"}},
+  "spec":{"replicas":3,"template":{"spec":{"containers":[{"name":"bao","env":[{"name":"TOKEN","value":"SPEC_CANARY"}]}]}}},
+  "status":{"observedGeneration":4}
+}

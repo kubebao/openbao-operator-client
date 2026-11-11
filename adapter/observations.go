@@ -36,6 +36,16 @@ func objectAt(raw map[string]any, path ...string) (map[string]any, evidence.Obje
 	return nil, evidence.ObjectInvalid
 }
 
+// annotation projects one approved key. A null annotation map has no keys;
+// malformed maps and null values for present keys remain invalid.
+func annotation(root map[string]any, key string) evidence.Text {
+	fields, state := objectAt(root, "metadata", "annotations")
+	if state == evidence.ObjectInvalid {
+		return evidence.Text{State: evidence.ValueInvalid}
+	}
+	return text(fields, false, key)
+}
+
 func childObject(parent evidence.ObjectState, raw map[string]any, path ...string) (map[string]any, evidence.ObjectState) {
 	if parent != evidence.ObjectReported {
 		return nil, evidence.ObjectUnknown
@@ -199,8 +209,8 @@ func projectOperationalFields(root map[string]any, result *evidence.Cluster, lim
 	}
 	maintenance, maintenanceState := objectAt(root, "spec", "maintenance")
 	result.Maintenance = evidence.Maintenance{State: maintenanceState, Enabled: boolean(maintenance, "enabled")}
-	result.RestoreOrigin = text(root, true, "metadata", "annotations", "openbao.org/restore-origin")
-	result.RestoreHold = text(root, true, "metadata", "annotations", "openbao.org/restore-hold")
+	result.RestoreOrigin = annotation(root, "openbao.org/restore-origin")
+	result.RestoreHold = annotation(root, "openbao.org/restore-hold")
 	legacy, legacyState := objectAt(root, "status", "restore")
 	result.LegacyRestore = evidence.LegacyRestore{
 		State:              legacyState,

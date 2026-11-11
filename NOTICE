@@ -16,3 +16,10 @@ Behavioral specifications and synthetic baseline harnesses also reference:
   github.com/kubebao/openbao-operator-console
   commit 9e7b6900f781e8fbac736ca42e6a51f7f807087b
   Licensed under the Apache License, Version 2.0.
+
+Kubernetes workload projection contracts reference public API declarations from:
+  k8s.io/api v0.37.2
+  commit 1bc0c529309723075aed339d50f16d4b311d908d
+  k8s.io/apimachinery v0.37.2
+  commit 97adf147c7378229d45db0fc7511af84d0c3c092
+  Licensed under the Apache License, Version 2.0.

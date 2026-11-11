@@ -1,9 +1,9 @@
 # Evidence contract decisions
 
 Milestone 1 defines the extraction target through synthetic fixtures, executable reference specifications, and tests of
-the recorded consumer source. Milestone 3 now implements cluster and operational evidence/projection, identity validation,
-times, and collection outcomes. Matching fixtures call production code. Remaining specifications are test-only; production
-collection, association logic, and diagnostic rules are pending. See [extraction status](extraction.md).
+the recorded consumer source. Milestone 3 now implements cluster, operational, and workload evidence/projection;
+UID associations; identity validation; times; and collection outcomes. Matching fixtures call production code. Remaining
+specifications are test-only; production collection and diagnostic rules are pending. See [extraction status](extraction.md).
 
 Source baselines:
 
@@ -49,9 +49,14 @@ These follow the non-pointer `omitempty` fields in operator `api/v1alpha1/openba
 semantics. Optional objects record whether the field is absent within an observed parent; this does not imply a counter,
 boolean, health, or operation result. Do not default missing failure counts to zero or history-conflict flags to false.
 
+The `kubernetes/apps/v1@v0.37.2` contract applies the same readiness preconditions to StatefulSets, whose public
+`apps/v1.StatefulSetStatus.ReadyReplicas` is a non-pointer `omitempty` count. Missing `spec.replicas` remains unknown;
+projection does not perform API-server defaulting. The separate `kubernetes/core/v1@v0.37.2` contract covers Pods.
+
 Explicit null primitive values, wrong types, fractional/negative counts, and out-of-range integers are invalid. Optional
 objects preserve null, absence, unknown ancestors, and malformed values separately. Null objects retain no child facts and
 imply no health or operation result. Malformed ancestors invalidate their fields. Preserve independent valid observations.
+An absent or null metadata annotation map has no reported keys. A malformed map or a null value for a present key is invalid.
 Keep generations exact above the floating-point range.
 Raft indexes must be canonical unsigned decimal strings within `uint64`; never convert them through floating point.
 
@@ -90,13 +95,16 @@ Confirmation requires a known contract and a matching target/execution UID, or t
 annotation bound to the request UID. Retain the exact basis. A `restore-hold` value can be an operation ID: a matching
 operation ID alone does not prove ownership. Correlate it only after confirming the request-to-target association.
 
-StatefulSets need one consistent controller owner reference: group, kind, name, and UID must match. Conflicting owner
-annotations prevent confirmation; an annotation alone is insufficient. Pods need a controller reference to a confirmed
-StatefulSet. Every edge stays within origin and namespace. Replacing either parent invalidates the old ownership chain.
+StatefulSets need one consistent controller owner reference: group, kind, name, and UID must match. The controller flag
+must be true. API version differences within the same group do not change identity. Pods need a controller reference to a
+confirmed StatefulSet. `openbao.org/owner-uid` refers to the cluster UID on both resources. Conflicting or malformed owner
+annotations prevent confirmation; an annotation alone is insufficient. Every edge stays within origin and namespace.
+Replacing either parent invalidates the old ownership chain.
 
 Names and creation times retain candidates for display, never confirmed recovery findings. Among confirmed requests with
-valid creation times, display newest first and break equal-time ties by UID ascending. This order does not prove causality
-or acceptance. Source inspection found no public `OpenBaoRecovery` API in the pinned operator. This contract cannot confirm
+valid creation times at or before their read time, display newest first and break equal-time ties by UID ascending.
+Reject duplicate request identities. This order does not prove causality or acceptance.
+Source inspection found no public `OpenBaoRecovery` API in the pinned operator. This contract cannot confirm
 that kind even when synthetic fields match a UID. Native association fixtures were corrected to require unconfirmed
 results. See [source corrections](extraction.md#source-corrections).
 
