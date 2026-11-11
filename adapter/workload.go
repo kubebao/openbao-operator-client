@@ -47,12 +47,43 @@ func projectWorkloadMetadata(root map[string]any, ref evidence.Reference, limit 
 	if maintenance.Value != nil && !slices.Contains([]string{"true", "false"}, *maintenance.Value) {
 		maintenance = evidence.Text{State: evidence.ValueInvalid}
 	}
+	pool, revision := evidence.Text{State: evidence.ValueUnknown}, evidence.Text{State: evidence.ValueUnknown}
+	if ref.Identity.Kind == "Pod" {
+		pool = projectWorkloadPool(root, "metadata", "labels")
+		revision = projectWorkloadRevision(root, "metadata", "labels")
+	}
 	return evidence.WorkloadMetadata{
 		Reference: ref, Owners: projectOwners(root, limit),
 		ClusterOwnerUID:   annotation(root, "openbao.org/owner-uid"),
 		Maintenance:       maintenance,
+		Pool:              pool,
+		Revision:          revision,
 		DeletionTimestamp: timestamp(root, "metadata", "deletionTimestamp"),
 	}
+}
+
+func workloadLabel(root map[string]any, key string, path ...string) evidence.Text {
+	labels, state := objectAt(root, path...)
+	if state == evidence.ObjectInvalid || state == evidence.ObjectNull {
+		return evidence.Text{State: evidence.ValueInvalid}
+	}
+	return text(labels, false, key)
+}
+
+func projectWorkloadPool(root map[string]any, path ...string) evidence.Text {
+	pool := workloadLabel(root, "openbao.org/workload-pool", path...)
+	if evidence.ValidateWorkloadPool(pool) != nil {
+		return evidence.Text{State: evidence.ValueInvalid}
+	}
+	return pool
+}
+
+func projectWorkloadRevision(root map[string]any, path ...string) evidence.Text {
+	revision := workloadLabel(root, "openbao.org/revision", path...)
+	if evidence.ValidateWorkloadRevision(revision) != nil {
+		return evidence.Text{State: evidence.ValueInvalid}
+	}
+	return revision
 }
 
 // ProjectStatefulSet projects apps/v1 facts under the explicit Kubernetes contract.
@@ -67,7 +98,11 @@ func ProjectStatefulSet(raw []byte, options ProjectionOptions) (evidence.Statefu
 		SchemaVersion: evidence.SchemaVersion, AdapterContract: string(options.Contract),
 		Metadata: projectWorkloadMetadata(root, ref, options.Limits.MaxEntries), Generation: integer(root, "metadata", "generation"),
 		ObservedGeneration: integer(root, "status", "observedGeneration"), DesiredReplicas: count(root, "spec", "replicas"),
-		ReadyReplicas: count(root, "status", "readyReplicas"),
+		ReadyReplicas:    count(root, "status", "readyReplicas"),
+		SelectorPool:     projectWorkloadPool(root, "spec", "selector", "matchLabels"),
+		SelectorRevision: projectWorkloadRevision(root, "spec", "selector", "matchLabels"),
+		TemplatePool:     projectWorkloadPool(root, "spec", "template", "metadata", "labels"),
+		TemplateRevision: projectWorkloadRevision(root, "spec", "template", "metadata", "labels"),
 	}
 	if result.ReadyReplicas.State == evidence.ValueUnknown && result.DesiredReplicas.State == evidence.ValueReported &&
 		result.Acknowledgement() == evidence.GenerationCurrent {

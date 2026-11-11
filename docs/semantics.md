@@ -9,7 +9,7 @@ These versions change independently:
 
 | Version | Current value | Changes when |
 | --- | --- | --- |
-| Evidence schema (`evidence.SchemaVersion`) | `3` | Normalized record shapes change. Validation rejects other versions. |
+| Evidence schema (`evidence.SchemaVersion`) | `4` | Normalized record shapes change. Validation rejects other versions. |
 | Adapter contract (`adapter.Contract`) | See [projection contracts](#projection-contracts) | Approved fields or omission rules change. |
 | Rule set (`diagnose.RuleSetVersion`) | `8` | Rule semantics or the executable rule inventory change. |
 | Report layout (`diagnose.Report.SchemaVersion`) | `1` | The report shape changes. |
@@ -48,18 +48,39 @@ version alone never selects one.
 
 | Contract | Kinds | Omission rules |
 | --- | --- | --- |
-| `openbao.org/v1alpha1@9671c306/controls-v1` (`V1Alpha1Snapshot`) | `OpenBaoCluster`, `OpenBaoRestore` | Yes; also declares restore UID binding |
-| `openbao.org/v1alpha1/unqualified-v2` (`V1Alpha1Unqualified`) | `OpenBaoCluster`, `OpenBaoRestore` | None |
-| `kubernetes/apps/v1@v0.37.2` (`KubernetesAppsV1`) | `StatefulSet` | Yes |
-| `kubernetes/core/v1@v0.37.2` (`KubernetesCoreV1`) | `Pod` | None |
+| `openbao.org/v1alpha1@9671c306/maintenance-pools-v1` (`V1Alpha1Snapshot`) | `OpenBaoCluster`, `OpenBaoRestore` | Yes; also declares restore UID binding |
+| `openbao.org/v1alpha1/unqualified-v3` (`V1Alpha1Unqualified`) | `OpenBaoCluster`, `OpenBaoRestore` | None |
+| `kubernetes/apps/v1@v0.37.2/workload-pools-v1` (`KubernetesAppsV1`) | `StatefulSet` | Yes |
+| `kubernetes/core/v1@v0.37.2/workload-pools-v1` (`KubernetesCoreV1`) | `Pod` | None |
 
 `V1Alpha1Snapshot` follows operator commit `9671c30623d609f948cf073e167f376de4ea9a85`. The Kubernetes contracts follow the
-public API declarations at `v0.37.2`. `adapter.Describe` returns each contract's kinds and capabilities. It does not
-perform discovery, check RBAC, or qualify an operator.
+public API declarations at `v0.37.2` and the same operator revision's workload metadata. Their `SourceRevision` identifies
+that operator source. `adapter.Describe` returns each contract's kinds and capabilities. It does not perform discovery,
+check RBAC, or qualify an operator.
 
-The controls contract includes `metadata.deletionTimestamp` on clusters. An omitted timestamp remains `unknown`;
-reported and invalid timestamps prevent control preparation. Serialized evidence must use schema `3` and the current
+The operator contract includes `metadata.deletionTimestamp` on clusters. An omitted timestamp remains `unknown`;
+reported and invalid timestamps prevent control preparation. Serialized evidence must use schema `4` and the current
 contract identifiers. Validation rejects earlier schemas; collect a new capture instead of relabeling stored evidence.
+
+### Workload pools and revisions
+
+StatefulSet pool and revision facts come from `spec.selector.matchLabels` and `spec.template.metadata.labels`.
+The adapter records these fields separately as `SelectorPool`, `SelectorRevision`, `TemplatePool`, and
+`TemplateRevision`. StatefulSet top-level labels do not supply these facts. Pod pool and revision facts come from
+`metadata.labels`. Only `openbao.org/workload-pool` and `openbao.org/revision` are approved for grouping.
+
+Pool values are `voter` or `read-replica`. Revisions are nonempty Kubernetes label values of at most 63 bytes, with
+alphanumeric first and last characters and alphanumeric, `-`, `_`, or `.` characters inside. Missing keys remain
+`unknown`; present empty, null, malformed, or unsupported values become `invalid`. Malformed or null label maps
+invalidate their projected fields. Unapproved labels are excluded. Validation applies the same constraints after replay.
+Pool values describe declared workload groups. They do not establish live Raft membership.
+
+These fields do not prove ownership. Maintenance assessment first confirms the UID association, then checks agreement
+between selector, template, and Pod fields. A Pod's matching name or labels cannot establish membership.
+
+The cluster projection also records `status.blueGreen.blueRevision` and `greenRevision` with the same revision syntax.
+Under the qualified operator contract, an `Idle` blue/green object with an omitted Blue revision selects the original
+unrevisioned voter pool. This interpretation belongs to assessment; the projected value remains `unknown`.
 
 ### Omission rules
 

@@ -21,7 +21,7 @@
       "targetName": "bao",
       "targetUID": "",
       "executionUID": "",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": ""
     },
@@ -51,7 +51,7 @@
       "targetName": "bao",
       "targetUID": "",
       "executionUID": "cluster-1",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": ""
     },
@@ -82,7 +82,7 @@
       "targetName": "bao",
       "targetUID": "cluster-1",
       "executionUID": "",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": ""
     },
@@ -113,7 +113,7 @@
       "targetName": "bao",
       "targetUID": "cluster-1",
       "executionUID": "other",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": ""
     },
@@ -143,7 +143,7 @@
       "targetName": "other",
       "targetUID": "",
       "executionUID": "cluster-1",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": ""
     },
@@ -173,7 +173,7 @@
       "targetName": "bao",
       "targetUID": "",
       "executionUID": "other",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": ""
     },
@@ -203,7 +203,7 @@
       "targetName": "bao",
       "targetUID": "",
       "executionUID": "cluster-1",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": ""
     },
@@ -233,7 +233,7 @@
       "targetName": "bao",
       "targetUID": "",
       "executionUID": "cluster-1",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": ""
     },
@@ -263,7 +263,7 @@
       "targetName": "bao",
       "targetUID": "",
       "executionUID": "cluster-1",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": ""
     },
@@ -293,7 +293,7 @@
       "targetName": "bao",
       "targetUID": "",
       "executionUID": "cluster-1",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": ""
     },
@@ -323,7 +323,7 @@
       "targetName": "bao",
       "targetUID": "",
       "executionUID": "",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": ""
     },
@@ -353,7 +353,7 @@
       "targetName": "bao",
       "targetUID": "",
       "executionUID": "",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": ""
     },
@@ -383,7 +383,7 @@
       "targetName": "bao",
       "targetUID": "",
       "executionUID": "",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": "request-1"
     },
@@ -414,7 +414,7 @@
       "targetName": "bao",
       "targetUID": "other",
       "executionUID": "",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": "request-1"
     },
@@ -474,7 +474,7 @@
       "targetName": "bao",
       "targetUID": "",
       "executionUID": "",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": "",
       "holdOperationID": "operation-1",
@@ -506,7 +506,7 @@
       "targetName": "bao",
       "targetUID": "cluster-1",
       "executionUID": "",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": ""
     },
@@ -536,7 +536,7 @@
       "targetName": "bao",
       "targetUID": "",
       "executionUID": "",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": ""
     },
@@ -566,7 +566,7 @@
       "targetName": "bao",
       "targetUID": "",
       "executionUID": "",
-      "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+      "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
       "createdAt": "2026-11-10T10:00:00Z",
       "originRequestUID": "request-1"
     },

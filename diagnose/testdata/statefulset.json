@@ -1,7 +1,9 @@
 {
-  "schemaVersion": "3",
-  "adapterContract": "kubernetes/apps/v1@v0.37.2",
+  "schemaVersion": "4",
+  "adapterContract": "kubernetes/apps/v1@v0.37.2/workload-pools-v1",
   "metadata": {
+    "pool": {"state": "unknown"},
+    "revision": {"state": "unknown"},
     "reference": {
       "identity": {
         "origin": "cluster-a",
@@ -45,6 +47,10 @@
       "state": "unknown"
     }
   },
+  "selectorPool": {"state": "unknown"},
+  "selectorRevision": {"state": "unknown"},
+  "templatePool": {"state": "unknown"},
+  "templateRevision": {"state": "unknown"},
   "generation": {
     "state": "reported",
     "value": 4

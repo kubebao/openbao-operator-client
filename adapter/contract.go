@@ -5,12 +5,12 @@ package adapter
 type Contract string
 
 const (
-	// V1Alpha1Snapshot projects the inspected source contract, including cluster deletion state for controls.
-	V1Alpha1Snapshot Contract = "openbao.org/v1alpha1@9671c306/controls-v1"
+	// V1Alpha1Snapshot projects the inspected source contract, including maintenance topology evidence.
+	V1Alpha1Snapshot Contract = "openbao.org/v1alpha1@9671c306/maintenance-pools-v1"
 	// V1Alpha1Unqualified projects the same approved fields without inferring omitted values.
-	V1Alpha1Unqualified Contract = "openbao.org/v1alpha1/unqualified-v2"
-	KubernetesAppsV1    Contract = "kubernetes/apps/v1@v0.37.2"
-	KubernetesCoreV1    Contract = "kubernetes/core/v1@v0.37.2"
+	V1Alpha1Unqualified Contract = "openbao.org/v1alpha1/unqualified-v3"
+	KubernetesAppsV1    Contract = "kubernetes/apps/v1@v0.37.2/workload-pools-v1"
+	KubernetesCoreV1    Contract = "kubernetes/core/v1@v0.37.2/workload-pools-v1"
 )
 
 type Capability string
@@ -51,12 +51,14 @@ func Describe(contract Contract) (ContractInfo, error) {
 	case KubernetesAppsV1:
 		return ContractInfo{
 			ID: contract, APIGroup: "apps", APIVersion: "apps/v1", KubernetesVersion: "v0.37.2",
-			Kinds: []string{"StatefulSet"}, Capabilities: []Capability{CapabilityStatefulSet, CapabilityReadiness},
+			SourceRevision: "9671c30623d609f948cf073e167f376de4ea9a85",
+			Kinds:          []string{"StatefulSet"}, Capabilities: []Capability{CapabilityStatefulSet, CapabilityReadiness},
 		}, nil
 	case KubernetesCoreV1:
 		return ContractInfo{
 			ID: contract, APIVersion: "v1", KubernetesVersion: "v0.37.2",
-			Kinds: []string{"Pod"}, Capabilities: []Capability{CapabilityPod, CapabilityConditions},
+			SourceRevision: "9671c30623d609f948cf073e167f376de4ea9a85",
+			Kinds:          []string{"Pod"}, Capabilities: []Capability{CapabilityPod, CapabilityConditions},
 		}, nil
 	default:
 		return ContractInfo{}, &ProjectionError{Code: UnsupportedContract}

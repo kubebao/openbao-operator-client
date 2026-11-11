@@ -169,8 +169,17 @@ func projectBlueGreen(root map[string]any) evidence.BlueGreen {
 			"RestoringReadReplicas", "RollingBack", "RollbackCleanup",
 		}, "phase"),
 		OperationID: text(raw, true, "operationID"), GreenVersion: version(raw, "greenVersion"), StartedAt: timestamp(raw, "startTime"),
+		BlueRevision: projectBlueGreenRevision(raw, "blueRevision"), GreenRevision: projectBlueGreenRevision(raw, "greenRevision"),
 		JobFailureCount: count(raw, "jobFailureCount"), LastFailedJob: text(raw, true, "lastJobFailure"),
 	}
+}
+
+func projectBlueGreenRevision(raw map[string]any, field string) evidence.Text {
+	value := text(raw, false, field)
+	if evidence.ValidateWorkloadRevision(value) != nil {
+		return evidence.Text{State: evidence.ValueInvalid}
+	}
+	return value
 }
 
 func projectOperationLock(root map[string]any) evidence.OperationLock {

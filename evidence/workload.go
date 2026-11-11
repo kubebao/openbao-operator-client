@@ -2,6 +2,7 @@ package evidence
 
 import (
 	"cmp"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -88,17 +89,42 @@ func (v Owners) Validate() error {
 	return nil
 }
 
+// WorkloadMetadata records approved resource metadata. Pool and Revision report
+// Pod labels only. Grouping labels never establish resource ownership.
 type WorkloadMetadata struct {
 	Reference         Reference `json:"reference"`
 	Owners            Owners    `json:"owners"`
 	ClusterOwnerUID   Text      `json:"clusterOwnerUID"`
 	Maintenance       Text      `json:"maintenance"`
+	Pool              Text      `json:"pool"`
+	Revision          Text      `json:"revision"`
 	DeletionTimestamp Timestamp `json:"deletionTimestamp"`
+}
+
+var workloadRevision = regexp.MustCompile(`^[A-Za-z0-9](?:[-A-Za-z0-9_.]{0,61}[A-Za-z0-9])?$`)
+
+// ValidateWorkloadRevision validates a reported, nonempty Kubernetes label value.
+// Unknown and invalid observations retain no value; implied revisions are invalid.
+func ValidateWorkloadRevision(value Text) error {
+	if value.Validate() != nil || value.Value != nil && !workloadRevision.MatchString(*value.Value) {
+		return ErrInvalidEvidence
+	}
+	return nil
+}
+
+// ValidateWorkloadPool validates one reported operator pool label.
+// It does not establish a resource's association with a cluster.
+func ValidateWorkloadPool(value Text) error {
+	if value.Validate() != nil || value.Value != nil && !slices.Contains([]string{"voter", "read-replica"}, *value.Value) {
+		return ErrInvalidEvidence
+	}
+	return nil
 }
 
 func (v WorkloadMetadata) Validate() error {
 	if err := checkFields(fieldCheck{"reference", v.Reference.Validate()}, fieldCheck{"owners", v.Owners.Validate()},
 		fieldCheck{"clusterOwnerUID", v.ClusterOwnerUID.Validate()}, fieldCheck{"maintenance", v.Maintenance.Validate()},
+		fieldCheck{"pool", ValidateWorkloadPool(v.Pool)}, fieldCheck{"revision", ValidateWorkloadRevision(v.Revision)},
 		fieldCheck{"deletionTimestamp", v.DeletionTimestamp.Validate()}); err != nil {
 		return err
 	}
@@ -106,6 +132,9 @@ func (v WorkloadMetadata) Validate() error {
 	case "StatefulSet":
 		if v.Reference.APIVersion != "apps/v1" {
 			return At("reference.apiVersion", ErrInvalidEvidence)
+		}
+		if v.Pool.State != ValueUnknown || v.Revision.State != ValueUnknown {
+			return At("pool", ErrInvalidEvidence)
 		}
 	case "Pod":
 		if v.Reference.APIVersion != "v1" {
@@ -117,6 +146,8 @@ func (v WorkloadMetadata) Validate() error {
 	return nil
 }
 
+// StatefulSet retains selector and template grouping labels as separate facts.
+// Consumers check their agreement only after confirming the cluster UID association.
 type StatefulSet struct {
 	SchemaVersion      string           `json:"schemaVersion"`
 	AdapterContract    string           `json:"adapterContract"`
@@ -125,6 +156,10 @@ type StatefulSet struct {
 	ObservedGeneration Integer          `json:"observedGeneration"`
 	DesiredReplicas    Integer          `json:"desiredReplicas"`
 	ReadyReplicas      Integer          `json:"readyReplicas"`
+	SelectorPool       Text             `json:"selectorPool"`
+	SelectorRevision   Text             `json:"selectorRevision"`
+	TemplatePool       Text             `json:"templatePool"`
+	TemplateRevision   Text             `json:"templateRevision"`
 }
 
 func (v StatefulSet) Acknowledgement() GenerationState {
@@ -140,7 +175,11 @@ func (v StatefulSet) Validate() error {
 	}
 	if err := checkFields(fieldCheck{"metadata", v.Metadata.Validate()}, fieldCheck{"generation", v.Generation.Validate()},
 		fieldCheck{"observedGeneration", v.ObservedGeneration.Validate()}, fieldCheck{"desiredReplicas", validateCount(v.DesiredReplicas)},
-		fieldCheck{"readyReplicas", validateReadyCount(v.ReadyReplicas)}); err != nil {
+		fieldCheck{"readyReplicas", validateReadyCount(v.ReadyReplicas)},
+		fieldCheck{"selectorPool", ValidateWorkloadPool(v.SelectorPool)},
+		fieldCheck{"selectorRevision", ValidateWorkloadRevision(v.SelectorRevision)},
+		fieldCheck{"templatePool", ValidateWorkloadPool(v.TemplatePool)},
+		fieldCheck{"templateRevision", ValidateWorkloadRevision(v.TemplateRevision)}); err != nil {
 		return err
 	}
 	if v.Metadata.Reference.Identity.Kind != "StatefulSet" {
