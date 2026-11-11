@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "2",
+  "adapterContract": "kubernetes/apps/v1@v0.37.2",
+  "metadata": {
+    "reference": {
+      "identity": {
+        "origin": "cluster-a",
+        "group": "apps",
+        "kind": "StatefulSet",
+        "namespace": "team",
+        "name": "bao",
+        "uid": "set-1"
+      },
+      "apiVersion": "apps/v1",
+      "resourceVersion": {
+        "state": "reported",
+        "value": "201"
+      },
+      "collectedAt": {
+        "state": "reported",
+        "value": "2026-11-10T10:00:00Z"
+      }
+    },
+    "owners": {
+      "state": "reported",
+      "values": [
+        {
+          "apiVersion": "openbao.org/v1alpha1",
+          "kind": "OpenBaoCluster",
+          "name": "bao",
+          "uid": "cluster-1",
+          "controller": true
+        }
+      ]
+    },
+    "clusterOwnerUID": {
+      "state": "reported",
+      "value": "cluster-1"
+    },
+    "maintenance": {
+      "state": "reported",
+      "value": "false"
+    },
+    "deletionTimestamp": {
+      "state": "unknown"
+    }
+  },
+  "generation": {
+    "state": "reported",
+    "value": 4
+  },
+  "observedGeneration": {
+    "state": "reported",
+    "value": 4
+  },
+  "desiredReplicas": {
+    "state": "reported",
+    "value": 3
+  },
+  "readyReplicas": {
+    "state": "implied",
+    "value": 0
+  }
+}

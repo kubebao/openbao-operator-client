@@ -6,67 +6,22 @@ import (
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
-// AssociateStatefulSet confirms a controller edge to the selected cluster.
-// Annotation matches alone never prove ownership.
+// AssociateStatefulSet projects the pure UID association from normalized facts.
 func AssociateStatefulSet(set evidence.StatefulSet, cluster evidence.Identity) (evidence.Association, error) {
-	if set.Validate() != nil || cluster.Validate() != nil || cluster.Kind != "OpenBaoCluster" {
+	value, err := evidence.AssociateStatefulSet(set, cluster)
+	if err != nil {
 		return evidence.Association{}, &ProjectionError{Code: InvalidInput}
 	}
-	return controllerAssociation(set.Metadata, cluster, cluster), nil
+	return value, nil
 }
 
-func controllerAssociation(child evidence.WorkloadMetadata, parent, cluster evidence.Identity) evidence.Association {
-	result := evidence.Association{Subject: child.Reference.Identity, Target: parent, State: evidence.AssociationUnconfirmed}
-	if result.Subject.Origin != parent.Origin || result.Subject.Namespace != parent.Namespace {
-		result.State = evidence.AssociationForeign
-		return result
-	}
-	if child.Owners.State != evidence.ValueReported || child.ClusterOwnerUID.State == evidence.ValueInvalid {
-		return result
-	}
-	controllers := []evidence.OwnerReference{}
-	for _, ref := range child.Owners.Values {
-		if ref.Controller {
-			controllers = append(controllers, ref)
-		}
-	}
-	if len(controllers) != 1 {
-		return result
-	}
-	owner := controllers[0]
-	annotation := textValue(child.ClusterOwnerUID)
-	if owner.UID != parent.UID {
-		result.State = evidence.AssociationForeign
-		if parent == cluster && annotation == cluster.UID {
-			result.State = evidence.AssociationConflict
-		}
-		return result
-	}
-	if owner.Group() != parent.Group || owner.Kind != parent.Kind || owner.Name != parent.Name ||
-		annotation != "" && annotation != cluster.UID {
-		result.State = evidence.AssociationConflict
-		return result
-	}
-	result.State, result.Basis = evidence.AssociationConfirmed, evidence.BasisControllerOwner
-	return result
-}
-
-// AssociatePod requires the supplied StatefulSet to be confirmed against a cluster.
-// The parent association must describe this exact set UID and scope.
+// AssociatePod requires the supplied StatefulSet's confirmed cluster association.
 func AssociatePod(pod evidence.Pod, set evidence.StatefulSet, parent evidence.Association) (evidence.Association, error) {
-	if pod.Validate() != nil || set.Validate() != nil || parent.Validate() != nil {
+	value, err := evidence.AssociatePod(pod, set, parent)
+	if err != nil {
 		return evidence.Association{}, &ProjectionError{Code: InvalidInput}
 	}
-	result := evidence.Association{
-		Subject: pod.Metadata.Reference.Identity,
-		Target:  set.Metadata.Reference.Identity,
-		State:   evidence.AssociationUnconfirmed,
-	}
-	if parent.State != evidence.AssociationConfirmed || parent.Basis != evidence.BasisControllerOwner ||
-		parent.Subject != result.Target || parent.Target.Kind != "OpenBaoCluster" {
-		return result, nil
-	}
-	return controllerAssociation(pod.Metadata, result.Target, parent.Target), nil
+	return value, nil
 }
 
 // AssociateRestore uses only the pinned operator's UID-binding fields. A hold's

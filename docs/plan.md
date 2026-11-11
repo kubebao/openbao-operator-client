@@ -37,7 +37,7 @@ UID associations; timestamps; and collection outcomes. The pinned operator has n
 remote-replication definitions. [Extraction status](extraction.md) records those unsupported capabilities and the remaining
 rules. Scoped GET/LIST primitives enforce pagination, byte/candidate/duration
 bounds, cancellation, and named UID pinning. Discovery facts and declared related reads now include shared budgets and
-final UID/generation verification. Finding identity, coverage, and twelve cluster rules now run through production code
+final UID/generation verification. Finding identity, coverage, and fourteen cluster/workload rules now run through production code
 with deterministic replay. Remaining diagnostic rules are pending or reserved. Consumer migration
 remains in milestones 4 and 5.
 

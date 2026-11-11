@@ -29,7 +29,16 @@ func Analyze(capture Capture, policy Policy) (Report, error) {
 	if capture.SchemaVersion != evidence.SchemaVersion {
 		return result, ErrUnsupportedVersion
 	}
-	if len(capture.Clusters) > policy.MaxSubjects {
+	count := len(capture.Clusters)
+	for _, input := range capture.Clusters {
+		if input.StatefulSets != nil {
+			count += len(input.StatefulSets.Observations)
+		}
+		if input.Pods != nil {
+			count += len(input.Pods.Observations)
+		}
+	}
+	if count > policy.MaxSubjects {
 		return result, ErrInvalidCapture
 	}
 	seen := map[evidence.Identity]bool{}
@@ -74,6 +83,9 @@ func evaluate(input ClusterInput, rule RuleID, policy Policy) (Coverage, []Findi
 	coverage := Coverage{Rule: rule, Subject: input.Subject, State: Excluded, Reason: ReasonExcluded, Outcome: input.Collection.Outcome}
 	if !slices.Contains(policy.Rules, rule) {
 		return coverage, nil
+	}
+	if rule == RuleWorkload || rule == RulePod {
+		return evaluateWorkloads(input, rule, policy, coverage)
 	}
 	if input.Collection.Outcome == evidence.CollectionNotRequested {
 		coverage.State, coverage.Reason = NotRequested, ReasonNotRequested

@@ -4,11 +4,12 @@
 state. Identical evidence and policy produce the same report when subject, selected-rule, or reference order changes.
 Empty findings do not establish health or complete coverage.
 
-Rule set `3` implements twelve rules: availability, sealing, replica readiness, recognized adverse conditions, generation
-acknowledgement, controller errors, restrictions, three backup concerns, recorded rolling-upgrade failure, and restore tests.
+Rule set `4` implements fourteen rules: availability, sealing, replica readiness, recognized adverse conditions, generation
+acknowledgement, controller errors, restrictions, three backup concerns, recorded rolling-upgrade failure, restore tests,
+StatefulSet readiness, and Pod concerns.
 `SupportedRules` returns the executable inventory. Earlier rule sets are rejected rather than silently extended. Other
-canonical IDs remain in the [catalog](rules.md),
-but selecting one returns `ErrUnavailableRule`. Unknown IDs return `ErrUnknownRule`. Reserved native-recovery and
+canonical IDs remain in the [catalog](rules.md), but selecting one returns `ErrUnavailableRule`. Unknown IDs return
+`ErrUnknownRule`. Reserved native-recovery and
 remote-replication IDs cannot produce findings. Expanding the executable inventory or changing rule semantics requires a
 new rule-set version. Report layout version `1`, evidence schema `2`, and projection contracts are separate versions.
 
@@ -25,13 +26,36 @@ it does not implement adapters, infer a contract from API discovery, or qualify 
 version is rejected. Contracts outside the caller's allowlist are rejected.
 
 `DefaultPolicy` requires a reference time and contract allowlist. It selects the supported rules and sets a 24-hour backup
-age limit, 1-minute startup grace, 5-minute evidence age limit, and 5,000-subject limit. Durations and subject limits must
+age limit, 1-minute startup grace, 5-minute evidence age limit, and 5,000-subject limit across selected clusters and all
+supplied workload candidates. Durations and subject limits must
 be positive, except startup grace can be zero. Rules and contracts must be unique. A reference time before collection
 completion is invalid. These are evaluation parameters, not process exit thresholds.
 
 `Capture` contains normalized value types, not raw Kubernetes resources. `Analyze` validates typed inputs and versions;
 consumers own JSON decoding and byte limits. Serialized replay tests use trusted fixtures. They do not implement or qualify
 an untrusted bundle parser. Bundle handling remains a separate future package.
+
+### Related workload inputs
+
+`ClusterInput.StatefulSets` and `Pods` are optional `ResourceInput` values. Each retains its projection contract, declared
+LIST outcome, and every admitted candidate before UID filtering. Nil means no scope was requested. Complete inputs must
+retain all candidates, including foreign resources, and a non-nil empty slice for a valid empty list. Scope, origin,
+namespace, resource, version, contract, read times, and candidate counts must agree. Duplicate UIDs or names are rejected.
+The policy allowlist must include each supplied contract, including an empty or failed read's contract.
+
+Related reads follow the selected cluster read and precede final verification when verification was attempted. Workload
+findings require successful target verification with the original source reference and generation. Verification does not
+establish an atomic snapshot. A missing, changed, failed, deleted, or replaced verification prevents current findings.
+
+The analyzer recomputes associations from normalized owner references and cluster-owner annotations through the same pure
+`evidence` implementation used by adapter entry points. Caller-supplied association assertions are not analysis inputs.
+Only confirmed chains can produce workload findings. Unconfirmed/conflicting candidates make coverage insufficient;
+foreign StatefulSets do not become selected-cluster workload facts.
+
+Each workload rule has one coverage entry under the selected cluster, with its primary LIST outcome. Findings identify
+the affected StatefulSet or Pod. Pod coverage also depends on the StatefulSet read. Capture inputs retain both scopes;
+the primary outcome alone does not establish complete coverage. Unrequested workload scopes remain `not_requested` even
+when the selected cluster read fails.
 
 ## Findings and coverage
 
@@ -116,5 +140,29 @@ limited to that snapshot and disposable target. Missing or invalid active state 
 applicable. Missing, stale, or invalid condition evidence and missing/invalid/future result times retain insufficient
 coverage while preserving independently supported result findings. A missing/invalid outcome does not become `Failed`.
 Absent/null restore-test status produces no report; no finding establishes recovery readiness.
+
+StatefulSet readiness requires a confirmed cluster UID edge, current positive generation acknowledgement, known replica
+counts, and a nonterminating object. A shortfall warns under the StatefulSet identity. The cluster readiness rule retains
+its separate severity policy. A complete supported scope with no confirmed StatefulSet warns under the cluster identity
+when current voter intent is positive. Partial reads, unresolved candidates, stale evidence, or missing intent cannot
+establish that absence.
+
+Pod findings require a confirmed controller chain through a captured StatefulSet. `Failed` phase produces an error;
+current `Ready=False` produces a warning when phase is not failed. A missing/unknown or noncurrent Ready condition makes
+coverage insufficient, including when a failed-phase finding remains independently supported. Ready uses the Pod's own
+metadata generation and condition acknowledgement. Kubernetes declares condition acknowledgement optional; omission
+therefore leaves current Pod readiness unconfirmed. Malformed/future transition time makes coverage insufficient without
+erasing a generation-confirmed status. Waiting-container fields add references without copying reasons or messages;
+container state alone does not add a new rule. Unknown/malformed phase retains uncertainty alongside independent readiness.
+
+Pod population counts nonterminating confirmed Pods by StatefulSet UID. A shortfall warns under that StatefulSet with
+`pod-population`. It requires both complete scopes, resolved associations, current StatefulSet intent, fresh observations,
+and verified target stability. Independently missing Pod readiness does not erase a confirmed population shortfall.
+Deleting workloads are skipped. Invalid/future deletion times retain insufficient coverage and cannot establish population.
+
+Population/absence coverage accepts an unfiltered namespace LIST or the existing CLI selector
+`openbao.org/cluster=<selected-name>`. Findings describe that declared scope, not all cluster resources. Other selectors
+retain independent positive observations but make coverage insufficient and suppress population/absence findings. No rule
+adds reads, broadens selectors, or changes consumer permissions.
 
 Run `go run ./examples/diagnose` for synthetic evaluation. Fixture and unit coverage do not qualify an operator integration.

@@ -9,7 +9,7 @@ import (
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
-const RuleSetVersion = "3"
+const RuleSetVersion = "4"
 
 var (
 	ErrUnsupportedVersion = errors.New("unsupported contract version")
@@ -32,20 +32,32 @@ func SupportedRules() []RuleID {
 		RuleCondition,
 		RuleController,
 		RuleGeneration,
+		RulePod,
 		RuleRestoreTest,
 		RuleRestriction,
 		RuleUpgrade,
+		RuleWorkload,
 	}
 }
 
 // ClusterInput binds a selected identity to its read outcome. A nil observation
 // preserves coverage for a known subject after a failed or unrequested read.
 type ClusterInput struct {
-	Subject         evidence.Identity            `json:"subject"`
-	AdapterContract string                       `json:"adapterContract"`
-	Observation     *evidence.Cluster            `json:"observation,omitempty"`
-	Collection      evidence.Collection          `json:"collection"`
-	Verification    *evidence.TargetVerification `json:"verification,omitempty"`
+	Subject         evidence.Identity                    `json:"subject"`
+	AdapterContract string                               `json:"adapterContract"`
+	Observation     *evidence.Cluster                    `json:"observation,omitempty"`
+	Collection      evidence.Collection                  `json:"collection"`
+	Verification    *evidence.TargetVerification         `json:"verification,omitempty"`
+	StatefulSets    *ResourceInput[evidence.StatefulSet] `json:"statefulSets,omitempty"`
+	Pods            *ResourceInput[evidence.Pod]         `json:"pods,omitempty"`
+}
+
+// ResourceInput retains the declared read and every admitted candidate before
+// association filtering. Nil inputs on ClusterInput mean no scope was requested.
+type ResourceInput[T any] struct {
+	AdapterContract string              `json:"adapterContract"`
+	Collection      evidence.Collection `json:"collection"`
+	Observations    []T                 `json:"observations"`
 }
 
 // Capture contains normalized evidence, not raw Kubernetes resources or product state.
@@ -147,7 +159,7 @@ func (c ClusterInput) validate(p Policy) error {
 			return ErrInvalidCapture
 		}
 	}
-	return nil
+	return c.validateWorkloads(p)
 }
 
 func equalInteger(a, b evidence.Integer) bool {

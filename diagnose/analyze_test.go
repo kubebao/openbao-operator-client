@@ -14,7 +14,7 @@ import (
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
-//go:embed testdata/cluster.json
+//go:embed testdata/cluster.json testdata/statefulset.json testdata/pod.json
 var fixtures embed.FS
 
 func input(t testing.TB) diagnose.ClusterInput {
@@ -117,6 +117,12 @@ func TestIncompleteCoverageCanRetainSupportedFindings(t *testing.T) {
 		t.Fatal("incomplete scope discarded independent observed facts")
 	}
 	for _, entry := range report.Coverage {
+		if entry.Rule == diagnose.RuleWorkload || entry.Rule == diagnose.RulePod {
+			if entry.State != diagnose.NotRequested {
+				t.Fatal("unrequested workload scope lost its coverage state")
+			}
+			continue
+		}
 		if entry.State != diagnose.Insufficient || entry.Reason != diagnose.ReasonScopeIncomplete {
 			t.Fatal("denied scope became evaluated")
 		}
@@ -282,7 +288,14 @@ func FuzzAnalyzeNormalizedCapture(f *testing.F) {
 		f.Fatal(err)
 	}
 	f.Add(withOperations)
+	withWorkloads, err := json.Marshal(capture(workloadInput(f)))
+	if err != nil {
+		f.Fatal(err)
+	}
+	f.Add(withWorkloads)
 	f.Add([]byte(`{}`))
+	fuzzPolicy := workloadPolicy(f)
+	fuzzPolicy.Rules = diagnose.SupportedRules()
 	f.Fuzz(func(t *testing.T, data []byte) {
 		if len(data) > 1024*1024 {
 			return
@@ -291,7 +304,7 @@ func FuzzAnalyzeNormalizedCapture(f *testing.F) {
 		if json.Unmarshal(data, &value) != nil {
 			return
 		}
-		report, err := diagnose.Analyze(value, policy(t))
+		report, err := diagnose.Analyze(value, fuzzPolicy)
 		if err == nil {
 			for _, finding := range report.Findings {
 				if finding.Validate() != nil {

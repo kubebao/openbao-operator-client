@@ -67,6 +67,8 @@ const (
 	ReasonNotConfigured      CoverageReason = "not_configured"
 	ReasonHigherPriority     CoverageReason = "higher_priority_backup_signal"
 	ReasonVerification       CoverageReason = "target_unverified"
+	ReasonAssociation        CoverageReason = "association_unconfirmed"
+	ReasonScopeRestricted    CoverageReason = "scope_restricted"
 )
 
 type Coverage struct {

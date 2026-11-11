@@ -4,10 +4,10 @@
 nor remote-replication observations. These IDs must not produce findings under this contract; see
 [source corrections](extraction.md#source-corrections).
 
-These canonical IDs define the extraction target. Rule set `3` implements `KBAO-CLUSTER-001/002/003`, `KBAO-BACKUP-001/002/003`,
+These canonical IDs define the extraction target. Rule set `4` implements `KBAO-CLUSTER-001/002/003`, `KBAO-BACKUP-001/002/003`,
 `KBAO-CONDITION-001`, `KBAO-CONTROLLER-001`, `KBAO-GENERATION-001`, `KBAO-RESTRICTION-001`, `KBAO-UPGRADE-001`, and
-`KBAO-RESTORETEST-001`. Remaining rules are pending
-or reserved. See [evaluation behavior](diagnostics.md). The archived consumer tests cover
+`KBAO-RESTORETEST-001`, `KBAO-WORKLOAD-001`, and `KBAO-POD-001`. Snapshot restore remains pending; native recovery and
+remote replication remain reserved. See [evaluation behavior](diagnostics.md). The archived consumer tests cover
 existing interpretation. `internal/contracttest/testdata/rules.json` records consumer mappings. Replay, identity,
 severity, and history fixtures define the shared boundaries.
 
@@ -36,7 +36,8 @@ success, then overdue completion. Unsupported, missing, and invalid evidence do 
 
 Use the [identity and severity contract](contract.md#findings-and-severity). A restriction uses its field as a subsubject.
 Controller errors use `workload` or `adminOps`. Generic conditions use their type. Container concerns use container kind
-and name. Pod population findings use the StatefulSet subject and a `pod-population` subsubject.
+and name. Workload and Pod readiness use `ready`; failed Pod phase uses `phase`. Pod population findings use the StatefulSet subject
+and a `pod-population` subsubject. Missing StatefulSets use the cluster subject and `statefulset-population`.
 
 CLI status attention does not become a second diagnostic engine:
 

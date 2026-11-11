@@ -13,7 +13,8 @@ The library separates resource facts from their interpretation and from applicat
 modules. Unit-test imports follow the same package direction. Collector tests can use Kubernetes clients and test servers.
 
 Capability definitions belong to adapters. Evidence records observed discovery/read outcomes and the contract under
-which a projection was made. Diagnosis consumes those value types without importing adapter code.
+which a projection was made. Diagnosis consumes those value types without importing adapter code. Pure workload UID
+association checks live in `evidence`; adapter entry points delegate to them. Collection and diagnosis use one implementation.
 
 Adapters validate types, ranges, identifiers, and timestamps at the boundary. Preserve reported fields separately from
 derived states. Document zero-value omission semantics against a pinned public operator API/CRD source. A resource API
@@ -32,7 +33,7 @@ kubeconfig loading, output, watch orchestration, and process results. Applicatio
 development when the new contract improves semantics; document storage and output changes.
 
 Cluster/workload evidence, JSON projection, UID associations, bounded discovery/GET/LIST collection, and declared related
-reads with final target verification are implemented. Diagnosis implements finding identity, coverage, and twelve cluster
+reads with final target verification are implemented. Diagnosis implements finding identity, coverage, and fourteen cluster/workload
 rules. Other rules remain pending. HTTP transports belong to callers; diagnosis uses supplied time
 and policy.
 See [extraction status](extraction.md) for coverage. Add `operations` and bundle packages with their first implemented features.
