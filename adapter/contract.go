@@ -9,6 +9,8 @@ const (
 	V1Alpha1Snapshot Contract = "openbao.org/v1alpha1@9671c306"
 	// V1Alpha1Unqualified projects the same approved fields without inferring omitted values.
 	V1Alpha1Unqualified Contract = "openbao.org/v1alpha1/unqualified-v1"
+	KubernetesAppsV1    Contract = "kubernetes/apps/v1@v0.37.2"
+	KubernetesCoreV1    Contract = "kubernetes/core/v1@v0.37.2"
 )
 
 type Capability string
@@ -23,16 +25,20 @@ const (
 	CapabilityRestoreTest  Capability = "restore_test"
 	CapabilityRestore      Capability = "restore"
 	CapabilityRestrictions Capability = "restrictions"
+	CapabilityStatefulSet  Capability = "statefulset"
+	CapabilityPod          Capability = "pod"
 )
 
 // ContractInfo describes library projection coverage. It is not API discovery or
-// an operator integration qualification. Returned capability slices are independent copies.
+// an operator integration qualification. Returned kind and capability slices are independent copies.
 type ContractInfo struct {
-	ID             Contract
-	APIGroup       string
-	APIVersion     string
-	SourceRevision string
-	Capabilities   []Capability
+	ID                Contract
+	APIGroup          string
+	APIVersion        string
+	SourceRevision    string
+	KubernetesVersion string
+	Kinds             []string
+	Capabilities      []Capability
 }
 
 func Describe(contract Contract) (ContractInfo, error) {
@@ -41,6 +47,16 @@ func Describe(contract Contract) (ContractInfo, error) {
 	case V1Alpha1Snapshot:
 		info.SourceRevision = "9671c30623d609f948cf073e167f376de4ea9a85"
 	case V1Alpha1Unqualified:
+	case KubernetesAppsV1:
+		return ContractInfo{
+			ID: contract, APIGroup: "apps", APIVersion: "apps/v1", KubernetesVersion: "v0.37.2",
+			Kinds: []string{"StatefulSet"}, Capabilities: []Capability{CapabilityStatefulSet, CapabilityReadiness},
+		}, nil
+	case KubernetesCoreV1:
+		return ContractInfo{
+			ID: contract, APIVersion: "v1", KubernetesVersion: "v0.37.2",
+			Kinds: []string{"Pod"}, Capabilities: []Capability{CapabilityPod, CapabilityConditions},
+		}, nil
 	default:
 		return ContractInfo{}, &ProjectionError{Code: UnsupportedContract}
 	}
@@ -48,5 +64,6 @@ func Describe(contract Contract) (ContractInfo, error) {
 		CapabilityCluster, CapabilityConditions, CapabilityVersions, CapabilityReadiness,
 		CapabilityBackup, CapabilityUpgrade, CapabilityRestoreTest, CapabilityRestore, CapabilityRestrictions,
 	}
+	info.Kinds = []string{"OpenBaoCluster", "OpenBaoRestore"}
 	return info, nil
 }

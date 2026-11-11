@@ -1,7 +1,8 @@
 # Executable contract specifications
 
-These fixtures define milestone 1 decisions. Value, condition, identity-validation, and freshness checks call production
-code. The remaining reference models are test-only and do not implement production collectors or diagnostic rules.
+These fixtures define milestone 1 decisions. Value, condition, identity-validation, freshness, restore association/selection,
+and workload ownership checks call production code. The remaining reference models are test-only and do not implement
+production collectors or diagnostic rules.
 JSON fixtures contain hand-authored expected results. Tests also check input permutations, serialized replay, independent
 generation acknowledgement, and history sequences. No Kubernetes dependency is needed to run them.
 Collection transcripts express elapsed time and duration limits in seconds and retained sizes in bytes.

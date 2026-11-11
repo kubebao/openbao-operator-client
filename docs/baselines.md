@@ -56,6 +56,9 @@ browsers, a real Kubernetes API server, or an operator integration environment.
 | CLI redaction still retains arbitrary provider-message canaries | Default projection excludes them: `projection.json`. Optional local text uses a bounded sidecar: `text.json`. |
 | Console accepts duplicate/invalid conditions; CLI rejects the whole projection | Invalidate the condition set and retain independent valid fields: `conditions.json`. |
 | CLI related-resource projection reads the wall clock internally | Supply resource read time; do not substitute transition or analysis time: `time.json`, `replay.json`. |
+| CLI workload ownership compares the owner's complete API version | Compare group, kind, name, and UID across served versions within the same group: `TestControllerReferenceVersionDoesNotChangeIdentity`. Controller and annotation requirements remain. |
+| CLI Pod ownership ignores conflicting cluster-owner annotations | Check the annotation against the cluster root in addition to the StatefulSet controller reference: `TestControllerChainChecksBothUIDLevels`. |
+| CLI permits a matching `restore-hold` value as ownership proof | Require target/execution UID or request-bound `restore-origin`; a hold operation ID alone remains a candidate: `associations.json`. |
 | Console issue IDs are deployment/rule pairs; CLI findings have no subject identity | Adopt subject/subsubject keys and deliberate console mappings: `findings.json`, `history.json`. Preserve first-seen for one-to-one mappings only. |
 | CLI snapshots and reports include command exit codes and thresholds | Keep those fields in wrappers: `projection.json` and replay boundary tests. Container termination codes remain evidence. |
 | CLI status attention and doctor can interpret the same fields separately | Use the combined [rule catalog](rules.md) and map missing evidence to coverage. |
