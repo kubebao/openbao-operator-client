@@ -1,7 +1,7 @@
 # Milestone 3 extraction status
 
 Production slices implement cluster/workload projection, operational observations, evidence values, UID associations,
-bounded discovery, GET/LIST reads, and final target verification across declared related scopes.
+bounded discovery, GET/LIST reads, final target verification, and the diagnostic core.
 Milestone 3 remains in progress. Neither consumer imports the library yet.
 
 | Slice | State | Verification |
@@ -13,7 +13,9 @@ Milestone 3 remains in progress. Neither consumer imports the library yet.
 | StatefulSet/Pod evidence, UID associations, restore selection | Implemented | Production fixtures, replacement/conflict tests, milestone 1 specifications |
 | Scoped GET/LIST reads, pagination, cancellation, UID-pinned named refresh | Implemented | HTTP fixtures, limits, partial reads, scope and replacement tests |
 | Bounded discovery and final target verification across declared related reads | Implemented | HTTP fixtures, shared budgets, verification states, production transcript tests |
-| Findings, coverage, evaluation policy, deterministic diagnostic replay | Pending | Reference specifications; no production rules yet |
+| Finding identity, coverage, evaluation policy, deterministic diagnostic replay | Implemented for cluster inputs | Production tests and milestone 1 fixtures |
+| Replica readiness and backup completion age | Implemented | Source-pinned semantics, boundaries, current/partial/stale evidence tests |
+| Remaining diagnostic rules | Pending or reserved | Canonical catalog; no production interpretation for these IDs yet |
 
 ## Projection boundary
 
@@ -177,11 +179,19 @@ The milestone 1 collection fixtures now call production readers through a synthe
 padded response bodies; elapsed deadline cases become typed transport deadline errors. Separate HTTP tests exercise real
 context deadlines. Negative byte declarations become malformed wire data. The old admission/verification model is removed.
 
+## Diagnostic evaluation
+
+`diagnose.Analyze` interprets normalized cluster captures with explicit policy and reference time. It implements stable
+finding identities, per-rule coverage, operator-reported replica readiness, and backup completion age. It imports only
+evidence and standard-library code. The [evaluation guide](diagnostics.md) records inputs, default policy, versioning,
+freshness, verification, and serialized replay. Other catalog rules remain pending or reserved; they cannot be selected
+silently. Findings can coexist with insufficient coverage, and empty findings do not establish health.
+
 ## Evidence and replay
 
 Normalized cluster/restore records use schema version `2`. Operational fields and object-presence states change the draft
 version `1` serialization; validation rejects older records. Neither consumer persists library records yet. Evidence schema,
-adapter contract identity, and future rule-set versions remain separate. Workload record types also use schema version
+adapter contract identity, and rule-set versions remain separate. Workload record types also use schema version
 `2`; they do not change existing cluster/restore record shapes.
 
 Value states distinguish unknown, reported, implied, and invalid. Invalid fields retain no raw value. Implied integers must
@@ -198,11 +208,14 @@ analysis reference time and age limit, reads no clock, and permits no clock skew
 absence within their declared scope. Named GET and discovery do not establish list-scope absence. `Collection.Items`
 counts candidates before association filtering.
 
-Value, condition, identity-validation, freshness, association/selection, workload ownership, and collection fixtures call
-production code. Field-focused fixtures receive synthetic metadata in test setup; production always requires identity.
+Value, condition, identity-validation, freshness, association/selection, workload ownership, collection, finding identity,
+coverage, and representative replay fixtures call production code. Field-focused fixtures receive synthetic metadata in
+test setup; production always requires identity. Replay fixtures also supply a reported zero backup-failure count so they
+isolate the age rule without assuming an omitted counter is zero. Draft fixture envelopes remain test input mappings.
 Expected results change only for documented source or reference-model corrections. Remaining reference models stay
 until their supported extraction slice replaces them.
 Remote-index fixtures remain future specifications, not an API adapter.
 
 Run `go run ./examples/cluster` for a synthetic projection. Current acknowledgement and an implied zero ready count are
-resource evidence, not a health check. No API-server or operator integration is qualified.
+resource evidence, not a health check. Run `go run ./examples/diagnose` for deterministic synthetic analysis.
+No API-server or operator integration is qualified.

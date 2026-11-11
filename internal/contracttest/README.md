@@ -1,13 +1,15 @@
 # Executable contract specifications
 
 These fixtures define milestone 1 decisions. Value, condition, identity-validation, freshness, restore association/selection,
-workload ownership, and collection checks call production code. The remaining reference models are test-only and do not
-implement production diagnostic rules.
+workload ownership, collection, finding identity, coverage, and representative replay checks call production code.
+The remaining reference models describe consumer history, mappings, or unimplemented behavior.
 JSON fixtures contain hand-authored expected results. Tests also check input permutations, serialized replay, independent
 generation acknowledgement, and history sequences. No Kubernetes dependency is needed to run them.
 Collection transcripts express elapsed time and duration limits in seconds and synthetic page sizes in bytes. Their
 transport bridge pads wire responses at a fixed scale and maps deadline cases to typed transport errors. Separate HTTP
 tests exercise actual context deadlines. Negative byte declarations map to malformed wire data.
+Replay bridges the draft fixture envelope to typed cluster captures, supplies read provenance and a reported zero backup
+failure count, then calls the production analyzer. JSON decoding in that bridge is test code, not an untrusted bundle parser.
 
 `baseline/` contains additional tests for the immutable consumer commits recorded in `docs/contract.md`. Run them with
 `scripts/check-baselines.py`. That command archives each commit into a temporary directory and leaves the checkouts

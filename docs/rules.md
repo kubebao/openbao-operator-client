@@ -4,9 +4,10 @@
 nor remote-replication observations. These IDs must not produce findings under this contract; see
 [source corrections](extraction.md#source-corrections).
 
-These canonical IDs define the extraction target. Production rules are not implemented yet. The archived consumer tests
-cover existing interpretation. `internal/contracttest/testdata/rules.json` records canonical mappings. Replay, identity,
-severity, and history fixtures define the new boundaries.
+These canonical IDs define the extraction target. Rule set `1` implements `KBAO-CLUSTER-003` and `KBAO-BACKUP-003`; the
+remaining rules are pending or reserved. See [evaluation behavior](diagnostics.md). The archived consumer tests cover
+existing interpretation. `internal/contracttest/testdata/rules.json` records consumer mappings. Replay, identity,
+severity, and history fixtures define the shared boundaries.
 
 | Canonical rule ID | Meaning | Existing source |
 | --- | --- | --- |

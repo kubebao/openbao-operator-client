@@ -13,6 +13,7 @@ import (
 
 	"github.com/kubebao/openbao-operator-client/adapter"
 	clientcollect "github.com/kubebao/openbao-operator-client/collect"
+	"github.com/kubebao/openbao-operator-client/diagnose"
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
@@ -31,18 +32,26 @@ type coverage struct {
 }
 
 func cover(s scope) coverage {
-	switch {
-	case !s.Selected:
-		return coverage{State: "excluded"}
-	case !s.Requested:
-		return coverage{State: "not_requested"}
-	case s.Outcome != "complete" || !s.Valid:
-		return coverage{State: "insufficient"}
-	case !s.Applicable:
-		return coverage{State: "not_applicable"}
-	default:
-		return coverage{State: "evaluated", Absent: s.Count == 0}
+	at := time.Date(2026, 11, 10, 10, 0, 0, 0, time.UTC)
+	read := evidence.Collection{
+		Scope: evidence.Scope{
+			Origin: "origin", Group: "apps", Version: "v1", Resource: "statefulsets",
+			Namespace: "team", Action: evidence.ReadList,
+		}, Outcome: evidence.CollectionOutcome(s.Outcome), Items: s.Count,
+		Interval: evidence.Interval{StartedAt: at, CompletedAt: at},
 	}
+	if read.Outcome == evidence.CollectionNotCollected || read.Outcome == evidence.CollectionNotRequested {
+		read.Interval = evidence.Interval{}
+	}
+	applicable := diagnose.Applies
+	if !s.Applicable {
+		applicable = diagnose.DoesNotApply
+	}
+	value := diagnose.ResolveCoverage(diagnose.CoverageInput{
+		Selected: s.Selected, Requested: s.Requested, Applicability: applicable,
+		Collection: read, EvidenceValid: s.Valid,
+	})
+	return coverage{State: string(value.State), Absent: value.AbsenceConfirmed}
 }
 
 func TestCoverage(t *testing.T) {
