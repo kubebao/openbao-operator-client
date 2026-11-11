@@ -3,7 +3,7 @@
     "name": "fixed-reference-and-policy",
     "capture": {
       "evidenceVersion": "1",
-      "adapterContract": "openbao.org/v1alpha1@9671c306",
+      "adapterContract": "openbao.org/v1alpha1@9671c306/controls-v1",
       "observations": [
         {
           "identity": {
@@ -97,7 +97,7 @@
     "name": "unknown-readiness-preserves-backup-finding",
     "capture": {
       "evidenceVersion": "1",
-      "adapterContract": "openbao.org/v1alpha1@9671c306",
+      "adapterContract": "openbao.org/v1alpha1@9671c306/controls-v1",
       "observations": [
         {
           "identity": {
@@ -178,7 +178,7 @@
     "name": "excluded-rule",
     "capture": {
       "evidenceVersion": "1",
-      "adapterContract": "openbao.org/v1alpha1@9671c306",
+      "adapterContract": "openbao.org/v1alpha1@9671c306/controls-v1",
       "observations": [
         {
           "identity": {
@@ -258,7 +258,7 @@
     "name": "backup-threshold-equality",
     "capture": {
       "evidenceVersion": "1",
-      "adapterContract": "openbao.org/v1alpha1@9671c306",
+      "adapterContract": "openbao.org/v1alpha1@9671c306/controls-v1",
       "observations": [
         {
           "identity": {
@@ -325,7 +325,7 @@
     "name": "startup-grace-and-unconfigured-backup",
     "capture": {
       "evidenceVersion": "1",
-      "adapterContract": "openbao.org/v1alpha1@9671c306",
+      "adapterContract": "openbao.org/v1alpha1@9671c306/controls-v1",
       "observations": [
         {
           "identity": {
@@ -392,7 +392,7 @@
     "name": "two-subjects-order-independent",
     "capture": {
       "evidenceVersion": "1",
-      "adapterContract": "openbao.org/v1alpha1@9671c306",
+      "adapterContract": "openbao.org/v1alpha1@9671c306/controls-v1",
       "observations": [
         {
           "identity": {
@@ -554,7 +554,7 @@
     "name": "unsupported-evidenceVersion",
     "capture": {
       "evidenceVersion": "future",
-      "adapterContract": "openbao.org/v1alpha1@9671c306",
+      "adapterContract": "openbao.org/v1alpha1@9671c306/controls-v1",
       "observations": [
         {
           "identity": {
@@ -638,7 +638,7 @@
     "name": "unsupported-rule-version",
     "capture": {
       "evidenceVersion": "1",
-      "adapterContract": "openbao.org/v1alpha1@9671c306",
+      "adapterContract": "openbao.org/v1alpha1@9671c306/controls-v1",
       "observations": [
         {
           "identity": {
@@ -680,7 +680,7 @@
     "name": "unknown-selected-rule",
     "capture": {
       "evidenceVersion": "1",
-      "adapterContract": "openbao.org/v1alpha1@9671c306",
+      "adapterContract": "openbao.org/v1alpha1@9671c306/controls-v1",
       "observations": [
         {
           "identity": {
@@ -721,7 +721,7 @@
     "name": "duplicate-resource-identity",
     "capture": {
       "evidenceVersion": "1",
-      "adapterContract": "openbao.org/v1alpha1@9671c306",
+      "adapterContract": "openbao.org/v1alpha1@9671c306/controls-v1",
       "observations": [
         {
           "identity": {
@@ -781,7 +781,7 @@
     "name": "same-uid-in-two-origins",
     "capture": {
       "evidenceVersion": "1",
-      "adapterContract": "openbao.org/v1alpha1@9671c306",
+      "adapterContract": "openbao.org/v1alpha1@9671c306/controls-v1",
       "observations": [
         {
           "identity": {

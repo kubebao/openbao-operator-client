@@ -17,6 +17,7 @@ import (
     _ "github.com/kubebao/openbao-operator-client/collect"
     _ "github.com/kubebao/openbao-operator-client/diagnose"
     "github.com/kubebao/openbao-operator-client/evidence"
+    _ "github.com/kubebao/openbao-operator-client/operations"
 )
 
 func main() {

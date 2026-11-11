@@ -5,10 +5,10 @@ package adapter
 type Contract string
 
 const (
-	// V1Alpha1Snapshot implements the source contract inspected for milestone 1.
-	V1Alpha1Snapshot Contract = "openbao.org/v1alpha1@9671c306"
+	// V1Alpha1Snapshot projects the inspected source contract, including cluster deletion state for controls.
+	V1Alpha1Snapshot Contract = "openbao.org/v1alpha1@9671c306/controls-v1"
 	// V1Alpha1Unqualified projects the same approved fields without inferring omitted values.
-	V1Alpha1Unqualified Contract = "openbao.org/v1alpha1/unqualified-v1"
+	V1Alpha1Unqualified Contract = "openbao.org/v1alpha1/unqualified-v2"
 	KubernetesAppsV1    Contract = "kubernetes/apps/v1@v0.37.2"
 	KubernetesCoreV1    Contract = "kubernetes/core/v1@v0.37.2"
 )

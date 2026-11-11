@@ -21,7 +21,10 @@ class ArchitectureTests(unittest.TestCase):
                 self.assertTrue(architecture.violations(package), (layer, imported))
 
     def test_reverse_direction_is_forbidden(self):
-        for origin, destination in [("adapter", "collect"), ("evidence", "diagnose"), ("diagnose", "adapter")]:
+        for origin, destination in [
+            ("adapter", "collect"), ("evidence", "diagnose"), ("diagnose", "adapter"),
+            ("collect", "operations"), ("adapter", "operations"), ("operations", "diagnose"),
+        ]:
             package = {"ImportPath": architecture.MODULE + "/" + origin, "Imports": [architecture.MODULE + "/" + destination]}
             self.assertTrue(architecture.violations(package))
 

@@ -8,6 +8,7 @@ The library keeps three things apart: resource facts, their interpretation, and 
 | `adapter` | `evidence` | Approved public API fields and version contracts |
 | `collect` | `adapter`, `evidence` | Caller-configured HTTP transport |
 | `diagnose` | `evidence` | Supplied policy and reference time; no I/O |
+| `operations` | `adapter`, `collect`, `evidence` | Caller-configured write transport; supplied observations and reference time |
 
 `make architecture` enforces this direction, the import restrictions on pure packages, and the exclusion of operator and
 consumer modules. Test imports follow the same direction.
@@ -22,6 +23,8 @@ consumer modules. Test imports follow the same direction.
   namespaces, API groups, resources, or selectors that the caller declares.
 - `diagnose` receives normalized evidence, selected rules, policy, and a reference time. It returns findings and coverage.
   Findings can coexist with insufficient coverage. Empty findings do not mean complete evidence or a healthy cluster.
+- `operations` prepares bounded pause and maintenance patches for a qualified cluster identity. Its separate client submits
+  one request through a caller-configured transport. Assessments use supplied evidence and never perform reads or writes.
 
 ## Consumer responsibilities
 
@@ -30,7 +33,9 @@ consumer modules. Test imports follow the same direction.
 | Console | Authorization, enrollment, history comparison, first-seen tracking, persistence, severity mapping, rendering |
 | CLI | Command parsing, kubeconfig loading, watch orchestration, output, severity mapping, process exit codes |
 
-Both consumers own transport configuration, credential renewal, and scheduling.
+Both consumers own transport configuration, credential renewal, and scheduling. Consumers also own approval, write
+authorization, audit storage, and waiting for observations. A console write path uses separately authorized credentials;
+the read-only collector does not gain write access.
 
 ## Tests
 
@@ -38,4 +43,4 @@ Both consumers own transport configuration, credential renewal, and scheduling.
 `internal/integration` holds Kubernetes field checks that run only against a disposable cluster; see
 [development](development.md#kubernetes-field-check).
 
-Add an `operations` or bundle package together with its first implemented feature.
+Add a bundle package together with its first implemented feature.

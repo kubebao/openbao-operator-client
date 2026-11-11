@@ -7,7 +7,13 @@ import subprocess
 import sys
 
 MODULE = "github.com/kubebao/openbao-operator-client"
-LAYERS = {"evidence": set(), "adapter": {"evidence"}, "collect": {"adapter", "evidence"}, "diagnose": {"evidence"}}
+LAYERS = {
+    "evidence": set(),
+    "adapter": {"evidence"},
+    "collect": {"adapter", "evidence"},
+    "diagnose": {"evidence"},
+    "operations": {"adapter", "collect", "evidence"},
+}
 FORBIDDEN = (
     "github.com/kubebao/openbao-operator",
     "github.com/kubebao/openbao-operator-console",
