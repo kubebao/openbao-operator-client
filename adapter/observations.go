@@ -115,7 +115,7 @@ func projectRestoreTest(raw map[string]any, state evidence.ObjectState, limit in
 		State: state, Active: active, Last: lastState,
 		LastOutcome: enumText(last, []string{"Passed", "Failed"}, "outcome"), LastReason: text(last, true, "reason"),
 		LastSuccessAt: timestamp(raw, "lastSuccessTime"), FinishedAt: timestamp(last, "finishedAt"),
-		SnapshotKey: text(last, true, "key"), SnapshotDigest: digest(last, "digest"),
+		SnapshotKey: snapshotKey(last, "key"), SnapshotDigest: digest(last, "digest"),
 		Conditions: projectConditions(raw, limit, "conditions"),
 	}
 }
@@ -137,7 +137,7 @@ func projectBackup(root map[string]any, limit int) evidence.Backup {
 		LastFailureReason:   text(raw, true, "lastFailureReason"),
 		LastFailureAt:       timestamp(raw, "lastFailureTime"),
 		SizeBytes:           sizeBytes(raw, "lastBackupSize"),
-		SnapshotKey:         text(raw, true, "lastBackupName"),
+		SnapshotKey:         snapshotKey(raw, "lastBackupName"),
 		SnapshotDigest:      digest(raw, "latestSnapshot", "digest"),
 		RestoreTest:         projectRestoreTest(test, testState, limit),
 	}

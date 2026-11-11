@@ -168,7 +168,13 @@ func TestSerializedReplay(t *testing.T) {
 			}
 			got, err := replay(data, tc.Policy)
 			if tc.Error != "" {
-				if err == nil || !strings.Contains(err.Error(), tc.Error) {
+				expected := map[string]error{
+					"unsupported contract version": diagnose.ErrUnsupportedVersion,
+					"unknown rule":                 diagnose.ErrUnknownRule,
+					"duplicate subject":            diagnose.ErrDuplicateSubject,
+				}[tc.Error]
+				if err == nil || expected != nil && !errors.Is(err, expected) ||
+					expected == nil && !strings.Contains(err.Error(), tc.Error) {
 					t.Fatalf("error = %v, want %s", err, tc.Error)
 				}
 				return

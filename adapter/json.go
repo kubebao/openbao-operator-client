@@ -48,7 +48,7 @@ type ProjectionLimits struct {
 }
 
 func DefaultProjectionLimits() ProjectionLimits {
-	return ProjectionLimits{MaxBytes: 1024 * 1024, MaxConditions: 256, MaxEntries: 256}
+	return ProjectionLimits{MaxBytes: 8 * 1024 * 1024, MaxConditions: 256, MaxEntries: 256}
 }
 
 var identifier = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$`)
@@ -207,6 +207,21 @@ func text(raw map[string]any, token bool, path ...string) evidence.Text {
 	if !ok || parsed == "" || len(parsed) > 253 || strings.ContainsFunc(parsed, unicode.IsControl) ||
 		strings.ContainsRune(parsed, unicode.ReplacementChar) ||
 		(token && !identifier.MatchString(parsed)) {
+		return evidence.Text{State: evidence.ValueInvalid}
+	}
+	return evidence.Text{State: evidence.ValueReported, Value: &parsed}
+}
+
+var snapshotKeyPattern = regexp.MustCompile(`^[A-Za-z0-9._/-]+$`)
+
+// Snapshot keys are bounded object-store names, not identifiers or URLs.
+func snapshotKey(raw map[string]any, path ...string) evidence.Text {
+	value, state := field(raw, path...)
+	if state != evidence.ValueReported {
+		return evidence.Text{State: state}
+	}
+	parsed, ok := value.(string)
+	if !ok || len(parsed) > 1024 || !snapshotKeyPattern.MatchString(parsed) {
 		return evidence.Text{State: evidence.ValueInvalid}
 	}
 	return evidence.Text{State: evidence.ValueReported, Value: &parsed}

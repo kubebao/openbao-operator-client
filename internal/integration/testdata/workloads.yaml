@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ready-true
+  namespace: client-k134
+  labels:
+    openbao.org/cluster: bao
+spec:
+  containers:
+    - name: pause
+      image: registry.k8s.io/pause:3.10.1@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ready-false
+  namespace: client-k134
+  labels:
+    openbao.org/cluster: bao
+spec:
+  containers:
+    - name: pause
+      image: registry.k8s.io/pause:3.10.1@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c
+      readinessProbe:
+        tcpSocket:
+          port: 1
+        periodSeconds: 1
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: backup
+  namespace: client-k134
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        openbao.org/cluster: bao
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.10.1@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c
+          command: [/pause, -v]

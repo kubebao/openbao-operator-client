@@ -2,6 +2,7 @@ package collect
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/kubebao/openbao-operator-client/adapter"
@@ -16,19 +17,34 @@ type VerificationResult struct {
 }
 
 func (c *Client) validateTarget(target evidence.Cluster, request Request) error {
-	if target.Validate() != nil || request.Contract != adapter.Contract(target.AdapterContract) ||
-		target.Reference.CollectedAt.Value.After(time.Now()) || request.Scope.Action != evidence.ReadGet ||
-		c.validate(request, "OpenBaoCluster", "openbaoclusters") != nil {
-		return ErrInvalidRequest
+	if err := target.Validate(); err != nil {
+		return evidence.At("target", errors.Join(ErrInvalidRequest, err))
+	}
+	if request.Contract != adapter.Contract(target.AdapterContract) {
+		return evidence.At("contract", ErrInvalidRequest)
+	}
+	if target.Reference.CollectedAt.Value.After(time.Now()) {
+		return evidence.At("target.reference.collectedAt", ErrInvalidRequest)
+	}
+	if request.Scope.Action != evidence.ReadGet {
+		return evidence.At("scope.action", ErrInvalidRequest)
+	}
+	if err := c.validate(request, "OpenBaoCluster", "openbaoclusters"); err != nil {
+		return err
 	}
 	id, scope := target.Reference.Identity, request.Scope
 	apiVersion := scope.Version
 	if scope.Group != "" {
 		apiVersion = scope.Group + "/" + scope.Version
 	}
-	if scope.Origin != id.Origin || scope.Group != id.Group || scope.Namespace != id.Namespace ||
-		scope.Name != id.Name || request.ExpectedUID != id.UID || target.Reference.APIVersion != apiVersion {
-		return ErrInvalidRequest
+	if scope.Origin != id.Origin || scope.Group != id.Group || scope.Namespace != id.Namespace || scope.Name != id.Name {
+		return evidence.At("scope", ErrInvalidRequest)
+	}
+	if request.ExpectedUID != id.UID {
+		return evidence.At("expectedUID", ErrInvalidRequest)
+	}
+	if target.Reference.APIVersion != apiVersion {
+		return evidence.At("scope.version", ErrInvalidRequest)
 	}
 	return nil
 }
@@ -43,8 +59,11 @@ func uncollectedVerification(target evidence.Cluster, request Request) evidence.
 
 // VerifyTarget performs exactly one pinned named GET. It never rediscovers a group.
 func (c *Client) VerifyTarget(ctx context.Context, target evidence.Cluster, request Request) (VerificationResult, error) {
-	if ctx == nil || c.validateTarget(target, request) != nil {
-		return VerificationResult{}, ErrInvalidRequest
+	if ctx == nil {
+		return VerificationResult{}, evidence.At("context", ErrInvalidRequest)
+	}
+	if err := c.validateTarget(target, request); err != nil {
+		return VerificationResult{}, err
 	}
 	read, err := c.Clusters(ctx, request)
 	if err != nil {
@@ -52,7 +71,7 @@ func (c *Client) VerifyTarget(ctx context.Context, target evidence.Cluster, requ
 	}
 	value, err := evidence.NewTargetVerification(target, read.Collection, read.Observations)
 	if err != nil {
-		return VerificationResult{}, ErrInvalidRequest
+		return VerificationResult{}, evidence.At("verification", errors.Join(ErrInvalidRequest, err))
 	}
 	return VerificationResult{
 		Verification: value, Requests: read.Requests, Bytes: read.Bytes, RetainedBytes: read.RetainedBytes,

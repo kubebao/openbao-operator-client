@@ -50,6 +50,10 @@ func podReadiness(input ClusterInput, sets map[string]associatedSet, policy Poli
 }
 
 func podParent(pod evidence.Pod, sets map[string]associatedSet) (string, evidence.AssociationState) {
+	excluded, err := evidence.PodHasNonStatefulSetController(pod)
+	if err != nil {
+		return "", evidence.AssociationUnconfirmed
+	}
 	for _, owner := range pod.Metadata.Owners.Values {
 		set, exists := sets[owner.UID]
 		if !owner.Controller || !exists {
@@ -60,6 +64,9 @@ func podParent(pod evidence.Pod, sets map[string]associatedSet) (string, evidenc
 			return "", evidence.AssociationUnconfirmed
 		}
 		return owner.UID, association.State
+	}
+	if excluded {
+		return "", evidence.AssociationForeign
 	}
 	return "", evidence.AssociationUnconfirmed
 }

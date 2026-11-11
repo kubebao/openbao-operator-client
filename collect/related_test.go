@@ -196,7 +196,7 @@ func TestRelatedHasOneDeadlineAndRejectsInvalidPlansBeforeIO(t *testing.T) {
 	}
 }
 
-func TestRelatedCannotCompleteWithChangedGenerationOrCandidateOwnership(t *testing.T) {
+func TestRelatedReadCompletionIsIndependentOfVerificationAndAssociation(t *testing.T) {
 	t.Parallel()
 	for _, changed := range []bool{false, true} {
 		client := testClient(t, func(writer http.ResponseWriter, incoming *http.Request) {
@@ -217,9 +217,43 @@ func TestRelatedCannotCompleteWithChangedGenerationOrCandidateOwnership(t *testi
 		plan := relatedPlan()
 		plan.StatefulSets, plan.Pods = nil, nil
 		result, err := client.Related(context.Background(), selectedTarget(t), plan)
-		if err != nil || result.Outcome != evidence.CollectionPartial || len(result.Restores.Observations) != 1 ||
+		if err != nil || result.Outcome != evidence.CollectionComplete || len(result.Restores.Observations) != 1 ||
 			result.Verification.Validate() != nil {
-			t.Fatal("generation changes or unconfirmed ownership became a complete batch")
+			t.Fatal("interpretation changed a completed read outcome")
+		}
+		if changed && result.Verification.State != evidence.VerificationChanged {
+			t.Fatal("completed reads concealed a changed target generation")
+		}
+		if !changed &&
+			(result.Associations[0].State == evidence.AssociationConfirmed || result.Associations[0].State == evidence.AssociationForeign) {
+			t.Fatal("completed reads concealed unconfirmed ownership")
+		}
+	}
+}
+
+func TestRelatedExcludesJobPodFromStatefulSetMembership(t *testing.T) {
+	t.Parallel()
+	client := testClient(t, func(writer http.ResponseWriter, incoming *http.Request) {
+		if strings.HasSuffix(incoming.URL.Path, "/openbaoclusters/bao") {
+			writeBody(t, writer, targetDocument("cluster-1", `,"generation":1`))
+			return
+		}
+		parts := strings.Split(incoming.URL.Path, "/")
+		resource := parts[len(parts)-1]
+		page := relatedPage(resource)
+		if resource == "pods" {
+			page = strings.Replace(page, `"apiVersion":"apps/v1","kind":"StatefulSet"`, `"apiVersion":"batch/v1","kind":"Job"`, 1)
+			page = strings.Replace(page, `"uid":"set-1"`, `"uid":"backup-job"`, 1)
+		}
+		writeBody(t, writer, page)
+	})
+	result, err := client.Related(context.Background(), selectedTarget(t), relatedPlan())
+	if err != nil || result.Outcome != evidence.CollectionComplete || result.Pods.Collection.Items != 1 {
+		t.Fatalf("Job Pod changed completed collection: %s %v", result.Outcome, err)
+	}
+	for _, association := range result.Associations {
+		if association.Subject.Kind == "Pod" && association.State != evidence.AssociationForeign {
+			t.Fatal("non-StatefulSet controller was not excluded from workload membership")
 		}
 	}
 }

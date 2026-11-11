@@ -3,8 +3,8 @@
 Production slices implement cluster/workload projection, operational observations, evidence values, UID associations,
 bounded discovery, GET/LIST reads, final target verification, and the diagnostic core.
 All supported milestone 3 production slices are implemented. Final candidate qualification requires the published module
-build and hosted required checks. Neither consumer imports the library yet; migration and integration qualification remain
-in milestones 4 through 6.
+build and hosted required checks. Both consumers import the library. The CLI migration is complete; the console PR
+remains open. Milestone 6 is in progress, with tagging held while contract issues and consumer qualification are resolved.
 
 | Slice | State | Verification |
 | --- | --- | --- |
@@ -16,15 +16,17 @@ in milestones 4 through 6.
 | Scoped GET/LIST reads, pagination, cancellation, UID-pinned named refresh | Implemented | HTTP fixtures, limits, partial reads, scope and replacement tests |
 | Bounded discovery and final target verification across declared related reads | Implemented | HTTP fixtures, shared budgets, verification states, production transcript tests |
 | Finding identity, coverage, evaluation policy, deterministic diagnostic replay | Implemented for cluster inputs | Production tests and milestone 1 fixtures |
-| Availability, sealing, readiness, conditions, generations, controller errors, restrictions, backup concerns, upgrade failure, restore tests | Implemented in rule set `6` | Source-pinned semantics, boundaries, current/partial/stale evidence tests |
-| StatefulSet and Pod readiness, failure, and population | Implemented in rule set `6` | UID chains, per-scope outcomes, final verification, deterministic replay, synthetic collection-to-analysis test |
-| Snapshot-restore progress and recovery concerns | Implemented in rule set `6` | UID-binding capability policy, held/historical distinctions, independent receipts, deterministic replay, synthetic collection-to-analysis tests |
+| Availability, sealing, readiness, conditions, generations, controller errors, restrictions, backup concerns, upgrade failure, restore tests | Implemented in rule set `8` | Source-pinned semantics, boundaries, current/partial/stale evidence tests |
+| StatefulSet and Pod readiness, failure, and population | Implemented in rule set `8` | UID chains, per-scope outcomes, final verification, deterministic replay, synthetic collection-to-analysis test |
+| Snapshot-restore progress and recovery concerns | Implemented in rule set `8` | UID-binding capability policy, held/historical distinctions, independent receipts, deterministic replay, synthetic collection-to-analysis tests |
 
 ## Projection boundary
 
 `adapter.ProjectCluster`, `ProjectRestore`, `ProjectStatefulSet`, and `ProjectPod` accept JSON bytes and `ProjectionOptions`.
 Supply a stable origin, collection time, explicit contract, and positive limits. They perform no reads and use no wall clock.
-Default limits are 1 MiB per document, 256 conditions per set, and 256 entries per ordinal, owner, or container set.
+Default limits are 8 MiB per document, 256 conditions per set, and 256 entries per ordinal, owner, or container set.
+Backup and restore-test snapshot keys use a separate 1,024-byte object-name bound. Approved keys contain letters,
+digits, dots, underscores, hyphens, and slashes. They are opaque object-store names; URLs and query credentials are excluded.
 Nesting is limited to 64 levels below the root.
 Duplicate keys, invalid UTF-8, trailing documents, invalid identity, and mismatched kind/API version reject the document.
 Errors expose a bounded `ProjectionError.Code` without raw parser errors, source values, or response bodies.
@@ -96,10 +98,13 @@ CLI process results. Specs, environment variables, runtime messages, and arbitra
 within one owner group do not change identity. Both edges stay within the origin and namespace. The reserved
 `openbao.org/owner-uid` annotation refers to the cluster UID even on Pods. A conflicting or malformed annotation blocks
 confirmation; annotation matches alone prove no ownership. Replacements cannot reuse an old parent association.
+Exactly one valid non-StatefulSet controller reference excludes a Pod from StatefulSet membership. Active and completed
+Job Pods cannot limit that rule's coverage or satisfy its population count. The exclusion does not prove that their Job
+belongs to another cluster. Missing or multiple controller references remain unconfirmed.
 
 `AssociateRestore` retains the exact UID confirmation basis and checks every supplied target name and target/execution
 UID before confirming. Malformed binding objects or fields prevent confirmation. Names alone retain candidates; hold
-operation IDs and creation times establish no ownership. `LatestRestore` selects only confirmed requests with known
+operation IDs and creation times establish no ownership. `diagnose.LatestRestore` receives an approved UID-binding contract and API version. It selects only confirmed requests with known
 creation times at or before their read time, sorts by newest time then UID ascending, and rejects duplicate identities.
 Selection is for display; it does not verify acceptance, causality, or operation success.
 
@@ -116,7 +121,7 @@ limits, and collection limits. Each method permits only its resource and declare
 namespace. An all-namespace LIST also requires `AllowAllNamespaces`; no read automatically broadens the scope. Label
 selectors pass unchanged as encoded query values. The cluster method adds no Pod, StatefulSet, restore, or discovery reads.
 
-Default limits are 8 requests, 500 candidates, 100 candidates per requested page, 1 MiB per response, 8 MiB across response
+Default limits are 8 requests, 500 candidates, 100 candidates per requested page, 8 MiB per response, 8 MiB across response
 bodies, 8 MiB of serialized observations, and 15 seconds across one GET or LIST. Every limit must be positive. Page size
 cannot exceed candidate or projection entry limits. A shorter caller deadline takes precedence. Response reading uses
 one lookahead byte to detect overflow and closes the body before projection. `Result.Bytes` counts body bytes read,
@@ -127,15 +132,15 @@ page limits bound envelope overhead separately. The counters allow composed read
 List projection validates the typed envelope and requires a resource version. Omitted item API version/kind inherits
 the envelope; present null, empty, or conflicting declarations remain invalid. Continuation tokens are opaque, bounded
 control data and are excluded from serialization. Pagination keeps the list resource version fixed, rejects duplicate
-UIDs and repeated tokens, and stops at the declared bounds. An expired continuation fails without restarting the list.
+UIDs and repeated tokens, and stops at the declared bounds. An expired continuation returns `expired` without restarting the list. A rate-limited response returns `rate_limited`.
 
 Pages are admitted atomically. Malformed, conflicting, or over-budget pages do not discard earlier observations. Results
 sort observations by full identity on every outcome. `Collection.Items` counts admitted candidates before association
-filtering. GET/LIST methods return candidates without confirming ownership; use the adapter association functions.
+filtering. GET/LIST methods return candidates without confirming ownership; use the evidence or adapter association functions.
 Only a valid, complete empty list proves absence in its declared scope.
 
 GET requests can declare `ExpectedUID`. A different UID produces `replaced` with no replacement observation. HTTP 404
-produces `deleted` for GET and `unsupported` for LIST; 401/403 produces `denied`; 408/504 produces `timeout`. Other HTTP
+produces `deleted` for GET and `unsupported` for LIST; 401/403 produces `denied`; 408/504 produces `timeout`; 410 produces `expired`; 429 produces `rate_limited`. Other HTTP
 failures produce `failed`. Cancellation and transport timeouts remain distinct. Raw response bodies and client errors
 are never returned or serialized. Invalid caller configuration returns the bounded `ErrInvalidRequest` error before I/O.
 
@@ -177,8 +182,9 @@ the final target GET. Retention counts the final GET projection conservatively e
 reference and generation. Association and result-envelope overhead is bounded by candidate counts.
 
 Independent observations survive failed reads, deletion, and replacement under the original selected identity. A complete
-batch requires complete requested reads, resolved associations, and verified target stability. Candidate, unconfirmed,
-or conflicting associations make the batch partial. Foreign candidates stay separate from confirmed ownership. Diagnostics
+read sequence requires complete requested reads. Association ambiguity and changed generations do not rewrite read
+outcomes. Associations and target verification remain separate results that can limit diagnostic coverage. Foreign
+candidates stay separate from confirmed ownership. Diagnostics
 must retain per-scope outcomes and verification state; incomplete evidence cannot describe a replacement as its predecessor.
 
 The milestone 1 collection fixtures now call production readers through a synthetic transport. Byte units are scaled into

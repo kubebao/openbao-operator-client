@@ -9,6 +9,8 @@ const (
 	CollectionComplete       CollectionOutcome = "complete"
 	CollectionPartial        CollectionOutcome = "partial"
 	CollectionDenied         CollectionOutcome = "denied"
+	CollectionExpired        CollectionOutcome = "expired"
+	CollectionRateLimited    CollectionOutcome = "rate_limited"
 	CollectionUnsupported    CollectionOutcome = "unsupported"
 	CollectionTimeout        CollectionOutcome = "timeout"
 	CollectionCancelled      CollectionOutcome = "cancelled"
@@ -25,7 +27,8 @@ func (o CollectionOutcome) Valid() bool {
 	switch o {
 	case CollectionNotRequested, CollectionNotCollected, CollectionComplete, CollectionPartial, CollectionDenied,
 		CollectionUnsupported, CollectionTimeout, CollectionCancelled, CollectionPageLimit, CollectionSizeLimit,
-		CollectionPaginationLoop, CollectionDeleted, CollectionReplaced, CollectionInvalid, CollectionFailed:
+		CollectionPaginationLoop, CollectionDeleted, CollectionReplaced, CollectionInvalid, CollectionFailed,
+		CollectionExpired, CollectionRateLimited:
 		return true
 	default:
 		return false

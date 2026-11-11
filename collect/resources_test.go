@@ -122,7 +122,8 @@ func TestIncompletePagesPreservePriorFacts(t *testing.T) {
 		{"denied", "ERROR_CANARY", http.StatusForbidden, evidence.CollectionDenied, 1},
 		{"unsupported", "ERROR_CANARY", http.StatusNotFound, evidence.CollectionUnsupported, 1},
 		{"failed", "ERROR_CANARY", http.StatusInternalServerError, evidence.CollectionFailed, 1},
-		{"expired", "ERROR_CANARY", http.StatusGone, evidence.CollectionFailed, 1},
+		{"expired", "ERROR_CANARY", http.StatusGone, evidence.CollectionExpired, 1},
+		{"rate-limited", "ERROR_CANARY", http.StatusTooManyRequests, evidence.CollectionRateLimited, 1},
 		{"duplicate-uid", list("", "10", object("b")), http.StatusOK, evidence.CollectionInvalid, 1},
 		{"atomic-page", list("", "10", object("a"), object("b")), http.StatusOK, evidence.CollectionInvalid, 1},
 		{"changed-version", list("", "11", object("a")), http.StatusOK, evidence.CollectionInvalid, 1},
@@ -152,6 +153,39 @@ func TestIncompletePagesPreservePriorFacts(t *testing.T) {
 				t.Fatalf("outcome=%s records=%d requests=%d", result.Collection.Outcome, len(result.Observations), result.Requests)
 			}
 		})
+	}
+}
+
+func TestDefaultPodPageBudgetAdmitsManagedFieldsWithoutRetainingThem(t *testing.T) {
+	t.Parallel()
+	body := `{"apiVersion":"v1","kind":"PodList","metadata":{"resourceVersion":"10"},"items":[` +
+		`{"metadata":{"namespace":"team","name":"bao-0","uid":"pod-1","managedFields":[` +
+		`{"fieldsV1":{"f:padding":"MANAGED_CANARY` + strings.Repeat("x", 2*1024*1024) + `"}}]}}]}`
+	client := testClient(t, func(writer http.ResponseWriter, _ *http.Request) {
+		// A caller that enforces a smaller bound can close the response early.
+		_, _ = io.WriteString(writer, body)
+	})
+	for _, tight := range []bool{false, true} {
+		r := request()
+		r.Contract, r.Scope.Group, r.Scope.Version, r.Scope.Resource = adapter.KubernetesCoreV1, "", "v1", "pods"
+		if tight {
+			r.Limits.MaxResponseBytes = 1024 * 1024
+		}
+		result, err := client.Pods(context.Background(), r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tight {
+			if result.Collection.Outcome != evidence.CollectionSizeLimit || len(result.Observations) != 0 {
+				t.Fatal("caller response bound was not enforced")
+			}
+		} else if result.Collection.Outcome != evidence.CollectionComplete || result.Collection.Items != 1 {
+			t.Fatal("a normal managedFields page exceeded the default budget")
+		}
+		encoded, err := json.Marshal(result)
+		if err != nil || strings.Contains(string(encoded), "MANAGED_CANARY") || len(encoded) > 65536 {
+			t.Fatal("unapproved managedFields escaped projection")
+		}
 	}
 }
 

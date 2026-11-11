@@ -55,10 +55,10 @@ Preserve useful deployment history and first-seen semantics. Never resolve findi
 
 Implemented in console candidate `d079e9f9621ae73fd895ef70f3bfe48cc129ffe0` (PR #24). Local gates pass, including
 scoped real operator collection. [Qualification](console-qualification.md) records the installed identities and limits.
-The console PR remains open; milestone 4 is not complete. Hosted Dependency Review needs private-repository Code Security,
-and the Check workflow has a startup failure. No policy or visibility setting is changed to bypass these failures.
-The repository remains private, and PR #24 stays open at the user's request. Resume console qualification and merging
-only when the user asks to continue.
+The console PR remains open; milestone 4 is not complete. Qualification resumes for milestone 6 at candidate `19dd210`.
+The Check workflow now starts, but CodeQL and Dependency Review require unavailable private-repository security features.
+The latest local healthy-cluster assertion also fails while its disposable OpenBao sample remains uninitialized.
+The user requests a merge when possible. Keep the repository private and require passing gates before merging.
 
 Gate: `make check`, generated artifacts, SQLite/PostgreSQL checks, development/production browser workflows, storage
 workflows, and an isolated operator collection test execute and pass. Preserve read-only scope and redirect handling.
@@ -76,12 +76,22 @@ Implemented in CLI commit `8cb99104e44974fd6bd8311f818cd9d7a1f36bfd`, pinned to 
 intentional corrections, passing local gates, and bounded isolated operator collection. Milestone 5 is complete. GitHub
 Actions remains disabled for the private CLI repository; no hosted CLI result is claimed. The operator check covers a
 Pending workload and empty restore list, not healthy-cluster diagnosis or nonempty restore correlation. Milestone 4
-remains deferred, and milestone 6 has not started.
+remains incomplete, and milestone 6 is in progress with tagging on hold.
 
 Gate: command tests verify output, exit codes, actual request scope, timeouts, interruption, replacement, and sensitive-data
 exclusion. Run `make check`, `make vulncheck`, dependency-license checks, and distribution verification.
 
 ## 6. Pin and qualify one library version
+
+Tagging is on hold at the user's request. The first common candidate is `1edeecf`; CLI `ff2d9b4` and console PR #24
+candidate `19dd210` pin it. Fresh-cache independent builds, dependency notices, both consumers' four-platform archives,
+and the two-platform console image pass. Console CodeQL and Dependency Review remain blocked by private-repository
+security feature availability. Its current healthy-cluster integration assertion also fails while the disposable
+OpenBao sample remains uninitialized. These results do not complete milestones 4 or 6.
+
+Complete the pre-release contract corrections in [diagnostics](diagnostics.md), then qualify both consumers against a
+new published candidate. Kubernetes field qualification targets 1.34 and later. No client tag is created while these
+gates remain unresolved.
 
 Qualify both consumers against the same candidate commit. Record consumer commits, library commit, operator/CRD/image
 identity, rule policy, reference time policy, and executed checks. Tag the exact qualified commit, pin the tag in both

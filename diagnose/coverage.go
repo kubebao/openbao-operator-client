@@ -72,9 +72,12 @@ const (
 )
 
 type Coverage struct {
-	Rule    RuleID                     `json:"rule"`
-	Subject evidence.Identity          `json:"subject"`
-	State   CoverageState              `json:"state"`
-	Reason  CoverageReason             `json:"reason"`
+	Rule    RuleID            `json:"rule"`
+	Subject evidence.Identity `json:"subject"`
+	State   CoverageState     `json:"state"`
+	Reason  CoverageReason    `json:"reason"`
+	// Reasons retains every observed insufficiency cause in canonical order.
+	// Reason preserves the legacy primary cause for existing consumer mappings.
+	Reasons []CoverageReason           `json:"reasons,omitempty"`
 	Outcome evidence.CollectionOutcome `json:"collectionOutcome"`
 }

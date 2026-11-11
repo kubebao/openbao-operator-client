@@ -1,6 +1,7 @@
 package diagnose
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/kubebao/openbao-operator-client/evidence"
@@ -16,6 +17,7 @@ type Report struct {
 type evaluation struct {
 	state    CoverageState
 	reason   CoverageReason
+	reasons  []CoverageReason
 	findings []Finding
 }
 
@@ -24,10 +26,10 @@ type evaluation struct {
 func Analyze(capture Capture, policy Policy) (Report, error) {
 	result := Report{Findings: []Finding{}, Coverage: []Coverage{}}
 	if err := policy.validate(); err != nil {
-		return result, err
+		return result, evidence.At("policy", err)
 	}
 	if capture.SchemaVersion != evidence.SchemaVersion {
-		return result, ErrUnsupportedVersion
+		return result, evidence.At("schemaVersion", ErrUnsupportedVersion)
 	}
 	count := len(capture.Clusters)
 	for _, input := range capture.Clusters {
@@ -42,15 +44,15 @@ func Analyze(capture Capture, policy Policy) (Report, error) {
 		}
 	}
 	if count > policy.MaxSubjects {
-		return result, ErrInvalidCapture
+		return result, invalidCapture("clusters", nil)
 	}
 	seen := map[evidence.Identity]bool{}
-	for _, input := range capture.Clusters {
+	for index, input := range capture.Clusters {
 		if err := input.validate(policy); err != nil {
-			return result, err
+			return result, evidence.At(fmt.Sprintf("clusters[%d]", index), err)
 		}
 		if seen[input.Subject] {
-			return result, ErrDuplicateSubject
+			return result, evidence.At(fmt.Sprintf("clusters[%d].subject", index), ErrDuplicateSubject)
 		}
 		seen[input.Subject] = true
 	}
@@ -58,6 +60,9 @@ func Analyze(capture Capture, policy Policy) (Report, error) {
 	for _, input := range capture.Clusters {
 		for _, rule := range SupportedRules() {
 			coverage, findings := evaluate(input, rule, policy)
+			if coverage.State == Insufficient && len(coverage.Reasons) == 0 {
+				coverage.Reasons = []CoverageReason{coverage.Reason}
+			}
 			result.Coverage = append(result.Coverage, coverage)
 			result.Findings = append(result.Findings, findings...)
 		}
@@ -147,16 +152,36 @@ func evaluate(input ClusterInput, rule RuleID, policy Policy) (Coverage, []Findi
 	case RuleRestriction:
 		value = restrictions(*input.Observation)
 	}
-	coverage.State, coverage.Reason = value.state, value.reason
 	if input.Collection.Outcome != evidence.CollectionComplete {
-		coverage.State, coverage.Reason = Insufficient, ReasonScopeIncomplete
+		value.insufficient(ReasonScopeIncomplete)
 	}
+	coverage.State, coverage.Reason, coverage.Reasons = value.state, value.reason, value.coverageReasons()
 	return coverage, value.findings
 }
 
 func (e *evaluation) add(value *Finding) { e.findings = append(e.findings, *value) }
 
-func (e *evaluation) insufficient(reason CoverageReason) { e.state, e.reason = Insufficient, reason }
+func (e *evaluation) insufficient(reason CoverageReason) {
+	if e.state == Insufficient && e.reason != ReasonNone && !slices.Contains(e.reasons, e.reason) {
+		e.reasons = append(e.reasons, e.reason)
+	}
+	if !slices.Contains(e.reasons, reason) {
+		e.reasons = append(e.reasons, reason)
+	}
+	e.state, e.reason = Insufficient, reason
+}
+
+func (e evaluation) coverageReasons() []CoverageReason {
+	if e.state != Insufficient {
+		return nil
+	}
+	reasons := slices.Clone(e.reasons)
+	if !slices.Contains(reasons, e.reason) {
+		reasons = append(reasons, e.reason)
+	}
+	slices.Sort(reasons)
+	return reasons
+}
 
 func finding(cluster evidence.Cluster, rule RuleID, severity Severity, summary string, fields ...string) *Finding {
 	value := &Finding{

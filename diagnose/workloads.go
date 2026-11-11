@@ -47,7 +47,7 @@ func evaluateWorkloads(input ClusterInput, rule RuleID, policy Policy, coverage 
 	if input.Collection.Outcome != evidence.CollectionComplete {
 		result.insufficient(ReasonScopeIncomplete)
 	}
-	coverage.State, coverage.Reason = result.state, result.reason
+	coverage.State, coverage.Reason, coverage.Reasons = result.state, result.reason, result.coverageReasons()
 	return coverage, result.findings
 }
 

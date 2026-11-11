@@ -103,34 +103,62 @@ func (c Cluster) Acknowledgement() GenerationState {
 // Validate checks the normalized value, including after serialized replay.
 // It does not select an adapter or establish producer freshness.
 func (c Cluster) Validate() error {
-	if c.SchemaVersion != SchemaVersion || !validText(c.AdapterContract, 253, false) || c.Reference.Validate() != nil ||
-		c.Reference.Identity.Kind != "OpenBaoCluster" || c.CreatedAt.Validate() != nil || c.Generation.Validate() != nil ||
-		c.ObservedGeneration.Validate() != nil || c.Conditions.Validate() != nil || c.Paused.Validate() != nil {
-		return ErrInvalidEvidence
+	if c.SchemaVersion != SchemaVersion {
+		return At("schemaVersion", ErrInvalidEvidence)
 	}
-	for _, value := range []Text{c.DesiredVersion, c.ObservedVersion, c.Phase} {
-		if value.Validate() != nil {
-			return ErrInvalidEvidence
-		}
+	if !validText(c.AdapterContract, 253, false) {
+		return At("adapterContract", ErrInvalidEvidence)
 	}
-	for _, value := range []Integer{c.DesiredReplicas, c.ReadyReplicas} {
-		if value.Validate() != nil || value.Value != nil && (*value.Value < 0 || *value.Value > 2147483647) {
-			return ErrInvalidEvidence
-		}
+	if err := checkFields(
+		fieldCheck{"reference", c.Reference.Validate()}, fieldCheck{"createdAt", c.CreatedAt.Validate()},
+		fieldCheck{"generation", c.Generation.Validate()}, fieldCheck{"observedGeneration", c.ObservedGeneration.Validate()},
+		fieldCheck{"conditions", c.Conditions.Validate()}, fieldCheck{"paused", c.Paused.Validate()},
+		fieldCheck{"desiredVersion", c.DesiredVersion.Validate()}, fieldCheck{"observedVersion", c.ObservedVersion.Validate()},
+		fieldCheck{"phase", c.Phase.Validate()}, fieldCheck{"desiredReplicas", validateCount(c.DesiredReplicas)},
+		fieldCheck{"readyReplicas", validateReadyCount(c.ReadyReplicas)},
+	); err != nil {
+		return err
 	}
-	if c.Generation.State == ValueImplied || c.ObservedGeneration.State == ValueImplied || c.DesiredReplicas.State == ValueImplied {
-		return ErrInvalidEvidence
+	if c.Reference.Identity.Kind != "OpenBaoCluster" {
+		return At("reference.identity.kind", ErrInvalidEvidence)
+	}
+	if c.Generation.State == ValueImplied {
+		return At("generation", ErrInvalidEvidence)
+	}
+	if c.ObservedGeneration.State == ValueImplied {
+		return At("observedGeneration", ErrInvalidEvidence)
 	}
 	if c.ReadyReplicas.State == ValueImplied && (c.Acknowledgement() != GenerationCurrent || c.DesiredReplicas.State != ValueReported) {
-		return ErrInvalidEvidence
+		return At("readyReplicas", ErrInvalidEvidence)
 	}
-	for _, field := range []interface{ Validate() error }{
-		c.Backup, c.Upgrade, c.BlueGreen, c.ReadReplicas, c.Maintenance,
-		c.RestoreOrigin, c.RestoreHold, c.OperationLock, c.BreakGlass, c.LegacyRestore, c.WorkloadError, c.AdminOpsError,
-	} {
-		if field.Validate() != nil {
-			return ErrInvalidEvidence
-		}
+	return checkFields(
+		fieldCheck{
+			"backup",
+			c.Backup.Validate(),
+		},
+		fieldCheck{"upgrade", c.Upgrade.Validate()},
+		fieldCheck{"blueGreen", c.BlueGreen.Validate()},
+		fieldCheck{"readReplicas", c.ReadReplicas.Validate()},
+		fieldCheck{"maintenance", c.Maintenance.Validate()},
+		fieldCheck{"restoreOrigin", c.RestoreOrigin.Validate()},
+		fieldCheck{"restoreHold", c.RestoreHold.Validate()},
+		fieldCheck{"operationLock", c.OperationLock.Validate()},
+		fieldCheck{"breakGlass", c.BreakGlass.Validate()},
+		fieldCheck{
+			"legacyRestore",
+			c.LegacyRestore.Validate(),
+		},
+		fieldCheck{"workloadError", c.WorkloadError.Validate()},
+		fieldCheck{"adminOpsError", c.AdminOpsError.Validate()},
+	)
+}
+
+func validateReadyCount(v Integer) error {
+	if err := v.Validate(); err != nil {
+		return err
+	}
+	if v.Value != nil && (*v.Value < 0 || *v.Value > 2147483647) {
+		return ErrInvalidEvidence
 	}
 	return nil
 }

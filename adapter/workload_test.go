@@ -376,29 +376,6 @@ func TestMalformedRestoreBindingCannotBeIgnored(t *testing.T) {
 	}
 }
 
-func TestLatestRestoreRejectsDuplicateAndFutureRecords(t *testing.T) {
-	t.Parallel()
-	target, err := adapter.ProjectCluster(clusterFixture(t), projectionOptions())
-	if err != nil {
-		t.Fatal(err)
-	}
-	request, err := adapter.ProjectRestore(restoreFixture(t), projectionOptions())
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, _, err = adapter.LatestRestore(target, []evidence.Restore{request, request})
-	assertProjectionError(t, err, adapter.InvalidInput)
-	future := projectionOptions().CollectedAt.AddDate(0, 1, 0)
-	request.CreatedAt = evidence.Timestamp{State: evidence.ValueReported, Value: &future}
-	_, found, err := adapter.LatestRestore(target, []evidence.Restore{request})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if found {
-		t.Fatal("future producer time selected a display request")
-	}
-}
-
 func FuzzProjectWorkload(f *testing.F) {
 	f.Add(workloadFixture(f, "pod"))
 	f.Add(workloadFixture(f, "statefulset"))

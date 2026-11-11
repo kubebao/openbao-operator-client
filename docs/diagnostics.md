@@ -4,7 +4,7 @@
 state. Identical evidence and policy produce the same report when subject, selected-rule, or reference order changes.
 Empty findings do not establish health or complete coverage.
 
-Rule set `7` implements fifteen rules: availability, sealing, replica readiness, recognized adverse conditions, generation
+Rule set `8` implements fifteen rules: availability, sealing, replica readiness, recognized adverse conditions, generation
 acknowledgement, controller errors, restrictions, three backup concerns, recorded rolling-upgrade failure, restore tests,
 StatefulSet readiness, Pod concerns, and snapshot-restore progress/recovery concerns.
 `SupportedRules` returns the executable inventory. Earlier rule sets are rejected rather than silently extended. Other
@@ -218,3 +218,35 @@ A complete LIST confirms unchanged positive generation, changed generation, dele
 a new UID for the same name. Missing or invalid generations remain insufficient. The verification retains the LIST
 scope and collection outcome; it never describes a LIST as a GET. This expands admitted verification evidence in rule
 set `7`; older policies are rejected. It does not make the collection atomic or qualify an operator integration.
+
+## Pre-release contract corrections
+
+Rule set `8` excludes a Pod from StatefulSet membership when exactly one valid controller reference names another kind
+or API group. This includes active and completed backup Job Pods that share the cluster label. They do not contribute
+to StatefulSet Pod counts or limit its coverage. This exclusion does not prove that the Job belongs to another cluster.
+Missing, invalid, noncontroller, and multiple-controller references remain unconfirmed. A controller kind that conflicts
+with a known StatefulSet UID cannot prove exclusion. UID-confirmed StatefulSet chains
+and conflicting reserved metadata retain their existing checks.
+
+Coverage retains all observed insufficiency causes in the sorted, deduplicated `Reasons` field. The singular `Reason`
+retains its earlier primary-cause behavior for consumer mappings. Independent confirmed findings remain available.
+Read completion, target verification, and association interpretation remain separate results.
+
+`evidence.ValidationError` provides a field path and preserves sentinel classifications through `errors.Is`.
+Paths use library-owned field names and numeric indices, for example
+`clusters[0].pods.observations[3].metadata.reference.resourceVersion`. Error text contains no field values or underlying
+provider errors. Capture, related-input, target-verification, and request validation report the relevant field or section.
+
+`diagnose.LatestRestore` owns display selection. Its caller supplies the approved UID-binding contract and API version; an empty or
+unmatched contract or API version cannot confirm a request. Creation times only order requests whose association is already confirmed.
+
+## Kubernetes qualification floor
+
+The client targets Kubernetes 1.34 and later. Kubernetes 1.33 is outside the qualification target. In Kubernetes 1.34,
+[`PodObservedGenerationTracking`](https://v1-34.docs.kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features)
+is enabled by default. A local test against 1.34.11 confirms current `Ready=True` and `Ready=False` condition generations.
+[Reproduce the field qualification](kubernetes-qualification.md).
+
+If the feature is disabled, or a Ready condition lacks current acknowledgement, readiness coverage remains insufficient
+with `generation_unconfirmed`. The rule does not infer condition acknowledgement from the Pod's overall status or from
+an omitted generation. An independently reported Failed phase can still produce a finding.

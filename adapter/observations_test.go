@@ -5,11 +5,31 @@ import (
 	"encoding/json"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/kubebao/openbao-operator-client/adapter"
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
+
+func TestSnapshotKeysUseObjectNameBounds(t *testing.T) {
+	t.Parallel()
+	for _, length := range []int{129, 254, 1024, 1025} {
+		key := strings.Repeat("prefix/", length/7) + strings.Repeat("x", length%7)
+		raw := bytes.Replace(operationalFixture(t), []byte("backups/bao.snap"), []byte(key), 1)
+		got, err := adapter.ProjectCluster(raw, projectionOptions())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if length <= 1024 {
+			if got.Backup.SnapshotKey.State != evidence.ValueReported || *got.Backup.SnapshotKey.Value != key {
+				t.Fatalf("valid %d-byte object key was discarded", length)
+			}
+		} else if got.Backup.SnapshotKey.State != evidence.ValueInvalid || got.Backup.SnapshotKey.Value != nil {
+			t.Fatal("oversized object key retained source data")
+		}
+	}
+}
 
 func operationalFixture(t testing.TB) []byte {
 	t.Helper()

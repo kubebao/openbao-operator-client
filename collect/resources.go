@@ -56,9 +56,14 @@ func projectionOutcome(err error) evidence.CollectionOutcome {
 }
 
 func resources[T any](ctx context.Context, client *Client, request Request, project projection[T]) (result Result[T], err error) {
-	if ctx == nil || (request.Scope.Action != evidence.ReadGet && request.Scope.Action != evidence.ReadList) ||
-		client.validate(request, project.kind, project.resource) != nil {
-		return result, ErrInvalidRequest
+	if ctx == nil {
+		return result, evidence.At("context", ErrInvalidRequest)
+	}
+	if request.Scope.Action != evidence.ReadGet && request.Scope.Action != evidence.ReadList {
+		return result, evidence.At("scope.action", ErrInvalidRequest)
+	}
+	if validationErr := client.validate(request, project.kind, project.resource); validationErr != nil {
+		return result, validationErr
 	}
 	started := time.Now().UTC()
 	ctx, cancel := context.WithTimeout(ctx, request.Limits.Timeout)
