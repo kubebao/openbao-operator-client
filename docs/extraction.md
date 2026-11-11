@@ -16,9 +16,9 @@ in milestones 4 through 6.
 | Scoped GET/LIST reads, pagination, cancellation, UID-pinned named refresh | Implemented | HTTP fixtures, limits, partial reads, scope and replacement tests |
 | Bounded discovery and final target verification across declared related reads | Implemented | HTTP fixtures, shared budgets, verification states, production transcript tests |
 | Finding identity, coverage, evaluation policy, deterministic diagnostic replay | Implemented for cluster inputs | Production tests and milestone 1 fixtures |
-| Availability, sealing, readiness, conditions, generations, controller errors, restrictions, backup concerns, upgrade failure, restore tests | Implemented in rule set `5` | Source-pinned semantics, boundaries, current/partial/stale evidence tests |
-| StatefulSet and Pod readiness, failure, and population | Implemented in rule set `5` | UID chains, per-scope outcomes, final verification, deterministic replay, synthetic collection-to-analysis test |
-| Snapshot-restore progress and recovery concerns | Implemented in rule set `5` | UID-binding capability policy, held/historical distinctions, independent receipts, deterministic replay, synthetic collection-to-analysis tests |
+| Availability, sealing, readiness, conditions, generations, controller errors, restrictions, backup concerns, upgrade failure, restore tests | Implemented in rule set `6` | Source-pinned semantics, boundaries, current/partial/stale evidence tests |
+| StatefulSet and Pod readiness, failure, and population | Implemented in rule set `6` | UID chains, per-scope outcomes, final verification, deterministic replay, synthetic collection-to-analysis test |
+| Snapshot-restore progress and recovery concerns | Implemented in rule set `6` | UID-binding capability policy, held/historical distinctions, independent receipts, deterministic replay, synthetic collection-to-analysis tests |
 
 ## Projection boundary
 
@@ -154,6 +154,9 @@ not a complete resource LIST and cannot prove object absence.
 
 `adapter.Advertises` checks matching kind, namespaced scope, and a reported read verb. Advertised verbs do not establish
 RBAC permission. Discovery does not select omission semantics, change contracts, or qualify an operator integration.
+
+`evidence.NewTargetVerification` also accepts complete unfiltered namespace LISTs, preserving list-only observation
+credentials. Partial or filtered lists cannot establish target stability. See [list verification](diagnostics.md#verification-with-list-only-credentials).
 
 `Client.VerifyTarget` accepts a normalized cluster and a matching named GET request with `ExpectedUID`. It performs one
 read without discovery. Verification distinguishes matching positive metadata generations, changed generations,
