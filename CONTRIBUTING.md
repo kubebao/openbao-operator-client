@@ -1,7 +1,7 @@
 # Contributing
 
 Read [AGENTS.md](AGENTS.md) and the detailed [.agents/rules](.agents/rules) before changing code.
-Use Go 1.27.3 or a newer compatible toolchain, Make, Bash, and Python 3.
+Use Go 1.27.4 or a newer compatible toolchain, Make, Bash, and Python 3.
 
 ```sh
 make install

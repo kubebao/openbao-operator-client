@@ -20,7 +20,7 @@ tests, and runs these packages with the race detector, `GOWORK=off`, and read-on
 - Console: `internal/collector`, `internal/evidence`.
 - CLI: `internal/collect`, `internal/doctor`, `internal/evidence`.
 
-It does not switch branches or change consumer worktrees. It uses the normal Go dependency cache. Go 1.27.3 and Python
+It does not switch branches or change consumer worktrees. It uses the normal Go dependency cache. Go 1.27.4 and Python
 3.12 or newer are required. Consumer source is not fetched or executed by public library CI. CI runs all self-contained
 contract specifications through `make check` without consumer repositories or Kubernetes dependencies.
 

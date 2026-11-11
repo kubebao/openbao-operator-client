@@ -51,7 +51,7 @@ def main():
                                   capture_output=True, check=True).stdout.strip()
 
         run("mod", "init", "example.com/client-consumer")
-        run("mod", "edit", "-go=1.27.3")
+        run("mod", "edit", "-go=1.27.4")
         (workspace / "main.go").write_text(SOURCE)
         run("get", MODULE + "@" + sys.argv[1])
         run("mod", "tidy")

@@ -24,7 +24,7 @@ persistence, rendering, and process exit codes. Operations and bundle handling g
 
 ## Development
 
-Use Go 1.27.3 or a newer compatible toolchain, Make, Bash, and Python 3. Go downloads the pinned development tools.
+Use Go 1.27.4 or a newer compatible toolchain, Make, Bash, and Python 3. Go downloads the pinned development tools.
 
 ```sh
 make install

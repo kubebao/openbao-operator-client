@@ -1,6 +1,6 @@
 # Development
 
-Use Go 1.27.3 or a newer compatible toolchain, Make, Bash, and Python 3. GitHub administration also requires an
+Use Go 1.27.4 or a newer compatible toolchain, Make, Bash, and Python 3. GitHub administration also requires an
 authenticated `gh` with repository administration access. Go selects the required toolchain with `GOTOOLCHAIN=auto`.
 
 | Command | Verification |
@@ -35,6 +35,9 @@ when testing public proxy/checksum resolution. The external-consumer script disa
 and global Git configuration, clears GitHub/Git/SSH environment variables, and uses the public Go proxy without direct
 Git fallback. It uses fresh module/build caches and reuses the
 selected Go toolchain and removes its temporary writable module cache after verification.
+
+Go 1.27.4 is the project's minimum runtime. It fixes the standard-library advisory `GO-2026-6859` reported against
+Go 1.27.3. CI and external-consumer checks select this version through the module and smoke-test pins.
 
 ## Hosted checks
 
