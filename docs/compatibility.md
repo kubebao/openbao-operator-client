@@ -1,12 +1,13 @@
 # Compatibility and qualification
 
-The console migration candidate has a bounded operator integration result below. Other capabilities retain their
+The console candidate and migrated CLI have bounded operator integration results below. Other capabilities retain their
 listed validation levels. Package compilation, synthetic fixtures, and API discovery do not establish compatibility
 with an installed operator.
 
 | Operator source | API group/version | Capability | Validation level | Evidence |
 | --- | --- | --- | --- | --- |
 | Operator/chart `0.6.1`; Kubernetes `1.36.1` Linux/arm64; client `7926f09468de` | `openbao.org/v1alpha1` | Namespace cluster/empty restore LIST, basic cluster projection, final UID/generation LIST verification, selected healthy-cluster diagnostics | Local isolated operator integration through console candidate `d079e9f`; consumer merge and hosted checks pending | [Console qualification](console-qualification.md) |
+| Operator/chart `0.6.1`; Kubernetes `1.36.1` Linux/arm64; client `74412f30a4c0` | `openbao.org/v1alpha1`, `apps/v1`, core `v1` | Discovery, named cluster GET, scoped workload and empty restore LISTs, final UID/generation GET verification, status watch/interruption, denied reads, and incomplete Pending-Pod diagnosis | Local isolated operator integration through CLI implementation `8cb9910`; no healthy-cluster or nonempty restore qualification | [CLI qualification](cli-qualification.md) |
 | Not selected | Not applicable | Generation acknowledgement | Synthetic contract fixtures | `evidence/testdata/generations.json` |
 | `9671c30623d609f948cf073e167f376de4ea9a85` | `openbao.org/v1alpha1` | Cluster JSON projection, conditions, versions, readiness fields | Source inspected; production fixture/unit tests; no API-server qualification | `adapter/cluster_test.go`, `internal/contracttest`, `docs/extraction.md` |
 | Console/CLI source snapshots above; Kubernetes declarations `v0.37.2` | `openbao.org/v1alpha1`, `apps/v1`, core `v1` | Finding identity, coverage, fifteen supported rules, normalized replay | Production tests and contract fixtures; no integration qualification | `diagnose`, `docs/diagnostics.md`, `internal/contracttest` |
@@ -25,13 +26,17 @@ Add the migrated API group only when its specific contract and validation eviden
 ## Consumer collection coverage
 
 Console candidate `d079e9f9621ae73fd895ef70f3bfe48cc129ffe0` imports published client commit `7926f09468de`.
-Its local gates pass; console PR #24 remains open. The CLI remains on its baseline implementation.
+Its local gates pass; console PR #24 remains open and deferred. CLI commit `8cb99104e44974fd6bd8311f818cd9d7a1f36bfd`
+imports published client commit `74412f30a4c0` through version `v0.0.0-20261111112413-74412f30a4c0`.
+Its command, dependency, independent-build, and distribution checks pass locally. GitHub Actions remains disabled for
+the private CLI repository. [CLI qualification](cli-qualification.md) records the tests and bounded isolated operator
+result. The consumers do not yet share a qualified tag.
 
 | Consumer | Declared scope |
 | --- | --- |
 | Console candidate | Enrolled namespace LISTs of clusters and snapshot restores, followed by a cluster LIST for UID/generation verification; named enrolled controller Deployment GETs. No Pod reads or named cluster GETs; native recovery is unsupported |
-| CLI `status` | One named cluster and API discovery; subsequent polling remains bound to the selected group and UID |
-| CLI `doctor` | Status plus bounded StatefulSet, Pod, and restore candidate reads with identity verification |
+| CLI `status` | Discovery and one named cluster GET through the approved `openbao.org/v1alpha1` contract; subsequent polling remains bound to the selected group and UID without rediscovery |
+| CLI `doctor` | Status plus bounded namespace StatefulSet and Pod LISTs with the cluster label selector, an unfiltered namespace restore LIST, and a final cluster GET that verifies UID and generation |
 
 Track application scope separately from library capability. Keep one library implementation of each shared projection
 and rule without requiring each application to collect every supported evidence type.

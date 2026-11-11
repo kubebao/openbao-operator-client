@@ -225,4 +225,7 @@ duplicate supported production projections or diagnostic rules.
 
 Run `go run ./examples/cluster` for a synthetic projection. Current acknowledgement and an implied zero ready count are
 resource evidence, not a health check. Run `go run ./examples/diagnose` for deterministic synthetic analysis.
-No API-server or operator integration is qualified.
+These examples and fixture tests do not qualify an API-server or operator integration. The
+[compatibility matrix](compatibility.md) records bounded consumer integration evidence separately. The migrated CLI uses
+the production projections, associations, collectors, and rules; [CLI qualification](cli-qualification.md) records its
+local checks and remaining integration limits.
