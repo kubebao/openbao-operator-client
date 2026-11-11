@@ -4,7 +4,7 @@
 state. Identical evidence and policy produce the same report when subject, selected-rule, or reference order changes.
 Empty findings do not establish health or complete coverage.
 
-Rule set `5` implements fifteen rules: availability, sealing, replica readiness, recognized adverse conditions, generation
+Rule set `6` implements fifteen rules: availability, sealing, replica readiness, recognized adverse conditions, generation
 acknowledgement, controller errors, restrictions, three backup concerns, recorded rolling-upgrade failure, restore tests,
 StatefulSet readiness, Pod concerns, and snapshot-restore progress/recovery concerns.
 `SupportedRules` returns the executable inventory. Earlier rule sets are rejected rather than silently extended. Other
@@ -203,3 +203,16 @@ ambiguous hold remains insufficient. Missing binding capability, stale reads, ch
 cannot produce current restore findings. Diagnostic text excludes provider messages and raw hold values.
 
 Run `go run ./examples/diagnose` for synthetic evaluation. Fixture and unit coverage do not qualify an operator integration.
+
+## Verification with list-only credentials
+
+`evidence.NewTargetVerification` compares a selected cluster with an already collected named GET or complete, unfiltered
+namespace LIST. It performs no I/O. A console can repeat its existing bounded namespace LIST after related reads and
+verify every selected target without adding a GET permission. The LIST must retain every candidate, with matching
+origin, namespace, group, version, contract, interval, and candidate count. Filtered lists, duplicate identities, and
+declarations that omit candidates are rejected. A partial list never verifies a target, even when it includes a match.
+
+A complete LIST confirms unchanged positive generation, changed generation, deletion by name absence, or replacement by
+a new UID for the same name. Missing or invalid generations remain insufficient. The verification retains the LIST
+scope and collection outcome; it never describes a LIST as a GET. This expands admitted verification evidence in rule
+set `6`; older policies are rejected. It does not make the collection atomic or qualify an operator integration.

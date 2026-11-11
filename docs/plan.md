@@ -20,7 +20,7 @@ Use the CLI scaffold and applicable operator engineering and repository controls
 attribution, package documentation, examples, pinned tools, checks, dependency notices, and verified GitHub settings.
 Require pull requests and qualified checks after the bootstrap. Protect `v*` tags from update and deletion.
 
-Match Go 1.27.3 and use Kubernetes 0.37.2 when Kubernetes dependencies are first required. Do not copy unused application
+Match Go 1.27.4 and use Kubernetes 0.37.2 when Kubernetes dependencies are first required. Do not copy unused application
 dependencies. Use a local Go workspace for coordinated development, and keep workspace files untracked.
 
 Gate: local checks and hosted checks pass, configured repository policies are read back, and an external module can

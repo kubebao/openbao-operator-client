@@ -50,26 +50,9 @@ func (c *Client) VerifyTarget(ctx context.Context, target evidence.Cluster, requ
 	if err != nil {
 		return VerificationResult{}, err
 	}
-	value := uncollectedVerification(target, request)
-	value.Read = read.Collection
-	switch read.Collection.Outcome {
-	case evidence.CollectionComplete:
-		after := read.Observations[0]
-		value.After, value.AfterGeneration = &after.Reference, after.Generation
-		value.State = evidence.VerificationInsufficient
-		if target.Generation.State == evidence.ValueReported && after.Generation.State == evidence.ValueReported &&
-			*target.Generation.Value > 0 && *after.Generation.Value > 0 {
-			value.State = evidence.VerificationChanged
-			if *target.Generation.Value == *after.Generation.Value {
-				value.State = evidence.VerificationVerified
-			}
-		}
-	case evidence.CollectionDeleted:
-		value.State = evidence.VerificationDeleted
-	case evidence.CollectionReplaced:
-		value.State = evidence.VerificationReplaced
-	default:
-		value.State = evidence.VerificationFailed
+	value, err := evidence.NewTargetVerification(target, read.Collection, read.Observations)
+	if err != nil {
+		return VerificationResult{}, ErrInvalidRequest
 	}
 	return VerificationResult{
 		Verification: value, Requests: read.Requests, Bytes: read.Bytes, RetainedBytes: read.RetainedBytes,
