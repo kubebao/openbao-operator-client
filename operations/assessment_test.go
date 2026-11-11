@@ -74,10 +74,10 @@ func assessmentRelated(t testing.TB, cluster evidence.Cluster, enabled bool) col
 	}
 	setRaw := fmt.Sprintf(`{"apiVersion":"apps/v1","kind":"StatefulSet","metadata":{"name":"bao","namespace":"team",
 	"uid":"set-1","resourceVersion":"50","generation":2,"annotations":{"openbao.org/owner-uid":"cluster-1"%s},
-	"ownerReferences":[{"apiVersion":"openbao.org/v1alpha1","kind":"OpenBaoCluster","name":"bao","uid":"cluster-1","controller":true}]},
+	"ownerReferences":[{"apiVersion":%q,"kind":"OpenBaoCluster","name":"bao","uid":"cluster-1","controller":true}]},
 	"spec":{"replicas":1,"selector":{"matchLabels":{"openbao.org/workload-pool":"voter"}},
 	"template":{"metadata":{"labels":{"openbao.org/workload-pool":"voter"}}}},
-	"status":{"observedGeneration":2,"readyReplicas":1}}`, annotation)
+	"status":{"observedGeneration":2,"readyReplicas":1}}`, annotation, cluster.Reference.APIVersion)
 	set, err := adapter.ProjectStatefulSet([]byte(setRaw), assessmentOptions(at, adapter.KubernetesAppsV1))
 	if err != nil {
 		t.Fatal(err)
@@ -95,7 +95,7 @@ func assessmentRelated(t testing.TB, cluster evidence.Cluster, enabled bool) col
 	after.Reference.CollectedAt.Value = &verificationAt
 	read := evidence.Collection{
 		Scope: evidence.Scope{
-			Origin: "origin-a", Group: "openbao.org", Version: "v1alpha1", Resource: "openbaoclusters",
+			Origin: "origin-a", Group: cluster.Reference.Identity.Group, Version: "v1alpha1", Resource: "openbaoclusters",
 			Namespace: "team", Name: "bao", Action: evidence.ReadGet,
 		},
 		Interval: evidence.Interval{StartedAt: verificationAt, CompletedAt: verificationAt}, Outcome: evidence.CollectionComplete, Items: 1,

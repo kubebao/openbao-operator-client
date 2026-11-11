@@ -41,7 +41,7 @@ func ProjectCluster(raw []byte, options ProjectionOptions) (evidence.Cluster, er
 		Conditions:         projectConditions(object, options.Limits.MaxConditions, "status", "conditions"),
 	}
 	projectOperationalFields(object, &result, options.Limits)
-	if options.Contract == V1Alpha1Snapshot {
+	if inspectedOperatorContract(options.Contract) {
 		inferOmissions(object, &result)
 	}
 	if result.Validate() != nil {

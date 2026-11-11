@@ -9,8 +9,12 @@ const (
 	V1Alpha1Snapshot Contract = "openbao.org/v1alpha1@9671c306/maintenance-pools-v1"
 	// V1Alpha1Unqualified projects the same approved fields without inferring omitted values.
 	V1Alpha1Unqualified Contract = "openbao.org/v1alpha1/unqualified-v3"
-	KubernetesAppsV1    Contract = "kubernetes/apps/v1@v0.37.2/workload-pools-v1"
-	KubernetesCoreV1    Contract = "kubernetes/core/v1@v0.37.2/workload-pools-v1"
+	// KubeBaoV1Alpha1Snapshot projects the inspected native API contract. Workload metadata retains openbao.org keys.
+	KubeBaoV1Alpha1Snapshot Contract = "kubebao.org/v1alpha1@22894cdc/maintenance-pools-v1"
+	// KubeBaoV1Alpha1Unqualified projects native API fields without inferring omitted values.
+	KubeBaoV1Alpha1Unqualified Contract = "kubebao.org/v1alpha1/unqualified-v1"
+	KubernetesAppsV1           Contract = "kubernetes/apps/v1@v0.37.2/workload-pools-v1"
+	KubernetesCoreV1           Contract = "kubernetes/core/v1@v0.37.2/workload-pools-v1"
 )
 
 type Capability string
@@ -48,6 +52,11 @@ func Describe(contract Contract) (ContractInfo, error) {
 	case V1Alpha1Snapshot:
 		info.SourceRevision = "9671c30623d609f948cf073e167f376de4ea9a85"
 	case V1Alpha1Unqualified:
+	case KubeBaoV1Alpha1Snapshot, KubeBaoV1Alpha1Unqualified:
+		info.APIGroup, info.APIVersion = "kubebao.org", "kubebao.org/v1alpha1"
+		if contract == KubeBaoV1Alpha1Snapshot {
+			info.SourceRevision = "22894cdc0a4aa5c442a07f2bf9902fe28ce02ea1"
+		}
 	case KubernetesAppsV1:
 		return ContractInfo{
 			ID: contract, APIGroup: "apps", APIVersion: "apps/v1", KubernetesVersion: "v0.37.2",
@@ -68,8 +77,12 @@ func Describe(contract Contract) (ContractInfo, error) {
 		CapabilityBackup, CapabilityUpgrade, CapabilityRestoreTest, CapabilityRestore, CapabilityRestrictions,
 	}
 	info.Kinds = []string{"OpenBaoCluster", "OpenBaoRestore"}
-	if contract == V1Alpha1Snapshot {
+	if inspectedOperatorContract(contract) {
 		info.Capabilities = append(info.Capabilities, CapabilityRestoreUIDBinding)
 	}
 	return info, nil
+}
+
+func inspectedOperatorContract(contract Contract) bool {
+	return contract == V1Alpha1Snapshot || contract == KubeBaoV1Alpha1Snapshot
 }

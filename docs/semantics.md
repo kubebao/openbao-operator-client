@@ -50,13 +50,22 @@ version alone never selects one.
 | --- | --- | --- |
 | `openbao.org/v1alpha1@9671c306/maintenance-pools-v1` (`V1Alpha1Snapshot`) | `OpenBaoCluster`, `OpenBaoRestore` | Yes; also declares restore UID binding |
 | `openbao.org/v1alpha1/unqualified-v3` (`V1Alpha1Unqualified`) | `OpenBaoCluster`, `OpenBaoRestore` | None |
+| `kubebao.org/v1alpha1@22894cdc/maintenance-pools-v1` (`KubeBaoV1Alpha1Snapshot`) | `OpenBaoCluster`, `OpenBaoRestore` | Yes; also declares restore UID binding |
+| `kubebao.org/v1alpha1/unqualified-v1` (`KubeBaoV1Alpha1Unqualified`) | `OpenBaoCluster`, `OpenBaoRestore` | None |
 | `kubernetes/apps/v1@v0.37.2/workload-pools-v1` (`KubernetesAppsV1`) | `StatefulSet` | Yes |
 | `kubernetes/core/v1@v0.37.2/workload-pools-v1` (`KubernetesCoreV1`) | `Pod` | None |
 
-`V1Alpha1Snapshot` follows operator commit `9671c30623d609f948cf073e167f376de4ea9a85`. The Kubernetes contracts follow the
-public API declarations at `v0.37.2` and the same operator revision's workload metadata. Their `SourceRevision` identifies
+`V1Alpha1Snapshot` follows operator commit `9671c30623d609f948cf073e167f376de4ea9a85`.
+`KubeBaoV1Alpha1Snapshot` follows native operator candidate `22894cdc0a4aa5c442a07f2bf9902fe28ce02ea1`.
+The Kubernetes contracts follow the
+public API declarations at `v0.37.2` and workload metadata at operator revision `9671c306`. Their `SourceRevision` identifies
 that operator source. `adapter.Describe` returns each contract's kinds and capabilities. It does not perform discovery,
 check RBAC, or qualify an operator.
+
+The native API contract retains the operator's `openbao.org/*` workload labels and annotations. API-group selection
+does not rename metadata. Identity includes the API group and UID. A migration annotation does not establish that a
+legacy object and a native object are the same target. Restore association requires one inspected contract and matching
+API groups; names and migration metadata cannot join resources across groups.
 
 The operator contract includes `metadata.deletionTimestamp` on clusters. An omitted timestamp remains `unknown`;
 reported and invalid timestamps prevent control preparation. Serialized evidence must use schema `4` and the current

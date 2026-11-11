@@ -22,15 +22,20 @@ func AssociatePod(pod evidence.Pod, set evidence.StatefulSet, parent evidence.As
 	return value, nil
 }
 
-// AssociateRestore confirms only the inspected snapshot's public UID-binding contract.
+// AssociateRestore confirms UID bindings only under the target's inspected source
+// contract. Cross-group resources remain foreign, including migrated resources.
 func AssociateRestore(target evidence.Cluster, request evidence.Restore) (evidence.Association, error) {
-	value, err := evidence.AssociateRestore(target, request, string(V1Alpha1Snapshot))
+	contract := Contract(target.AdapterContract)
+	info, describeErr := Describe(contract)
+	bindingContract := ""
+	if describeErr == nil && inspectedOperatorContract(contract) &&
+		target.Reference.APIVersion == info.APIVersion && request.Reference.APIVersion == info.APIVersion &&
+		target.Reference.Identity.Group == info.APIGroup && request.Reference.Identity.Group == info.APIGroup {
+		bindingContract = string(contract)
+	}
+	value, err := evidence.AssociateRestore(target, request, bindingContract)
 	if err != nil {
 		return evidence.Association{}, &ProjectionError{Code: InvalidInput}
-	}
-	if value.State != evidence.AssociationForeign &&
-		(target.Reference.APIVersion != "openbao.org/v1alpha1" || request.Reference.APIVersion != "openbao.org/v1alpha1") {
-		value.State, value.Basis = evidence.AssociationUnconfirmed, ""
 	}
 	return value, nil
 }
