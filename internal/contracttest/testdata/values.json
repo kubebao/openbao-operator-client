@@ -1,7 +1,7 @@
 [
   {
     "name": "documented-current-omission",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 4
@@ -40,7 +40,7 @@
   },
   {
     "name": "missing-acknowledgement",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 4
@@ -57,7 +57,7 @@
   },
   {
     "name": "zero-acknowledgement",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 4
@@ -76,7 +76,7 @@
   },
   {
     "name": "stale-acknowledgement",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 4
@@ -95,7 +95,7 @@
   },
   {
     "name": "future-acknowledgement",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 4
@@ -114,7 +114,7 @@
   },
   {
     "name": "negative-acknowledgement",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 4
@@ -133,7 +133,7 @@
   },
   {
     "name": "reported-zero",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 4
@@ -154,7 +154,7 @@
   },
   {
     "name": "reported-three",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 4
@@ -175,7 +175,7 @@
   },
   {
     "name": "reported-negative",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 4
@@ -195,7 +195,7 @@
   },
   {
     "name": "reported-fractional",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 4
@@ -215,7 +215,7 @@
   },
   {
     "name": "reported-overflow",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 4
@@ -235,7 +235,7 @@
   },
   {
     "name": "reported-null",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 4
@@ -255,7 +255,7 @@
   },
   {
     "name": "reported-string",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 4
@@ -275,7 +275,7 @@
   },
   {
     "name": "missing-desired",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 4
@@ -292,7 +292,7 @@
   },
   {
     "name": "null-status",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 4
@@ -309,7 +309,7 @@
   },
   {
     "name": "reported-false",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 4
@@ -330,7 +330,7 @@
   },
   {
     "name": "null-paused",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 4
@@ -351,7 +351,7 @@
   },
   {
     "name": "exact-large-generation",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "metadata": {
         "generation": 9007199254741007
@@ -371,7 +371,7 @@
   },
   {
     "name": "missing-spec-is-not-false",
-    "contract": "openbao.org/v1alpha1@9671c306/controls-v1",
+    "contract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
     "raw": {
       "status": {
         "readyReplicas": 0

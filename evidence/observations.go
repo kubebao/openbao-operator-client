@@ -167,6 +167,8 @@ type BlueGreen struct {
 	State           ObjectState `json:"state"`
 	Phase           Text        `json:"phase"`
 	OperationID     Text        `json:"operationID"`
+	BlueRevision    Text        `json:"blueRevision"`
+	GreenRevision   Text        `json:"greenRevision"`
 	GreenVersion    Text        `json:"greenVersion"`
 	StartedAt       Timestamp   `json:"startedAt"`
 	JobFailureCount Integer     `json:"jobFailureCount"`
@@ -174,7 +176,9 @@ type BlueGreen struct {
 }
 
 func (v BlueGreen) Validate() error {
-	if validateObject(v.State, v.Phase, v.OperationID, v.GreenVersion, v.StartedAt, v.JobFailureCount, v.LastFailedJob) != nil {
+	if validateObject(v.State, v.Phase, v.OperationID, v.BlueRevision, v.GreenRevision,
+		v.GreenVersion, v.StartedAt, v.JobFailureCount, v.LastFailedJob) != nil ||
+		ValidateWorkloadRevision(v.BlueRevision) != nil || ValidateWorkloadRevision(v.GreenRevision) != nil {
 		return ErrInvalidEvidence
 	}
 	return validateCount(v.JobFailureCount)

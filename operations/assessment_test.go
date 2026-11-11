@@ -75,13 +75,16 @@ func assessmentRelated(t testing.TB, cluster evidence.Cluster, enabled bool) col
 	setRaw := fmt.Sprintf(`{"apiVersion":"apps/v1","kind":"StatefulSet","metadata":{"name":"bao","namespace":"team",
 	"uid":"set-1","resourceVersion":"50","generation":2,"annotations":{"openbao.org/owner-uid":"cluster-1"%s},
 	"ownerReferences":[{"apiVersion":"openbao.org/v1alpha1","kind":"OpenBaoCluster","name":"bao","uid":"cluster-1","controller":true}]},
-	"spec":{"replicas":1},"status":{"observedGeneration":2,"readyReplicas":1}}`, annotation)
+	"spec":{"replicas":1,"selector":{"matchLabels":{"openbao.org/workload-pool":"voter"}},
+	"template":{"metadata":{"labels":{"openbao.org/workload-pool":"voter"}}}},
+	"status":{"observedGeneration":2,"readyReplicas":1}}`, annotation)
 	set, err := adapter.ProjectStatefulSet([]byte(setRaw), assessmentOptions(at, adapter.KubernetesAppsV1))
 	if err != nil {
 		t.Fatal(err)
 	}
 	podRaw := fmt.Sprintf(`{"apiVersion":"v1","kind":"Pod","metadata":{"name":"bao-0","namespace":"team","uid":"pod-1",
-	"resourceVersion":"51","generation":1,"annotations":{"openbao.org/owner-uid":"cluster-1"%s},
+	"resourceVersion":"51","generation":1,"labels":{"openbao.org/workload-pool":"voter"},
+	"annotations":{"openbao.org/owner-uid":"cluster-1"%s},
 	"ownerReferences":[{"apiVersion":"apps/v1","kind":"StatefulSet","name":"bao","uid":"set-1","controller":true}]}}`, annotation)
 	pod, err := adapter.ProjectPod([]byte(podRaw), assessmentOptions(at, adapter.KubernetesCoreV1))
 	if err != nil {
@@ -269,6 +272,9 @@ func TestAssessMaintenanceRetainsInsufficientEvidence(t *testing.T) {
 			r.Verification.AfterGeneration = assessmentInteger(3)
 			r.Verification.State = evidence.VerificationChanged
 		}, operations.ReasonTargetUnverified},
+		{"status-only-final-change", func(_ *evidence.Cluster, r *collect.RelatedResult) {
+			r.Verification.After.ResourceVersion = assessmentText("new-status-version")
+		}, operations.ReasonTargetUnverified},
 		{"future-related-read", func(_ *evidence.Cluster, r *collect.RelatedResult) {
 			at := assessmentTime.Add(time.Hour)
 			r.Pods.Observations[0].Metadata.Reference.CollectedAt.Value = &at
@@ -327,15 +333,17 @@ func TestAssessMaintenanceRejectsUnconfirmedPoolTopology(t *testing.T) {
 	cluster.ReadReplicas.Desired = assessmentInteger(1)
 	related := assessmentRelated(t, cluster, true)
 	got, err := operations.AssessMaintenance(plan, cluster, related, assessmentPolicy())
-	if err != nil || got.State != operations.AssessmentInsufficient || !slices.Contains(got.Reasons, operations.ReasonTopologyUnconfirmed) {
+	if err != nil || got.State != operations.AssessmentPending || !slices.Contains(got.Reasons, operations.ReasonWorkloadMissing) {
 		t.Fatalf("missing read replica pool proved propagation: %+v, %v", got, err)
 	}
 	readSet := related.StatefulSets.Observations[0]
 	readSet.Metadata.Reference.Identity.Name, readSet.Metadata.Reference.Identity.UID = "bao-read", "set-read"
+	readSet.SelectorPool, readSet.TemplatePool = assessmentText("read-replica"), assessmentText("read-replica")
 	related.StatefulSets.Observations = append(related.StatefulSets.Observations, readSet)
 	related.StatefulSets.Collection.Items++
 	readPod := related.Pods.Observations[0]
 	readPod.Metadata.Reference.Identity.Name, readPod.Metadata.Reference.Identity.UID = "bao-read-0", "pod-read"
+	readPod.Metadata.Pool = assessmentText("read-replica")
 	readPod.Metadata.Owners.Values = []evidence.OwnerReference{{
 		APIVersion: "apps/v1", Kind: "StatefulSet", Name: "bao-read", UID: "set-read", Controller: true,
 	}}
@@ -350,14 +358,14 @@ func TestAssessMaintenanceRejectsUnconfirmedPoolTopology(t *testing.T) {
 	related.Pods.Observations = append(related.Pods.Observations, jobPod)
 	related.Pods.Collection.Items++
 	got, err = operations.AssessMaintenance(plan, cluster, related, assessmentPolicy())
-	if err != nil || got.State != operations.AssessmentInsufficient || !slices.Contains(got.Reasons, operations.ReasonTopologyUnconfirmed) {
-		t.Fatalf("multiple sets proved pool roles: %+v, %v", got, err)
+	if err != nil || got.State != operations.AssessmentObserved {
+		t.Fatalf("labelled UID-confirmed pools did not establish propagation: %+v, %v", got, err)
 	}
 	cluster.ReadReplicas.Configuration = evidence.ObjectAbsent
 	cluster.ReadReplicas.Desired = evidence.Integer{State: evidence.ValueUnknown}
 	got, err = operations.AssessMaintenance(plan, cluster, related, assessmentPolicy())
-	if err != nil || got.State != operations.AssessmentInsufficient || !slices.Contains(got.Reasons, operations.ReasonTopologyUnconfirmed) {
-		t.Fatalf("multiple voter/Green sets proved topology without read replicas: %+v %v", got, err)
+	if err != nil || got.State != operations.AssessmentInsufficient || !slices.Contains(got.Reasons, operations.ReasonTopologyConflict) {
+		t.Fatalf("unconfigured read replica pool proved topology: %+v %v", got, err)
 	}
 	related = assessmentRelated(t, cluster, true)
 	related.Pods.Observations = append(related.Pods.Observations, jobPod)
@@ -376,9 +384,9 @@ func TestAssessMaintenanceRejectsBlueGreenTopology(t *testing.T) {
 		cluster.BlueGreen.State = state
 		related := assessmentRelated(t, cluster, true)
 		got, err := operations.AssessMaintenance(plan, cluster, related, assessmentPolicy())
-		reason := operations.ReasonTopologyUnconfirmed
-		if state != evidence.ObjectReported {
-			reason = operations.ReasonMissingField
+		reason := operations.ReasonMissingField
+		if state == evidence.ObjectInvalid {
+			reason = operations.ReasonInvalidField
 		}
 		if err != nil || got.State != operations.AssessmentInsufficient || !slices.Contains(got.Reasons, reason) {
 			t.Fatalf("blue/green state %s proved topology: %+v %v", state, got, err)

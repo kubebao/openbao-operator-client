@@ -14,7 +14,7 @@ import (
 )
 
 // Value and condition fixtures call production projection. Remaining reference models are test-only.
-const adapterContract = "openbao.org/v1alpha1@9671c306/controls-v1"
+const adapterContract = "openbao.org/v1alpha1@9671c306/maintenance-pools-v1"
 
 //go:embed testdata/*.json
 var fixtureFiles embed.FS

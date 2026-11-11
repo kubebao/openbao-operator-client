@@ -1,7 +1,9 @@
 {
-  "schemaVersion": "3",
-  "adapterContract": "kubernetes/core/v1@v0.37.2",
+  "schemaVersion": "4",
+  "adapterContract": "kubernetes/core/v1@v0.37.2/workload-pools-v1",
   "metadata": {
+    "pool": {"state": "unknown"},
+    "revision": {"state": "unknown"},
     "reference": {
       "identity": {
         "origin": "cluster-a",

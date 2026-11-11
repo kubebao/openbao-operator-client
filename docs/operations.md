@@ -78,14 +78,27 @@ other than `Paused`. Resumed reconciliation does not prove cluster health. Pause
 existing Jobs, or OpenBao processes.
 
 Maintenance assessment verifies annotations on every UID-confirmed StatefulSet and Pod in complete declared reads.
-It recomputes associations and requires final target verification. Names and labels alone do not establish ownership.
+It recomputes associations and requires final target verification with an unchanged cluster resource version. Blue/green
+status can change without a generation change; UID and generation alone cannot confirm a stable topology. A resource
+version change leaves coverage insufficient, including when an unrelated status update caused it.
+Names and labels alone do not establish ownership.
 Enabling requires `openbao.org/maintenance=true`; disabling requires annotation removal. Known missing annotations or
 Pods are pending. A paused cluster reports a propagation blocker without resuming it.
 
-The supported assessment topology has one voter StatefulSet. Positive read-replica configuration, multiple confirmed
-StatefulSets, and blue/green operation state leave topology coverage insufficient. Existing evidence cannot prove pool
-roles. An empty scope never establishes complete propagation when workloads are expected. Confirmed foreign resources
-and Job Pods are excluded; unresolved associations prevent a complete assessment.
+The supported topology has one voter StatefulSet and one read-replica StatefulSet when `spec.readReplicas` is configured.
+A configured zero-replica read pool still requires its StatefulSet and permits no live Pods. Each pool needs its own
+reported desired count and exact live Pod population; surplus voters cannot supply a missing read pool.
+
+After UID confirmation, the assessment checks pool and revision agreement between each StatefulSet selector, its Pod
+template, and its Pods. Missing or invalid grouping fields, contradictory revisions, and duplicate pool slots leave
+coverage insufficient. Confirmed foreign resources and Job Pods are excluded; unresolved associations prevent a
+complete assessment. Unexpected retained pools do not establish the desired topology.
+
+An absent blue/green status selects an unrevisioned voter pool. A reported blue/green status must have phase `Idle`,
+no Green revision, and a stable Blue revision that agrees with the voter pool. An omitted Blue revision in this valid
+Idle object selects the original unrevisioned pool under the pinned operator contract. Current spec counts govern the
+settled topology; retained Blue replica counts and operation IDs do not establish it. Active transition phases remain
+insufficient. No assessment establishes upgrade safety, serving health, or quorum.
 
 Maintenance mode permits controlled direct resource changes only when the caller also has the required Kubernetes
 permissions and the operator's delegated `maintenance` permission. Submitting the flag does not grant those permissions.

@@ -10,10 +10,10 @@ readiness coverage is `insufficient` with `generation_unconfirmed`. A `Failed` p
 
 | Contract | Source | Validation |
 | --- | --- | --- |
-| `openbao.org/v1alpha1@9671c306/controls-v1` | Operator commit `9671c30623d609f948cf073e167f376de4ea9a85` | Source inspected; unit and fixture tests |
-| `openbao.org/v1alpha1/unqualified-v2` | Same fields, no omission rules | Unit and fixture tests |
-| `kubernetes/apps/v1@v0.37.2` | Kubernetes API declarations `v0.37.2` | Source inspected; unit and fixture tests; local operator integration |
-| `kubernetes/core/v1@v0.37.2` | Kubernetes API declarations `v0.37.2` | Source inspected; unit and fixture tests; [Kubernetes field check](development.md#kubernetes-field-check); local operator integration |
+| `openbao.org/v1alpha1@9671c306/maintenance-pools-v1` | Operator commit `9671c30623d609f948cf073e167f376de4ea9a85` | Source inspected; unit and fixture tests |
+| `openbao.org/v1alpha1/unqualified-v3` | Same fields, no omission rules | Unit and fixture tests |
+| `kubernetes/apps/v1@v0.37.2/workload-pools-v1` | Kubernetes API declarations `v0.37.2`; operator workload metadata at `9671c306` | Source inspected; unit and fixture tests |
+| `kubernetes/core/v1@v0.37.2/workload-pools-v1` | Kubernetes API declarations `v0.37.2`; operator workload metadata at `9671c306` | Source inspected; unit and fixture tests |
 
 Validation levels mean:
 
@@ -24,7 +24,7 @@ Validation levels mean:
   cluster. This covered cluster GET and LIST, UID-associated StatefulSet and Pod observations, empty restore LISTs,
   target verification, denied reads, healthy selected diagnostics, and status-watch interruption. A completed Job Pod
   with the cluster label was excluded from StatefulSet membership. This evidence covers the schema `2` observation
-  contract. It does not qualify schema `3`, control submission, maintenance propagation assessment, non-empty restores,
+  contract. It does not qualify schema `4`, control submission, maintenance propagation assessment, non-empty restores,
   or every rule.
 
 Package compilation, fixtures, and API discovery do not establish compatibility with an installed operator.
@@ -36,8 +36,13 @@ It supports one JSON Patch request and optional server dry-run. Source inspectio
 cover these methods. They have no operator integration qualification. Server dry-run acceptance does not qualify runtime
 behavior or prove that a later request will be accepted.
 
-Evidence schema `3` and the current operator contract identifiers are required. Earlier serialized captures must be
-recollected. The CLI and console release pins remain unchanged until each consumer adopts a qualified candidate.
+Evidence schema `4` and the current operator and workload contract identifiers are required. Earlier serialized captures
+must be recollected. Consumer release pins are managed in their repositories.
+
+Maintenance propagation assessment covers one stable voter pool and a configured read-replica pool, including a
+zero-replica pool. A settled blue/green deployment needs a valid `Idle` phase and consistent stable-revision evidence.
+Active blue/green transitions remain insufficient. Unit and fixture tests cover these interpretations; no live operator
+qualification covers workload-pool or revision assessment.
 
 Restart, backup, upgrade, restore, recovery acknowledgements, scaling, and general configuration writes are not exposed
 through this package.

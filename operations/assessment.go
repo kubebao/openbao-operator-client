@@ -29,6 +29,7 @@ const (
 	ReasonStaleEvidence       AssessmentReason = "stale_evidence"
 	ReasonInconsistentTime    AssessmentReason = "inconsistent_time"
 	ReasonMissingField        AssessmentReason = "missing_field"
+	ReasonInvalidField        AssessmentReason = "invalid_field"
 	ReasonGeneration          AssessmentReason = "generation_unconfirmed"
 	ReasonNotConfigured       AssessmentReason = "not_configured"
 	ReasonPauseCondition      AssessmentReason = "pause_condition_unconfirmed"
@@ -42,6 +43,8 @@ const (
 	ReasonWorkloadMissing     AssessmentReason = "workload_missing"
 	ReasonWorkloadDeleting    AssessmentReason = "workload_deleting"
 	ReasonTopologyUnconfirmed AssessmentReason = "topology_unconfirmed"
+	ReasonTopologyConflict    AssessmentReason = "topology_conflict"
+	ReasonTopologyAmbiguous   AssessmentReason = "topology_ambiguous"
 )
 
 // AssessmentPolicy supplies evaluation time and bounds. Assessment reads no clock.
@@ -204,9 +207,11 @@ func AssessPause(plan Plan, observed evidence.Cluster, policy AssessmentPolicy) 
 // AssessMaintenance checks actual annotations on every confirmed workload in
 // complete declared scopes. Disabling requires removal of the annotation. Caller
 // associations and aggregate outcomes are ignored; associations are recomputed.
-// A paused cluster blocks propagation. The function never resumes it. Pool
-// roles are not projected, so blue/green state, positive read replicas, or
-// multiple confirmed StatefulSets cannot establish propagation.
+// A paused cluster blocks propagation. The function never resumes it. Pool and
+// revision metadata group only UID-confirmed resources. Settled blue/green Idle
+// uses its recorded Blue revision; active transitions remain insufficient.
+// Final target verification must retain the original resource version because
+// status-only topology changes do not necessarily change metadata.generation.
 func AssessMaintenance(plan Plan, observed evidence.Cluster, related collect.RelatedResult,
 	policy AssessmentPolicy,
 ) (Assessment, error) {
@@ -227,12 +232,6 @@ func AssessMaintenance(plan Plan, observed evidence.Cluster, related collect.Rel
 		return result, err
 	}
 	configureAssessment(&result, observed.Maintenance.Enabled, plan.Enabled)
-	switch observed.BlueGreen.State {
-	case evidence.ObjectReported:
-		result.add(AssessmentInsufficient, ReasonTopologyUnconfirmed)
-	case evidence.ObjectUnknown, evidence.ObjectInvalid:
-		result.add(AssessmentInsufficient, ReasonMissingField)
-	}
 	if result.State != AssessmentObserved {
 		return result, nil
 	}
@@ -276,6 +275,8 @@ func maintenanceVerification(cluster evidence.Cluster, verification evidence.Tar
 	return verification.Validate() == nil && verification.State == evidence.VerificationVerified &&
 		verification.AdapterContract == cluster.AdapterContract && sameControlReference(verification.Before, cluster.Reference) &&
 		sameControlInteger(verification.BeforeGeneration, cluster.Generation) && verification.After != nil &&
+		verification.After.ResourceVersion.State == evidence.ValueReported &&
+		*verification.After.ResourceVersion.Value == *cluster.Reference.ResourceVersion.Value &&
 		!verification.Read.Interval.CompletedAt.After(policy.ReferenceTime) &&
 		policy.ReferenceTime.Sub(*verification.After.CollectedAt.Value) <= policy.MaxEvidenceAge
 }
@@ -373,8 +374,7 @@ func maintenanceSets(cluster evidence.Cluster, related collect.RelatedResult, po
 	}
 	sets := map[string]*maintenanceSet{}
 	names := map[string]bool{}
-	confirmed := 0
-	var desired int64
+	topology := maintenanceTopology(cluster, result)
 	for _, set := range values {
 		if set.Validate() != nil {
 			return nil, ErrInvalidAssessment
@@ -394,55 +394,25 @@ func maintenanceSets(cluster evidence.Cluster, related collect.RelatedResult, po
 		sets[ref.Identity.UID] = &maintenanceSet{value: set, association: association}
 		switch association.State {
 		case evidence.AssociationConfirmed:
-			confirmed++
 			maintenanceAnnotation(set.Metadata, trueValue(cluster.Maintenance.Enabled), result)
 			if set.DesiredReplicas.State != evidence.ValueReported || set.Acknowledgement() != evidence.GenerationCurrent {
 				result.add(AssessmentInsufficient, ReasonGeneration)
-			} else {
-				desired += *set.DesiredReplicas.Value
 			}
+			maintenanceSetTopology(set, topology, result)
 		case evidence.AssociationForeign:
 		default:
 			result.add(AssessmentInsufficient, ReasonAssociation)
 		}
 	}
-	minimumSets, expected, known := maintenancePopulation(cluster)
-	if !known {
-		result.add(AssessmentInsufficient, ReasonMissingField)
-	} else if confirmed < minimumSets || desired != expected {
-		result.add(AssessmentPending, ReasonWorkloadMissing)
-	}
-	if confirmed > 1 || cluster.ReadReplicas.Configuration == evidence.ObjectReported &&
-		cluster.ReadReplicas.Desired.State == evidence.ValueReported && *cluster.ReadReplicas.Desired.Value > 0 {
-		result.add(AssessmentInsufficient, ReasonTopologyUnconfirmed)
+	for _, pool := range topology {
+		if !pool.found {
+			result.add(AssessmentPending, ReasonWorkloadMissing)
+		}
 	}
 	return sets, nil
 }
 
 func trueValue(value evidence.Boolean) bool { return value.Value != nil && *value.Value }
-
-func maintenancePopulation(cluster evidence.Cluster) (int, int64, bool) {
-	if cluster.DesiredReplicas.State != evidence.ValueReported || *cluster.DesiredReplicas.Value <= 0 {
-		return 0, 0, false
-	}
-	sets, expected := 0, *cluster.DesiredReplicas.Value
-	if expected > 0 {
-		sets++
-	}
-	switch cluster.ReadReplicas.Configuration {
-	case evidence.ObjectAbsent, evidence.ObjectNull:
-		return sets, expected, true
-	case evidence.ObjectReported:
-		if cluster.ReadReplicas.Desired.State == evidence.ValueReported {
-			n := *cluster.ReadReplicas.Desired.Value
-			if n > 0 {
-				sets++
-			}
-			return sets, expected + n, true
-		}
-	}
-	return 0, 0, false
-}
 
 func maintenancePods(cluster evidence.Cluster, related collect.RelatedResult, sets map[string]*maintenanceSet,
 	policy AssessmentPolicy, result *Assessment,
@@ -474,7 +444,7 @@ func maintenancePods(cluster evidence.Cluster, related collect.RelatedResult, se
 	}
 	for _, set := range sets {
 		if set.association.State == evidence.AssociationConfirmed && set.value.DesiredReplicas.State == evidence.ValueReported &&
-			set.pods < *set.value.DesiredReplicas.Value {
+			set.pods != *set.value.DesiredReplicas.Value {
 			result.add(AssessmentPending, ReasonWorkloadMissing)
 		}
 	}
@@ -494,7 +464,7 @@ func maintenancePod(pod evidence.Pod, sets map[string]*maintenanceSet, enabled b
 		switch association.State {
 		case evidence.AssociationConfirmed:
 			maintenanceAnnotation(pod.Metadata, enabled, result)
-			if pod.Metadata.DeletionTimestamp.State == evidence.ValueUnknown {
+			if maintenancePodTopology(pod, set.value, result) && pod.Metadata.DeletionTimestamp.State == evidence.ValueUnknown {
 				set.pods++
 			}
 		case evidence.AssociationForeign:

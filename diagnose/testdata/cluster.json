@@ -1,6 +1,6 @@
 {
-  "schemaVersion": "3",
-  "adapterContract": "openbao.org/v1alpha1@9671c306/controls-v1",
+  "schemaVersion": "4",
+  "adapterContract": "openbao.org/v1alpha1@9671c306/maintenance-pools-v1",
   "reference": {
     "identity": {
       "origin": "cluster-a",
@@ -150,6 +150,8 @@
     }
   },
   "blueGreen": {
+    "blueRevision": {"state": "unknown"},
+    "greenRevision": {"state": "unknown"},
     "state": "absent",
     "phase": {
       "state": "unknown"
