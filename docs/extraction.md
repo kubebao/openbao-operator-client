@@ -1,7 +1,7 @@
 # Milestone 3 extraction status
 
 Production slices implement cluster/workload projection, operational observations, evidence values, UID associations,
-and bounded GET/LIST reads.
+bounded discovery, GET/LIST reads, and final target verification across declared related scopes.
 Milestone 3 remains in progress. Neither consumer imports the library yet.
 
 | Slice | State | Verification |
@@ -12,7 +12,7 @@ Milestone 3 remains in progress. Neither consumer imports the library yet.
 | Native `OpenBaoRecovery` and remote-replication observations | Unsupported by this contract | No definitions in the pinned public API |
 | StatefulSet/Pod evidence, UID associations, restore selection | Implemented | Production fixtures, replacement/conflict tests, milestone 1 specifications |
 | Scoped GET/LIST reads, pagination, cancellation, UID-pinned named refresh | Implemented | HTTP fixtures, limits, partial reads, scope and replacement tests |
-| Bounded discovery and final target verification across related reads | Pending | Transcript specifications; consumer orchestration remains separate |
+| Bounded discovery and final target verification across declared related reads | Implemented | HTTP fixtures, shared budgets, verification states, production transcript tests |
 | Findings, coverage, evaluation policy, deterministic diagnostic replay | Pending | Reference specifications; no production rules yet |
 
 ## Projection boundary
@@ -114,10 +114,10 @@ selectors pass unchanged as encoded query values. The cluster method adds no Pod
 Default limits are 8 requests, 500 candidates, 100 candidates per requested page, 1 MiB per response, 8 MiB across response
 bodies, 8 MiB of serialized observations, and 15 seconds across one GET or LIST. Every limit must be positive. Page size
 cannot exceed candidate or projection entry limits. A shorter caller deadline takes precedence. Response reading uses
-one lookahead byte to detect overflow and closes the body before projection. Byte accounting records fully read successful
-HTTP response bodies, including pages rejected during projection. A failed or oversized response stops the sequence.
-Retention accounting sums serialized observation
-sizes, excluding the result envelope. Counts and page limits bound envelope overhead separately.
+one lookahead byte to detect overflow and closes the body before projection. `Result.Bytes` counts body bytes read,
+including partial or oversized bodies; the final lookahead can exceed the body budget by one byte. A failed or oversized
+response stops the sequence. `RetainedBytes` sums serialized observation sizes, excluding the result envelope. Counts and
+page limits bound envelope overhead separately. The counters allow composed reads to enforce one shared budget.
 
 List projection validates the typed envelope and requires a resource version. Omitted item API version/kind inherits
 the envelope; present null, empty, or conflicting declarations remain invalid. Continuation tokens are opaque, bounded
@@ -134,10 +134,48 @@ produces `deleted` for GET and `unsupported` for LIST; 401/403 produces `denied`
 failures produce `failed`. Cancellation and transport timeouts remain distinct. Raw response bodies and client errors
 are never returned or serialized. Invalid caller configuration returns the bounded `ErrInvalidRequest` error before I/O.
 
-Each call has its own bound. Callers must supply a shared deadline when composing several calls. API discovery and a
-coordinated related-read sequence with final target verification remain pending. These HTTP tests do not qualify real
-API-server validation, RBAC, or operator reconciliation. No consumer request scope changes in this slice.
-The milestone 1 collection transcript model remains until the coordinated sequence replaces its final-verification logic.
+Each primitive call has its own bound. Callers must supply a shared deadline when composing calls themselves, or use the
+declared related-read sequence below. These HTTP tests do not qualify real API-server validation, RBAC, or operator
+reconciliation. No consumer request scope changes in this slice.
+
+## Discovery and target verification
+
+`Client.Discover` reads exactly `/apis/<group>/<version>` or `/api/<version>` under the endpoint prefix. Its scope names
+one resource covered by the selected contract. It makes no resource reads and does not try another group. Projection
+checks the `APIResourceList` envelope and group/version, rejects duplicate resource entries, and retains only the selected
+resource's kind, namespace scope, and sorted read verbs. Missing or malformed verbs remain unknown or invalid. Mutation
+verbs and unrelated metadata are excluded. A complete document can record that the selected resource is absent; this is
+not a complete resource LIST and cannot prove object absence.
+
+`adapter.Advertises` checks matching kind, namespaced scope, and a reported read verb. Advertised verbs do not establish
+RBAC permission. Discovery does not select omission semantics, change contracts, or qualify an operator integration.
+
+`Client.VerifyTarget` accepts a normalized cluster and a matching named GET request with `ExpectedUID`. It performs one
+read without discovery. Verification distinguishes matching positive metadata generations, changed generations,
+insufficient generation evidence, deletion, replacement, and failed reads. Missing, invalid, zero, or negative generations
+cannot verify stability. A matching UID and generation do not establish an atomic snapshot or current health.
+
+`Client.Related` accepts a selected cluster and a `RelatedPlan`. The caller declares optional StatefulSet, Pod, and restore
+LIST scopes plus the final pinned target GET. Every scope must match the target's origin and namespace; restore requests
+also use its contract. All requests are validated before I/O. Nil scopes cause no reads. The helper collects only declared
+scopes, computes UID associations, and performs final verification. It never discovers another group or adds namespace,
+Pod, or other optional reads. Consumers retain kubeconfig selection, enrollment, scheduling, and authorization.
+
+Plan limits bound requests, candidates, body bytes, observation bytes, and elapsed time across all scopes and final
+verification. Per-request limits can reduce those bounds. One request is reserved for verification. If other budgets or
+the deadline prevent verification, its read remains `not_collected`; the batch cannot be complete. Unrequested scopes are
+nil; requested but skipped scopes retain `not_collected`. Candidate limits apply before association filtering and exclude
+the final target GET. Retention counts the final GET projection conservatively even though verification returns only its
+reference and generation. Association and result-envelope overhead is bounded by candidate counts.
+
+Independent observations survive failed reads, deletion, and replacement under the original selected identity. A complete
+batch requires complete requested reads, resolved associations, and verified target stability. Candidate, unconfirmed,
+or conflicting associations make the batch partial. Foreign candidates stay separate from confirmed ownership. Diagnostics
+must retain per-scope outcomes and verification state; incomplete evidence cannot describe a replacement as its predecessor.
+
+The milestone 1 collection fixtures now call production readers through a synthetic transport. Byte units are scaled into
+padded response bodies; elapsed deadline cases become typed transport deadline errors. Separate HTTP tests exercise real
+context deadlines. Negative byte declarations become malformed wire data. The old admission/verification model is removed.
 
 ## Evidence and replay
 
@@ -160,9 +198,9 @@ analysis reference time and age limit, reads no clock, and permits no clock skew
 absence within their declared scope. Named GET and discovery do not establish list-scope absence. `Collection.Items`
 counts candidates before association filtering.
 
-Value, condition, identity-validation, freshness, restore association/selection, and workload ownership fixtures call
+Value, condition, identity-validation, freshness, association/selection, workload ownership, and collection fixtures call
 production code. Field-focused fixtures receive synthetic metadata in test setup; production always requires identity.
-Expected results are unchanged except for the documented unsupported-native correction. Remaining reference models stay
+Expected results change only for documented source or reference-model corrections. Remaining reference models stay
 until their supported extraction slice replaces them.
 Remote-index fixtures remain future specifications, not an API adapter.
 

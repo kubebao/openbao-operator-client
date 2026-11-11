@@ -56,7 +56,8 @@ func projectionOutcome(err error) evidence.CollectionOutcome {
 }
 
 func resources[T any](ctx context.Context, client *Client, request Request, project projection[T]) (result Result[T], err error) {
-	if ctx == nil || client.validate(request, project.kind, project.resource) != nil {
+	if ctx == nil || (request.Scope.Action != evidence.ReadGet && request.Scope.Action != evidence.ReadList) ||
+		client.validate(request, project.kind, project.resource) != nil {
 		return result, ErrInvalidRequest
 	}
 	started := time.Now().UTC()
@@ -70,7 +71,7 @@ func resources[T any](ctx context.Context, client *Client, request Request, proj
 	}
 	defer finish(ctx, &result, project)
 	seen, tokens := map[string]bool{}, map[string]bool{}
-	version, next, retained := "", "", 0
+	version, next := "", ""
 	for result.Requests < request.Limits.MaxPages {
 		if ctx.Err() != nil {
 			result.Collection.Outcome = contextOutcome(ctx, nil)
@@ -82,7 +83,13 @@ func resources[T any](ctx context.Context, client *Client, request Request, proj
 			return result, nil
 		}
 		result.Requests++
-		raw, outcome := client.read(ctx, client.requestURL(request.Scope, request.Limits.PageSize, next), request.Scope.Action, budget)
+		raw, readBytes, outcome := client.read(
+			ctx,
+			client.requestURL(request.Scope, request.Limits.PageSize, next),
+			request.Scope.Action,
+			budget,
+		)
+		result.Bytes += readBytes
 		result.Collection.Outcome = outcome
 		if ctx.Err() != nil {
 			result.Collection.Outcome = contextOutcome(ctx, nil)
@@ -91,7 +98,6 @@ func resources[T any](ctx context.Context, client *Client, request Request, proj
 		if outcome != evidence.CollectionComplete {
 			return result, nil
 		}
-		result.Bytes += len(raw)
 		page, readErr := projectPage(raw, request, project, time.Now().UTC())
 		if readErr != nil {
 			result.Collection.Outcome = projectionOutcome(readErr)
@@ -102,18 +108,18 @@ func resources[T any](ctx context.Context, client *Client, request Request, proj
 			return result, nil
 		}
 		version = page.ResourceVersion
-		size, outcome := admit(page.Observations, request, project, seen, result.Collection.Items, retained)
+		size, outcome := admit(page.Observations, request, project, seen, result.Collection.Items, result.RetainedBytes)
 		result.Collection.Outcome = outcome
 		if outcome != evidence.CollectionComplete {
 			return result, nil
 		}
-		retained += size
 		result.Collection.Items += len(page.Observations)
 		if request.ExpectedUID != "" && project.reference(page.Observations[0]).Identity.UID != request.ExpectedUID {
 			result.Collection.Outcome = evidence.CollectionReplaced
 			return result, nil
 		}
 		result.Observations = append(result.Observations, page.Observations...)
+		result.RetainedBytes += size
 		if page.Continue == "" {
 			return result, nil
 		}
@@ -131,14 +137,18 @@ func finish[T any](ctx context.Context, result *Result[T], project projection[T]
 	slices.SortFunc(result.Observations, func(a, b T) int {
 		return slices.Compare(identityParts(project.reference(a).Identity), identityParts(project.reference(b).Identity))
 	})
+	finishCollection(ctx, &result.Collection)
+}
+
+func finishCollection(ctx context.Context, collection *evidence.Collection) {
 	completed := time.Now()
-	if result.Collection.Outcome == evidence.CollectionComplete {
+	if collection.Outcome == evidence.CollectionComplete {
 		deadline, _ := ctx.Deadline()
 		if ctx.Err() != nil || !completed.Before(deadline) {
-			result.Collection.Outcome = contextOutcome(ctx, context.DeadlineExceeded)
+			collection.Outcome = contextOutcome(ctx, context.DeadlineExceeded)
 		}
 	}
-	result.Collection.Interval.CompletedAt = completed.UTC()
+	collection.Interval.CompletedAt = completed.UTC()
 }
 
 func projectPage[T any](raw []byte, request Request, project projection[T], collected time.Time) (adapter.Page[T], error) {

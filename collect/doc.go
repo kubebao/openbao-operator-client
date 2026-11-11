@@ -1,4 +1,4 @@
-// Package collect performs bounded, scoped GET and LIST reads through caller-configured
-// HTTP transports. Results retain only projected evidence and classified outcomes.
-// Discovery and coordinated related-resource collection remain planned.
+// Package collect performs bounded discovery, scoped GET/LIST reads, and declared
+// related-resource collection through caller-configured HTTP transports.
+// Results retain projected evidence, classified outcomes, and final target verification.
 package collect

@@ -79,10 +79,11 @@ type Request struct {
 // Result contains only projected observations. An incomplete result can retain
 // observations, but cannot establish absence or describe a replacement as its predecessor.
 type Result[T any] struct {
-	Collection   evidence.Collection `json:"collection"`
-	Observations []T                 `json:"observations"`
-	Requests     int                 `json:"requests"`
-	Bytes        int                 `json:"bytes"`
+	Collection    evidence.Collection `json:"collection"`
+	Observations  []T                 `json:"observations"`
+	Requests      int                 `json:"requests"`
+	Bytes         int                 `json:"bytes"`
+	RetainedBytes int                 `json:"retainedBytes"`
 }
 
 var pathComponent = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]*$`)
@@ -122,6 +123,10 @@ func (c *Client) validate(request Request, kind, resource string) error {
 		if request.ExpectedUID != "" || request.Scope.Namespace == "" && !request.AllowAllNamespaces {
 			return ErrInvalidRequest
 		}
+	case evidence.ReadDiscovery:
+		if request.Scope.Namespace != "" || request.Scope.Selector != "" || request.ExpectedUID != "" {
+			return ErrInvalidRequest
+		}
 	default:
 		return ErrInvalidRequest
 	}
@@ -145,7 +150,9 @@ func (c *Client) requestURL(scope evidence.Scope, limit int, next string) string
 	if scope.Namespace != "" {
 		parts = append(parts, "namespaces", scope.Namespace)
 	}
-	parts = append(parts, scope.Resource)
+	if scope.Action != evidence.ReadDiscovery {
+		parts = append(parts, scope.Resource)
+	}
 	if scope.Action == evidence.ReadGet {
 		parts = append(parts, scope.Name)
 	}
@@ -191,10 +198,15 @@ func statusOutcome(status int, action evidence.ReadAction) evidence.CollectionOu
 	}
 }
 
-func (c *Client) read(ctx context.Context, endpoint string, action evidence.ReadAction, budget int) ([]byte, evidence.CollectionOutcome) {
+func (c *Client) read(
+	ctx context.Context,
+	endpoint string,
+	action evidence.ReadAction,
+	budget int,
+) ([]byte, int, evidence.CollectionOutcome) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return nil, evidence.CollectionInvalid
+		return nil, 0, evidence.CollectionInvalid
 	}
 	request.Header.Set("Accept", "application/json")
 	response, err := c.transport.RoundTrip(request)
@@ -202,29 +214,29 @@ func (c *Client) read(ctx context.Context, endpoint string, action evidence.Read
 		if response != nil && response.Body != nil {
 			_ = response.Body.Close()
 		}
-		return nil, contextOutcome(ctx, err)
+		return nil, 0, contextOutcome(ctx, err)
 	}
 	if response == nil || response.Body == nil {
-		return nil, evidence.CollectionInvalid
+		return nil, 0, evidence.CollectionInvalid
 	}
 	if response.StatusCode != http.StatusOK {
 		_ = response.Body.Close()
-		return nil, statusOutcome(response.StatusCode, action)
+		return nil, 0, statusOutcome(response.StatusCode, action)
 	}
 	if response.ContentLength > int64(budget) {
 		_ = response.Body.Close()
-		return nil, evidence.CollectionSizeLimit
+		return nil, 0, evidence.CollectionSizeLimit
 	}
 	body, readErr := io.ReadAll(io.LimitReader(response.Body, int64(budget)+1))
 	closeErr := response.Body.Close()
 	if ctx.Err() != nil || readErr != nil {
-		return nil, contextOutcome(ctx, readErr)
+		return nil, len(body), contextOutcome(ctx, readErr)
 	}
 	if len(body) > budget {
-		return nil, evidence.CollectionSizeLimit
+		return nil, len(body), evidence.CollectionSizeLimit
 	}
 	if closeErr != nil {
-		return nil, evidence.CollectionFailed
+		return nil, len(body), evidence.CollectionFailed
 	}
-	return body, evidence.CollectionComplete
+	return body, len(body), evidence.CollectionComplete
 }
