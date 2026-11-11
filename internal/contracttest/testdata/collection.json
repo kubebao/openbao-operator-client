@@ -315,8 +315,8 @@
     "want": {
       "outcome": "pagination_loop",
       "uids": [
-        "b",
-        "a"
+        "a",
+        "b"
       ],
       "reads": 2
     }
@@ -513,7 +513,7 @@
     "before": "cluster-1",
     "after": "cluster-1",
     "want": {
-      "outcome": "invalid",
+      "outcome": "failed",
       "uids": [],
       "reads": 1
     }

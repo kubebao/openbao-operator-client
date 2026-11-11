@@ -4,9 +4,9 @@ Shared Go library for the [OpenBao Operator](https://github.com/kubebao/openbao-
 
 This project is in initial development. It implements typed cluster and workload evidence, generation acknowledgement,
 timestamps, collection outcomes, operational observations, UID associations, and approved operator/Kubernetes JSON projection.
-Native recovery and remote replication are unsupported by the pinned operator API. Bounded GET/LIST collection is
-implemented. Discovery, coordinated related-resource collection, and diagnostic rules remain planned. Neither application
-uses the module yet. No operator capability is integration-qualified.
+Native recovery and remote replication are unsupported by the pinned operator API. Bounded discovery, GET/LIST collection,
+and declared related-resource collection with final target verification are implemented. Diagnostic rules remain planned.
+Neither application uses the module yet. No operator capability is integration-qualified.
 The [extraction status](docs/extraction.md) records implemented and pending milestone 3 slices.
 
 ## Packages
@@ -15,7 +15,7 @@ The [extraction status](docs/extraction.md) records implemented and pending mile
 | --- | --- | --- |
 | `evidence` | Typed observations, identities, outcomes, times, associations, and references | Cluster/workload facts, field states, references, times, outcomes, associations |
 | `adapter` | Approved public API projections and capability definitions | Cluster, restore, StatefulSet, Pod projection; UID associations; explicit contracts |
-| `collect` | Bounded discovery, resource reads, pagination, and identity verification | Scoped GET/LIST reads, limits, pagination, UID-pinned refresh; discovery pending |
+| `collect` | Bounded discovery, resource reads, pagination, and identity verification | Discovery, scoped GET/LIST, shared budgets, declared related reads, target verification |
 | `diagnose` | Pure rules, findings, coverage, and evaluation policy | Package boundary only |
 
 The operator owns reconciliation and lifecycle safety. Consumer applications own credentials, enrollment, scheduling,
