@@ -12,7 +12,8 @@ establish compatibility with an installed operator.
 | `9671c30623d609f948cf073e167f376de4ea9a85` | `openbao.org/v1alpha1` | Native recovery and remote-replication fields assumed by console | Unsupported; no public API definitions | `docs/extraction.md#source-corrections` |
 | `9671c30623d609f948cf073e167f376de4ea9a85` | `openbao.org/v1alpha1` | Restore UID association and display selection | Source inspected; production fixtures and contract tests; no integration qualification | `adapter/association.go`, `internal/contracttest` |
 | Kubernetes API declarations `v0.37.2`; operator source `9671c306` for reserved annotations | `apps/v1`, core `v1` | StatefulSet/Pod projection and controller ownership chains | Source inspected; production fixtures, replacement tests, fuzz seeds; no API-server qualification | `adapter/workload_test.go`, `docs/extraction.md`, `NOTICE` |
-| `9671c30623d609f948cf073e167f376de4ea9a85` | `openbao.org/v1alpha1` | Live collection | Source inspected; implementation pending | `docs/extraction.md` |
+| Explicit operator/Kubernetes projection contracts above | `openbao.org/v1alpha1`, `apps/v1`, core `v1` | Bounded scoped GET/LIST, pagination, UID-pinned named reads | HTTP fixtures and race tests; no real API-server or operator qualification | `collect/resources_test.go`, `adapter/list_test.go` |
+| `9671c30623d609f948cf073e167f376de4ea9a85` | `openbao.org/v1alpha1` | Discovery and coordinated related-read target verification | Source inspected; implementation pending | `docs/extraction.md` |
 
 Record each qualified capability against an operator commit or version, installed CRD identity, image digest, library
 commit, test command, environment, result, and evidence location. Keep unsupported and untested capabilities identifiable.

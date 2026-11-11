@@ -31,8 +31,8 @@ The console keeps authorization, history comparison, first-seen tracking, and pe
 kubeconfig loading, output, watch orchestration, and process results. Application mappings can change during initial
 development when the new contract improves semantics; document storage and output changes.
 
-Cluster/workload evidence, JSON projection, and UID associations are implemented. Production collection and diagnostic
-rules remain pending.
+Cluster/workload evidence, JSON projection, UID associations, and scoped GET/LIST collection are implemented. Discovery,
+coordinated related-resource collection, and diagnostic rules remain pending. HTTP transports belong to callers.
 See [extraction status](extraction.md) for coverage. Add `operations` and bundle packages with their first implemented features.
 
 `internal/contracttest` contains test-only executable specifications and synthetic expected-result fixtures. Its archived

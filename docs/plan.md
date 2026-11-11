@@ -36,7 +36,9 @@ In progress: production slices implement cluster, operational, and workload evid
 UID associations; timestamps; and collection outcomes. Source inspection corrected native-recovery and remote-replication
 assumptions:
 the pinned operator has no public definitions for those paths. [Extraction status](extraction.md) tracks these unsupported
-capabilities and the remaining reads and rules. Consumer migration remains in milestones 4 and 5.
+capabilities and the remaining reads and rules. Scoped GET/LIST primitives now enforce pagination, byte/candidate/duration
+bounds, cancellation, and named UID pinning. Discovery and final target verification across related reads remain pending.
+Consumer migration remains in milestones 4 and 5.
 
 Gate: cover malformed fields, sensitive-data canaries, incomplete reads, pagination/size/duration limits, replacement,
 conflicting identities, deterministic ordering, and serialized replay. Product orchestration remains in consumers.
