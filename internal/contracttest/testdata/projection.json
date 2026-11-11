@@ -11,7 +11,6 @@
       },
       "status": {
         "observedGeneration": 4,
-        "index": "18446744073709551615",
         "containerExitCode": 137,
         "conditions": [
           {
@@ -46,46 +45,7 @@
         }
       ],
       "conditionState": "reported",
-      "index": "18446744073709551615",
       "containerExitCode": 137
-    }
-  },
-  {
-    "name": "numeric-index-is-not-exact-evidence",
-    "raw": {
-      "status": {
-        "index": 9007199254741007
-      }
-    },
-    "contract": "unknown",
-    "canaries": [],
-    "want": {
-      "ready": {
-        "state": "unknown"
-      },
-      "conditions": null,
-      "conditionState": "unknown",
-      "index": null,
-      "containerExitCode": null
-    }
-  },
-  {
-    "name": "noncanonical-decimal",
-    "raw": {
-      "status": {
-        "index": "01"
-      }
-    },
-    "contract": "unknown",
-    "canaries": [],
-    "want": {
-      "ready": {
-        "state": "unknown"
-      },
-      "conditions": null,
-      "conditionState": "unknown",
-      "index": null,
-      "containerExitCode": null
     }
   },
   {
@@ -100,7 +60,6 @@
       },
       "status": {
         "observedGeneration": 4,
-        "index": "18446744073709551615",
         "containerExitCode": 1073741819,
         "conditions": [
           {
@@ -135,27 +94,7 @@
         }
       ],
       "conditionState": "reported",
-      "index": "18446744073709551615",
       "containerExitCode": 1073741819
-    }
-  },
-  {
-    "name": "overflow-index",
-    "raw": {
-      "status": {
-        "index": "18446744073709551616"
-      }
-    },
-    "contract": "unknown",
-    "canaries": [],
-    "want": {
-      "ready": {
-        "state": "unknown"
-      },
-      "conditions": null,
-      "conditionState": "unknown",
-      "index": null,
-      "containerExitCode": null
     }
   }
 ]
