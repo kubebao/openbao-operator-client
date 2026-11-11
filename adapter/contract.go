@@ -16,17 +16,18 @@ const (
 type Capability string
 
 const (
-	CapabilityCluster      Capability = "cluster"
-	CapabilityConditions   Capability = "conditions"
-	CapabilityVersions     Capability = "versions"
-	CapabilityReadiness    Capability = "readiness"
-	CapabilityBackup       Capability = "backup"
-	CapabilityUpgrade      Capability = "upgrade"
-	CapabilityRestoreTest  Capability = "restore_test"
-	CapabilityRestore      Capability = "restore"
-	CapabilityRestrictions Capability = "restrictions"
-	CapabilityStatefulSet  Capability = "statefulset"
-	CapabilityPod          Capability = "pod"
+	CapabilityCluster           Capability = "cluster"
+	CapabilityConditions        Capability = "conditions"
+	CapabilityVersions          Capability = "versions"
+	CapabilityReadiness         Capability = "readiness"
+	CapabilityBackup            Capability = "backup"
+	CapabilityUpgrade           Capability = "upgrade"
+	CapabilityRestoreTest       Capability = "restore_test"
+	CapabilityRestore           Capability = "restore"
+	CapabilityRestoreUIDBinding Capability = "restore_uid_binding"
+	CapabilityRestrictions      Capability = "restrictions"
+	CapabilityStatefulSet       Capability = "statefulset"
+	CapabilityPod               Capability = "pod"
 )
 
 // ContractInfo describes library projection coverage. It is not API discovery or
@@ -65,5 +66,8 @@ func Describe(contract Contract) (ContractInfo, error) {
 		CapabilityBackup, CapabilityUpgrade, CapabilityRestoreTest, CapabilityRestore, CapabilityRestrictions,
 	}
 	info.Kinds = []string{"OpenBaoCluster", "OpenBaoRestore"}
+	if contract == V1Alpha1Snapshot {
+		info.Capabilities = append(info.Capabilities, CapabilityRestoreUIDBinding)
+	}
 	return info, nil
 }

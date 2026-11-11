@@ -9,7 +9,7 @@ import (
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
-const RuleSetVersion = "4"
+const RuleSetVersion = "5"
 
 var (
 	ErrUnsupportedVersion = errors.New("unsupported contract version")
@@ -33,6 +33,7 @@ func SupportedRules() []RuleID {
 		RuleController,
 		RuleGeneration,
 		RulePod,
+		RuleRestore,
 		RuleRestoreTest,
 		RuleRestriction,
 		RuleUpgrade,
@@ -50,6 +51,7 @@ type ClusterInput struct {
 	Verification    *evidence.TargetVerification         `json:"verification,omitempty"`
 	StatefulSets    *ResourceInput[evidence.StatefulSet] `json:"statefulSets,omitempty"`
 	Pods            *ResourceInput[evidence.Pod]         `json:"pods,omitempty"`
+	Restores        *ResourceInput[evidence.Restore]     `json:"restores,omitempty"`
 }
 
 // ResourceInput retains the declared read and every admitted candidate before
@@ -72,12 +74,16 @@ type Policy struct {
 	Rules          []RuleID `json:"rules"`
 	// ApprovedContracts is a caller-approved provenance allowlist, not API discovery.
 	// Adapters remain responsible for validating a contract before projection.
-	ApprovedContracts []string      `json:"approvedContracts"`
-	ReferenceTime     time.Time     `json:"referenceTime"`
-	MaxBackupAge      time.Duration `json:"maxBackupAge"`
-	StartupGrace      time.Duration `json:"startupGrace"`
-	MaxEvidenceAge    time.Duration `json:"maxEvidenceAge"`
-	MaxSubjects       int           `json:"maxSubjects"`
+	ApprovedContracts []string `json:"approvedContracts"`
+	// RestoreUIDBindingContracts is the subset whose UID-binding semantics the
+	// caller selects from adapter capabilities, independently of field projection.
+	RestoreUIDBindingContracts []string      `json:"restoreUIDBindingContracts,omitempty"`
+	ReportHistoricalRestores   bool          `json:"reportHistoricalRestores"`
+	ReferenceTime              time.Time     `json:"referenceTime"`
+	MaxBackupAge               time.Duration `json:"maxBackupAge"`
+	StartupGrace               time.Duration `json:"startupGrace"`
+	MaxEvidenceAge             time.Duration `json:"maxEvidenceAge"`
+	MaxSubjects                int           `json:"maxSubjects"`
 }
 
 func DefaultPolicy(reference time.Time, contracts []string) Policy {
@@ -85,6 +91,7 @@ func DefaultPolicy(reference time.Time, contracts []string) Policy {
 		RuleSetVersion: RuleSetVersion, Rules: SupportedRules(), ApprovedContracts: slices.Clone(contracts),
 		ReferenceTime: reference.UTC(), MaxBackupAge: 24 * time.Hour, StartupGrace: time.Minute,
 		MaxEvidenceAge: 5 * time.Minute, MaxSubjects: 5000,
+		ReportHistoricalRestores: true,
 	}
 }
 
@@ -104,6 +111,13 @@ func (p Policy) validate() error {
 		contracts[contract] = true
 	}
 	seen := map[RuleID]bool{}
+	bindings := map[string]bool{}
+	for _, contract := range p.RestoreUIDBindingContracts {
+		if !contracts[contract] || bindings[contract] {
+			return ErrInvalidPolicy
+		}
+		bindings[contract] = true
+	}
 	for _, rule := range p.Rules {
 		if !rule.Valid() {
 			return ErrUnknownRule
@@ -159,7 +173,7 @@ func (c ClusterInput) validate(p Policy) error {
 			return ErrInvalidCapture
 		}
 	}
-	return c.validateWorkloads(p)
+	return c.validateRelatedInputs(p)
 }
 
 func equalInteger(a, b evidence.Integer) bool {

@@ -33,13 +33,13 @@ kubeconfig loading, output, watch orchestration, and process results. Applicatio
 development when the new contract improves semantics; document storage and output changes.
 
 Cluster/workload evidence, JSON projection, UID associations, bounded discovery/GET/LIST collection, and declared related
-reads with final target verification are implemented. Diagnosis implements finding identity, coverage, and fourteen cluster/workload
-rules. Other rules remain pending. HTTP transports belong to callers; diagnosis uses supplied time
+reads with final target verification are implemented. Diagnosis implements finding identity, coverage, and fifteen supported
+rules. Native recovery and remote replication remain reserved. HTTP transports belong to callers; diagnosis uses supplied time
 and policy.
 See [extraction status](extraction.md) for coverage. Add `operations` and bundle packages with their first implemented features.
 
 `internal/contracttest` contains test-only executable specifications and synthetic expected-result fixtures. Its archived
 consumer harnesses run separately against immutable source snapshots. Value, condition, identity-validation, freshness,
 association/selection, workload ownership, collection, finding identity, coverage, and representative replay fixtures call
-production code. Milestone 3 replaces the remaining reference models without changing expected results unless a contract
-decision is reviewed and documented.
+production code. Supported projection and diagnostic specifications use production code. Remaining models describe consumer mappings
+and history, optional local text, or unsupported remote-index behavior; they are not supported production implementations.

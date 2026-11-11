@@ -24,7 +24,7 @@ It does not switch branches or change consumer worktrees. It uses the normal Go 
 3.12 or newer are required. Consumer source is not fetched or executed by public library CI. CI runs all self-contained
 contract specifications through `make check` without consumer repositories or Kubernetes dependencies.
 
-Both archived suites passed locally on 10 November 2026. This includes all existing tests in those packages and the
+Both archived suites passed again locally on 11 November 2026 during milestone 3 qualification. This includes all existing tests in those packages and the
 additional tests under `internal/contracttest/baseline`. It does not include complete application checks, databases,
 browsers, a real Kubernetes API server, or an operator integration environment.
 
@@ -70,6 +70,7 @@ browsers, a real Kubernetes API server, or an operator integration environment.
 | Console interprets restore-test `Passed=False` without condition acknowledgement | Require its own positive current generation. Preserve blocked-before-active-before-last precedence and independently recorded results: `TestRestoreTestSeparatesActiveLastAndCondition`, `TestRestoreTestConditionRequiresOwnCurrentGeneration`. |
 | CLI Pod readiness uses `Ready` without its optional generation acknowledgement | Require the Pod condition's own current positive acknowledgement. Missing/stale acknowledgement remains insufficient: `TestPodGenerationAndOwnershipStayIndependent`. |
 | CLI Pod population does not require current StatefulSet generation | Require current replica intent and both complete supported scopes: `TestPodPopulationUsesBothCompleteScopes`. |
+| Console surfaces recorded restore concerns; CLI doctor excludes unheld historical outcomes | Use `ReportHistoricalRestores` in one rule: default true for console coverage, false for CLI preservation. Held concerns remain errors; history warnings do not claim active failure: `TestRestoreFindingsSeparateHeldHistoricalAndProgress`. |
 | Console issue IDs are deployment/rule pairs; CLI findings have no subject identity | Adopt subject/subsubject keys and deliberate console mappings: `findings.json`, `history.json`. Preserve first-seen for one-to-one mappings only. |
 | CLI snapshots and reports include command exit codes and thresholds | Keep those fields in wrappers: `projection.json` and replay boundary tests. Container termination codes remain evidence. |
 | CLI status attention and doctor can interpret the same fields separately | Use the combined [rule catalog](rules.md) and map missing evidence to coverage. |

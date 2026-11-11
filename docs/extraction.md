@@ -2,7 +2,9 @@
 
 Production slices implement cluster/workload projection, operational observations, evidence values, UID associations,
 bounded discovery, GET/LIST reads, final target verification, and the diagnostic core.
-Milestone 3 remains in progress. Neither consumer imports the library yet.
+All supported milestone 3 production slices are implemented. Final candidate qualification requires the published module
+build and hosted required checks. Neither consumer imports the library yet; migration and integration qualification remain
+in milestones 4 through 6.
 
 | Slice | State | Verification |
 | --- | --- | --- |
@@ -14,9 +16,9 @@ Milestone 3 remains in progress. Neither consumer imports the library yet.
 | Scoped GET/LIST reads, pagination, cancellation, UID-pinned named refresh | Implemented | HTTP fixtures, limits, partial reads, scope and replacement tests |
 | Bounded discovery and final target verification across declared related reads | Implemented | HTTP fixtures, shared budgets, verification states, production transcript tests |
 | Finding identity, coverage, evaluation policy, deterministic diagnostic replay | Implemented for cluster inputs | Production tests and milestone 1 fixtures |
-| Availability, sealing, readiness, conditions, generations, controller errors, restrictions, backup concerns, upgrade failure, restore tests | Implemented in rule set `4` | Source-pinned semantics, boundaries, current/partial/stale evidence tests |
-| StatefulSet and Pod readiness, failure, and population | Implemented in rule set `4` | UID chains, per-scope outcomes, final verification, deterministic replay, synthetic collection-to-analysis test |
-| Snapshot-restore diagnostic rule | Pending | Canonical catalog; no production interpretation yet |
+| Availability, sealing, readiness, conditions, generations, controller errors, restrictions, backup concerns, upgrade failure, restore tests | Implemented in rule set `5` | Source-pinned semantics, boundaries, current/partial/stale evidence tests |
+| StatefulSet and Pod readiness, failure, and population | Implemented in rule set `5` | UID chains, per-scope outcomes, final verification, deterministic replay, synthetic collection-to-analysis test |
+| Snapshot-restore progress and recovery concerns | Implemented in rule set `5` | UID-binding capability policy, held/historical distinctions, independent receipts, deterministic replay, synthetic collection-to-analysis tests |
 
 ## Projection boundary
 
@@ -183,10 +185,9 @@ context deadlines. Negative byte declarations become malformed wire data. The ol
 ## Diagnostic evaluation
 
 `diagnose.Analyze` interprets normalized cluster captures with explicit policy and reference time. It implements stable
-finding identities, per-rule coverage, and fourteen cluster/workload rules. It imports only
+finding identities, per-rule coverage, and fifteen supported rules. It imports only
 evidence and standard-library code. The [evaluation guide](diagnostics.md) records inputs, default policy, versioning,
-freshness, verification, and serialized replay. The snapshot-restore rule remains pending; native recovery and
-remote replication remain reserved. They cannot be selected silently. Findings can coexist with insufficient coverage,
+freshness, verification, and serialized replay. Native recovery and remote replication remain reserved. They cannot be selected silently. Findings can coexist with insufficient coverage,
 and empty findings do not establish health.
 
 ## Evidence and replay
@@ -214,9 +215,10 @@ Value, condition, identity-validation, freshness, association/selection, workloa
 coverage, and representative replay fixtures call production code. Field-focused fixtures receive synthetic metadata in
 test setup; production always requires identity. Replay fixtures also supply a reported zero backup-failure count so they
 isolate the age rule without assuming an omitted counter is zero. Draft fixture envelopes remain test input mappings.
-Expected results change only for documented source or reference-model corrections. Remaining reference models stay
-until their supported extraction slice replaces them.
-Remote-index fixtures remain future specifications, not an API adapter.
+Expected results change only for documented source or reference-model corrections. Container termination-code fixtures
+now call the public Pod projector; provider-text canaries check the full production cluster serialization. Remaining test-only
+models cover consumer mappings/history, optional local text, and unsupported remote-index specifications. They are not
+duplicate supported production projections or diagnostic rules.
 
 Run `go run ./examples/cluster` for a synthetic projection. Current acknowledgement and an implied zero ready count are
 resource evidence, not a health check. Run `go run ./examples/diagnose` for deterministic synthetic analysis.

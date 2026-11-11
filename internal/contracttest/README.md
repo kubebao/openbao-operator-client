@@ -16,8 +16,9 @@ failure count, then calls the production analyzer. JSON decoding in that bridge 
 unchanged. Existing consumer package tests run with the added assertions. Historical behavior remains green even when
 it differs from the chosen contract; the documentation identifies each intentional correction.
 
-During milestone 3, replace reference-model calls with production calls one slice at a time. Keep the fixture inputs and
-expected results unless a documented source or reference-model correction changes them. Native recovery is unconfirmed under the
-pinned contract because its public API is absent. Remote-index cases remain future specifications. Remove reference
-models when the supported production implementation covers them. Consumer snapshots remain
+Supported milestone 3 projections, associations, collection, and diagnostic specifications now call production code.
+Container termination-code fixtures map their draft scalar into the public Pod field before projection; provider canaries
+check the full production cluster record. Keep fixture inputs and expected results unless a documented source or
+reference-model correction changes them. Native recovery is unconfirmed under the
+pinned contract because its public API is absent. Remote-index cases remain future specifications. Remaining reference models cover consumer history/mappings, optional local text, or unsupported future behavior. Consumer snapshots remain
 historical evidence and are not a CI dependency. Neither suite establishes operator integration qualification.

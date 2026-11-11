@@ -24,62 +24,17 @@ func AssociatePod(pod evidence.Pod, set evidence.StatefulSet, parent evidence.As
 	return value, nil
 }
 
-// AssociateRestore uses only the pinned operator's UID-binding fields. A hold's
-// operation ID and request age never prove target ownership. All supplied identity
-// fields are checked before choosing a confirmation basis.
+// AssociateRestore confirms only the inspected snapshot's public UID-binding contract.
 func AssociateRestore(target evidence.Cluster, request evidence.Restore) (evidence.Association, error) {
-	if target.Validate() != nil || request.Validate() != nil {
+	value, err := evidence.AssociateRestore(target, request, string(V1Alpha1Snapshot))
+	if err != nil {
 		return evidence.Association{}, &ProjectionError{Code: InvalidInput}
 	}
-	owner, subject := target.Reference.Identity, request.Reference.Identity
-	result := evidence.Association{Subject: subject, Target: owner, State: evidence.AssociationUnconfirmed}
-	if subject.Origin != owner.Origin || subject.Namespace != owner.Namespace || subject.Group != owner.Group {
-		result.State = evidence.AssociationForeign
-		return result, nil
+	if value.State != evidence.AssociationForeign &&
+		(target.Reference.APIVersion != "openbao.org/v1alpha1" || request.Reference.APIVersion != "openbao.org/v1alpha1") {
+		value.State, value.Basis = evidence.AssociationUnconfirmed, ""
 	}
-	if target.AdapterContract != string(V1Alpha1Snapshot) || request.AdapterContract != string(V1Alpha1Snapshot) ||
-		target.Reference.APIVersion != "openbao.org/v1alpha1" || request.Reference.APIVersion != "openbao.org/v1alpha1" {
-		return result, nil
-	}
-	if request.Target.State == evidence.ObjectInvalid || request.Execution.State == evidence.ObjectInvalid {
-		return result, nil
-	}
-	for _, value := range []evidence.Text{request.TargetName, request.Target.UID, request.Execution.TargetUID, target.RestoreOrigin} {
-		if value.State == evidence.ValueInvalid {
-			return result, nil
-		}
-	}
-	name := textValue(request.TargetName)
-	bound := textValue(request.Target.UID)
-	execution := textValue(request.Execution.TargetUID)
-	origin := textValue(target.RestoreOrigin)
-	matched := bound == owner.UID || execution == owner.UID || origin == subject.UID
-	conflict := name != "" && name != owner.Name || bound != "" && bound != owner.UID || execution != "" && execution != owner.UID
-	if conflict {
-		result.State = evidence.AssociationForeign
-		if matched {
-			result.State = evidence.AssociationConflict
-		}
-		return result, nil
-	}
-	switch {
-	case execution == owner.UID:
-		result.State, result.Basis = evidence.AssociationConfirmed, evidence.BasisRestoreExecution
-	case bound == owner.UID:
-		result.State, result.Basis = evidence.AssociationConfirmed, evidence.BasisRestoreTarget
-	case origin == subject.UID:
-		result.State, result.Basis = evidence.AssociationConfirmed, evidence.BasisRestoreOrigin
-	case name == owner.Name:
-		result.State = evidence.AssociationCandidate
-	}
-	return result, nil
-}
-
-func textValue(value evidence.Text) string {
-	if value.Value == nil {
-		return ""
-	}
-	return *value.Value
+	return value, nil
 }
 
 // LatestRestore selects a confirmed request for display. Ties use UID ascending.

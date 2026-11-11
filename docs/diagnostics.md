@@ -4,9 +4,9 @@
 state. Identical evidence and policy produce the same report when subject, selected-rule, or reference order changes.
 Empty findings do not establish health or complete coverage.
 
-Rule set `4` implements fourteen rules: availability, sealing, replica readiness, recognized adverse conditions, generation
+Rule set `5` implements fifteen rules: availability, sealing, replica readiness, recognized adverse conditions, generation
 acknowledgement, controller errors, restrictions, three backup concerns, recorded rolling-upgrade failure, restore tests,
-StatefulSet readiness, and Pod concerns.
+StatefulSet readiness, Pod concerns, and snapshot-restore progress/recovery concerns.
 `SupportedRules` returns the executable inventory. Earlier rule sets are rejected rather than silently extended. Other
 canonical IDs remain in the [catalog](rules.md), but selecting one returns `ErrUnavailableRule`. Unknown IDs return
 `ErrUnknownRule`. Reserved native-recovery and
@@ -27,7 +27,7 @@ version is rejected. Contracts outside the caller's allowlist are rejected.
 
 `DefaultPolicy` requires a reference time and contract allowlist. It selects the supported rules and sets a 24-hour backup
 age limit, 1-minute startup grace, 5-minute evidence age limit, and 5,000-subject limit across selected clusters and all
-supplied workload candidates. Durations and subject limits must
+supplied workload and restore candidates. Durations and subject limits must
 be positive, except startup grace can be zero. Rules and contracts must be unique. A reference time before collection
 completion is invalid. These are evaluation parameters, not process exit thresholds.
 
@@ -35,15 +35,17 @@ completion is invalid. These are evaluation parameters, not process exit thresho
 consumers own JSON decoding and byte limits. Serialized replay tests use trusted fixtures. They do not implement or qualify
 an untrusted bundle parser. Bundle handling remains a separate future package.
 
-### Related workload inputs
+### Related resource inputs
 
-`ClusterInput.StatefulSets` and `Pods` are optional `ResourceInput` values. Each retains its projection contract, declared
+`ClusterInput.StatefulSets`, `Pods`, and `Restores` are optional `ResourceInput` values. Each retains its projection contract,
+declared
 LIST outcome, and every admitted candidate before UID filtering. Nil means no scope was requested. Complete inputs must
 retain all candidates, including foreign resources, and a non-nil empty slice for a valid empty list. Scope, origin,
 namespace, resource, version, contract, read times, and candidate counts must agree. Duplicate UIDs or names are rejected.
 The policy allowlist must include each supplied contract, including an empty or failed read's contract.
 
-Related reads follow the selected cluster read and precede final verification when verification was attempted. Workload
+Restore reads use the selected cluster's group, version, and projection contract. Related reads follow the selected cluster
+read and precede final verification when verification was attempted. Related-resource
 findings require successful target verification with the original source reference and generation. Verification does not
 establish an atomic snapshot. A missing, changed, failed, deleted, or replaced verification prevents current findings.
 
@@ -56,6 +58,18 @@ Each workload rule has one coverage entry under the selected cluster, with its p
 the affected StatefulSet or Pod. Pod coverage also depends on the StatefulSet read. Capture inputs retain both scopes;
 the primary outcome alone does not establish complete coverage. Unrequested workload scopes remain `not_requested` even
 when the selected cluster read fails.
+
+### Restore evaluation policy
+
+`RestoreUIDBindingContracts` is a caller-selected subset of `ApprovedContracts`. Select a contract only when
+`adapter.Describe` declares `CapabilityRestoreUIDBinding`. The inspected operator snapshot declares it; unqualified field
+projection and discovery do not. Empty or duplicate declarations, or bindings outside `ApprovedContracts`, cannot qualify
+restore associations. A missing binding declaration leaves requested restore coverage insufficient. Adapter entry points
+and diagnosis call the same pure UID-binding implementation. The analyzer does not accept caller assertion of ownership.
+
+`DefaultPolicy` enables `ReportHistoricalRestores` to preserve the console's broader recorded-outcome coverage. Set it to
+false when preserving CLI doctor's exclusion of unheld historical outcomes during migration. Both choices use the same
+rule and retain the same evidence; the policy is serialized in the report. This choice does not change held concerns.
 
 ## Findings and coverage
 
@@ -164,5 +178,28 @@ Population/absence coverage accepts an unfiltered namespace LIST or the existing
 `openbao.org/cluster=<selected-name>`. Findings describe that declared scope, not all cluster resources. Other selectors
 retain independent positive observations but make coverage insufficient and suppress population/absence findings. No rule
 adds reads, broadens selectors, or changes consumer permissions.
+
+Snapshot-restore findings require a confirmed target/execution UID or request-bound restore-origin annotation before any
+hold comparison. Names, creation times, operation IDs, and hold values alone do not confirm ownership. A reported hold
+matches a request UID or its recorded operation ID only after UID association. Multiple matching captured requests leave
+the hold ambiguous and coverage insufficient; no request is selected by age or list order.
+
+A uniquely matched held request with reported `Unknown`/`Failed` phase, unknown execution stage, or failed cleanup produces
+an error. With historical reporting enabled, an unheld recorded concern produces a warning that does not claim active
+failure. With it disabled, those historical outcomes produce no finding. Reported `Pending`, `Validating`, or `Running`
+phase produces an informational finding. The subject is the request identity; changing severity or policy does not change
+its finding key. Display selection remains separate; diagnosis evaluates every confirmed request in the captured scope.
+
+A missing or malformed phase is insufficient and is never inferred from age. An independently unknown held execution can
+still support an error. Submission-claim presence, target application, administrator disposition, execution receipts, and
+managed restart completion do not supply missing phase or authorize replay. Producer times are checked against that
+request's read time, not the earlier cluster read. Future/invalid times or reversed start/completion retain insufficient
+coverage while preserving independently reported concerns. Empty findings and `Completed` phase do not qualify end-to-end
+recovery or client transactions.
+
+Restore analysis retains the primary LIST outcome. Partial reads can retain independently bound findings; denied reads
+cannot resolve a hold. Nonempty restore selectors retain known observations with insufficient coverage. An unmatched or
+ambiguous hold remains insufficient. Missing binding capability, stale reads, changed verification, deletion, or replacement
+cannot produce current restore findings. Diagnostic text excludes provider messages and raw hold values.
 
 Run `go run ./examples/diagnose` for synthetic evaluation. Fixture and unit coverage do not qualify an operator integration.

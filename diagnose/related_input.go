@@ -6,9 +6,9 @@ import (
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
-func (c ClusterInput) validateWorkloads(p Policy) error {
+func (c ClusterInput) validateRelatedInputs(p Policy) error {
 	if c.StatefulSets != nil {
-		if err := validateResourceInput(c, *c.StatefulSets, p, "apps", "statefulsets",
+		if err := validateResourceInput(c, *c.StatefulSets, p, "apps", "v1", "statefulsets",
 			func(v evidence.StatefulSet) (evidence.Reference, string, error) {
 				return v.Metadata.Reference, v.AdapterContract, v.Validate()
 			}); err != nil {
@@ -16,15 +16,26 @@ func (c ClusterInput) validateWorkloads(p Policy) error {
 		}
 	}
 	if c.Pods != nil {
-		return validateResourceInput(c, *c.Pods, p, "", "pods",
+		if err := validateResourceInput(c, *c.Pods, p, "", "v1", "pods",
 			func(v evidence.Pod) (evidence.Reference, string, error) {
 				return v.Metadata.Reference, v.AdapterContract, v.Validate()
+			}); err != nil {
+			return err
+		}
+	}
+	if c.Restores != nil {
+		if c.Restores.AdapterContract != c.AdapterContract {
+			return ErrInvalidCapture
+		}
+		return validateResourceInput(c, *c.Restores, p, c.Subject.Group, c.Collection.Scope.Version, "openbaorestores",
+			func(v evidence.Restore) (evidence.Reference, string, error) {
+				return v.Reference, v.AdapterContract, v.Validate()
 			})
 	}
 	return nil
 }
 
-func validateResourceInput[T any](cluster ClusterInput, input ResourceInput[T], p Policy, group, resource string,
+func validateResourceInput[T any](cluster ClusterInput, input ResourceInput[T], p Policy, group, version, resource string,
 	describe func(T) (evidence.Reference, string, error),
 ) error {
 	if !slices.Contains(p.ApprovedContracts, input.AdapterContract) {
@@ -33,7 +44,7 @@ func validateResourceInput[T any](cluster ClusterInput, input ResourceInput[T], 
 	read, subject := input.Collection, cluster.Subject
 	scope := read.Scope
 	if read.Validate() != nil || scope.Origin != subject.Origin || scope.Namespace != subject.Namespace ||
-		scope.Group != group || scope.Version != "v1" || scope.Resource != resource || scope.Action != evidence.ReadList ||
+		scope.Group != group || scope.Version != version || scope.Resource != resource || scope.Action != evidence.ReadList ||
 		read.Items < len(input.Observations) || read.Outcome == evidence.CollectionComplete &&
 		(input.Observations == nil || read.Items != len(input.Observations)) ||
 		!read.Interval.CompletedAt.IsZero() && read.Interval.CompletedAt.After(p.ReferenceTime) {
@@ -47,10 +58,15 @@ func validateResourceInput[T any](cluster ClusterInput, input ResourceInput[T], 
 		}
 	}
 	seenUID, seenName := map[string]bool{}, map[string]bool{}
+	apiVersion := version
+	if group != "" {
+		apiVersion = group + "/" + version
+	}
 	for _, value := range input.Observations {
 		ref, contract, err := describe(value)
 		id := ref.Identity
-		if err != nil || contract != input.AdapterContract || id.Origin != scope.Origin || id.Namespace != scope.Namespace ||
+		if err != nil || contract != input.AdapterContract || ref.APIVersion != apiVersion ||
+			id.Origin != scope.Origin || id.Namespace != scope.Namespace ||
 			id.Group != group || seenUID[id.UID] || seenName[id.Name] ||
 			read.Outcome == evidence.CollectionComplete && !read.Interval.Contains(*ref.CollectedAt.Value) {
 			return ErrInvalidCapture
