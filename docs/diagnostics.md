@@ -8,7 +8,7 @@ Consumers own severity mapping, rendering, first-seen times, history, and proces
 
 ## Rules
 
-Rule set `8` implements the rules below. `SupportedRules` returns them. Selecting an unknown ID returns `ErrUnknownRule`.
+Rule set `9` implements the rules below. `SupportedRules` returns them. Selecting an unknown ID returns `ErrUnknownRule`.
 Selecting a reserved ID returns `ErrUnavailableRule`. Changing a rule's semantics or the executable inventory requires a
 new rule-set version, and `Analyze` rejects every other version.
 
@@ -211,20 +211,28 @@ or broadens a selector.
 `KBAO-RESTORE-001` needs the cluster's contract in `RestoreUIDBindingContracts`, verified target verification, and a
 UID-confirmed request. It evaluates every confirmed request; display selection is separate.
 
+A uniquely held request with phase and execution stage `Unknown` is informational during confirmed disposable retention. This requires complete,
+unfiltered reads, a UID-confirmed target, reported lifecycle `Disposable`, a positive retention period, terminal result
+`Succeeded`, and a valid reported application time. The analysis reference time must precede the application time plus
+retention. Cleanup must be absent or `Pending`; a managed restart or administrator disposition prevents this exception.
+Failed, invalid, missing, conflicting, or expired evidence keeps the conservative recovery finding. This exception
+reports the operator's application and retention record; it does not establish end-to-end recovery.
+
 A reported `openbao.org/restore-hold` matches a request UID, or the request's recorded operation ID, only after UID
 confirmation. More than one matching request makes the hold ambiguous and coverage insufficient. No request is chosen by
 age or order.
 
 | Condition | Severity |
 | --- | --- |
-| The held request reports phase `Unknown` or `Failed`, stage `Unknown`, or cleanup `Failed` | `error` |
+| The held request reports confirmed disposable retention within its configured period | `info` |
+| Another held request reports phase `Unknown` or `Failed`, stage `Unknown`, failed execution receipt, or cleanup `Failed` | `error` |
 | An unheld request reports the same, and `ReportHistoricalRestores` is `true` | `warning` |
 | The request reports phase `Pending`, `Validating`, or `Running` | `info` |
 
 The subject is the request. A missing or malformed phase is insufficient and is never inferred from age. Submission
 claims, applied targets, dispositions, and restart completion do not stand in for a phase. Producer times are checked
 against the request's own read time. A restore selector, an unmatched hold, or a denied read leaves coverage
-insufficient. `Completed` and empty findings do not prove end-to-end recovery.
+insufficient. A reported failed execution receipt remains adverse even when the phase says `Completed`. `Completed` and empty findings do not prove end-to-end recovery.
 
 ## Example
 

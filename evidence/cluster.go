@@ -2,7 +2,7 @@ package evidence
 
 import "strings"
 
-const SchemaVersion = "4"
+const SchemaVersion = "5"
 
 type ConditionStatus string
 

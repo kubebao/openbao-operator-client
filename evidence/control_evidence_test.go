@@ -67,10 +67,10 @@ func TestClusterDeletionTimestampValidation(t *testing.T) {
 
 func TestClusterControlEvidenceRejectsOlderSchemas(t *testing.T) {
 	t.Parallel()
-	if evidence.SchemaVersion != "4" {
-		t.Fatal("control evidence needs schema 4")
+	if evidence.SchemaVersion != "5" {
+		t.Fatal("control evidence needs schema 5")
 	}
-	for _, version := range []string{"", "1", "2", "3", "future"} {
+	for _, version := range []string{"", "1", "2", "3", "4", "future"} {
 		cluster := controlClusterFixture(t)
 		cluster.SchemaVersion = version
 		if err := cluster.Validate(); !errors.Is(err, evidence.ErrInvalidEvidence) {

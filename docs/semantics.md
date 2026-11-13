@@ -9,9 +9,9 @@ These versions change independently:
 
 | Version | Current value | Changes when |
 | --- | --- | --- |
-| Evidence schema (`evidence.SchemaVersion`) | `4` | Normalized record shapes change. Validation rejects other versions. |
+| Evidence schema (`evidence.SchemaVersion`) | `5` | Normalized record shapes change. Validation rejects other versions. |
 | Adapter contract (`adapter.Contract`) | See [projection contracts](#projection-contracts) | Approved fields or omission rules change. |
-| Rule set (`diagnose.RuleSetVersion`) | `8` | Rule semantics or the executable rule inventory change. |
+| Rule set (`diagnose.RuleSetVersion`) | `9` | Rule semantics or the executable rule inventory change. |
 | Report layout (`diagnose.Report.SchemaVersion`) | `1` | The report shape changes. |
 
 ## Value states
@@ -48,10 +48,10 @@ version alone never selects one.
 
 | Contract | Kinds | Omission rules |
 | --- | --- | --- |
-| `openbao.org/v1alpha1@9671c306/maintenance-pools-v1` (`V1Alpha1Snapshot`) | `OpenBaoCluster`, `OpenBaoRestore` | Yes; also declares restore UID binding |
-| `openbao.org/v1alpha1/unqualified-v3` (`V1Alpha1Unqualified`) | `OpenBaoCluster`, `OpenBaoRestore` | None |
-| `kubebao.org/v1alpha1@22894cdc/maintenance-pools-v1` (`KubeBaoV1Alpha1Snapshot`) | `OpenBaoCluster`, `OpenBaoRestore` | Yes; also declares restore UID binding |
-| `kubebao.org/v1alpha1/unqualified-v1` (`KubeBaoV1Alpha1Unqualified`) | `OpenBaoCluster`, `OpenBaoRestore` | None |
+| `openbao.org/v1alpha1@9671c306/restore-retention-v1` (`V1Alpha1Snapshot`) | `OpenBaoCluster`, `OpenBaoRestore` | Yes; also declares restore UID binding |
+| `openbao.org/v1alpha1/unqualified-v4` (`V1Alpha1Unqualified`) | `OpenBaoCluster`, `OpenBaoRestore` | None |
+| `kubebao.org/v1alpha1@22894cdc/restore-retention-v1` (`KubeBaoV1Alpha1Snapshot`) | `OpenBaoCluster`, `OpenBaoRestore` | Yes; also declares restore UID binding |
+| `kubebao.org/v1alpha1/unqualified-v2` (`KubeBaoV1Alpha1Unqualified`) | `OpenBaoCluster`, `OpenBaoRestore` | None |
 | `kubernetes/apps/v1@v0.37.2/workload-pools-v1` (`KubernetesAppsV1`) | `StatefulSet` | Yes |
 | `kubernetes/core/v1@v0.37.2/workload-pools-v1` (`KubernetesCoreV1`) | `Pod` | None |
 
@@ -68,7 +68,7 @@ legacy object and a native object are the same target. Restore association requi
 API groups; names and migration metadata cannot join resources across groups.
 
 The operator contract includes `metadata.deletionTimestamp` on clusters. An omitted timestamp remains `unknown`;
-reported and invalid timestamps prevent control preparation. Serialized evidence must use schema `4` and the current
+reported and invalid timestamps prevent control preparation. Serialized evidence must use schema `5` and the current
 contract identifiers. Validation rejects earlier schemas; collect a new capture instead of relabeling stored evidence.
 
 ### Workload pools and revisions
@@ -136,6 +136,13 @@ or `resource_mismatch`. Errors never contain parser messages, source values, or 
   field level. Conditions are sorted by type.
 - An absent or null annotation map has no keys. A malformed map, or a null value for a present key, is invalid.
 - Malformed ancestors invalidate their children. Independent valid fields are kept.
+
+### Restore retention evidence
+
+`ProjectRestore` retains reported `spec.targetLifecycle`, `spec.cleanupAfterSeconds`, and
+`status.execution.terminalResult`. Lifecycle accepts `Retain` or `Disposable`; retention accepts integers from `0` to
+`86400`; terminal result accepts `Succeeded` or `Failed`. Missing values remain unknown. Projection does not default an
+omitted retention value or infer application, cleanup, or recovery from these fields.
 
 ### Excluded data
 

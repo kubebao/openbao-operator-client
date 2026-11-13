@@ -10,10 +10,10 @@ readiness coverage is `insufficient` with `generation_unconfirmed`. A `Failed` p
 
 | Contract | Source | Validation |
 | --- | --- | --- |
-| `openbao.org/v1alpha1@9671c306/maintenance-pools-v1` | Operator commit `9671c30623d609f948cf073e167f376de4ea9a85` | Source inspected; unit and fixture tests; local operator integration with `0.6.1` |
-| `openbao.org/v1alpha1/unqualified-v3` | Same fields, no omission rules | Unit and fixture tests |
-| `kubebao.org/v1alpha1@22894cdc/maintenance-pools-v1` | Native operator candidate `22894cdc0a4aa5c442a07f2bf9902fe28ce02ea1` | Source inspected; unit and fixture tests; local operator integration with this candidate |
-| `kubebao.org/v1alpha1/unqualified-v1` | Same native fields, no omission rules | Unit and fixture tests |
+| `openbao.org/v1alpha1@9671c306/restore-retention-v1` | Operator commit `9671c30623d609f948cf073e167f376de4ea9a85` | Source inspected; unit and fixture tests; local controls and restore observation integration with `0.6.1` |
+| `openbao.org/v1alpha1/unqualified-v4` | Same fields, no omission rules | Unit and fixture tests |
+| `kubebao.org/v1alpha1@22894cdc/restore-retention-v1` | Native operator candidate `22894cdc0a4aa5c442a07f2bf9902fe28ce02ea1` | Source inspected; unit and fixture tests; local control integration with this candidate and restore observations with edge `587dd163` |
+| `kubebao.org/v1alpha1/unqualified-v2` | Same native fields, no omission rules | Unit and fixture tests |
 | `kubernetes/apps/v1@v0.37.2/workload-pools-v1` | Kubernetes API declarations `v0.37.2`; operator workload metadata at `9671c306` | Source inspected; unit and fixture tests; local operator integration |
 | `kubernetes/core/v1@v0.37.2/workload-pools-v1` | Kubernetes API declarations `v0.37.2`; operator workload metadata at `9671c306` | Source inspected; unit and fixture tests; local operator integration |
 
@@ -38,6 +38,31 @@ Validation levels mean:
 
 Package compilation, fixtures, and API discovery do not establish compatibility with an installed operator.
 
+## Restore observations
+
+Local restore observation integration covers evidence schema `5` and rule set `9` with nonempty restore lists:
+
+- Native operator edge commit `587dd16386bc5a234520e22eec1bbedb904fa6dd`, Kubernetes `1.36.1+k3s1`, Linux/amd64, and
+  OpenBao `2.7.2` in the migrated demo. Reads cover an existing-target `Unknown` request bound to the current migrated
+  cluster UID, and a fresh single-voter disposable target. A successful executor and reported application remain
+  `Unknown` during retention; diagnosis reports informational cleanup retention only with the required evidence.
+  A short-retention request reaches `Completed` after the original target, PVC, and Job disappear. Its retained receipt
+  does not support current findings for the absent target.
+- Released legacy operator `0.6.1`, Kubernetes `1.36.1`, Linux/arm64, OpenBao `2.7.2`, and a one-voter Development fixture
+  in an isolated Kind cluster. The harness takes a real RustFS-backed snapshot, changes a sample value, restores that
+  snapshot into its original fixture, and verifies the restored value. The operator retains `Unknown` and its hold;
+  diagnosis retains the recovery concern. No automatic retry or recovery acknowledgement is performed.
+
+The observer uses public projections, complete bounded reads, UID association, and target verification. Fixture setup,
+snapshot submission, sample-data access, and cleanup belong to the test harness. Synthetic cases cover malformed or
+missing receipts, failed cleanup, ambiguous or conflicting identity, incomplete reads, and API-group isolation. They do
+not establish runtime coverage for those failure modes. Exact image, CRD, source, and command identities belong in the
+qualification pull request.
+
+Native application evidence is the operator's recorded identity, version, and health observation. The separate sample
+value check applies to the legacy fixture. This qualification does not establish HA, production recovery, application
+logins, external fencing, or general backup/restore execution APIs in the shared client.
+
 ## Cluster controls
 
 The `operations` package prepares and submits pause/resume and maintenance requests under either inspected source
@@ -47,7 +72,7 @@ and a discarded response after one accepted PATCH. A later read confirms the req
 the client does not resubmit. A wrong-UID patch test does not qualify an actual delete-and-recreate replacement.
 Server dry-run acceptance does not prove that a later request will be accepted.
 
-Evidence schema `4` and the current operator and workload contract identifiers are required. Earlier serialized captures
+Evidence schema `5` and the current operator and workload contract identifiers are required. Earlier serialized captures
 must be recollected. Consumer release pins are managed in their repositories.
 
 Maintenance propagation assessment covers one stable voter pool and a configured read-replica pool, including a
