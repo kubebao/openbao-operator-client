@@ -24,7 +24,7 @@ func restoreInput(t testing.TB) diagnose.ClusterInput {
 	later := at.Add(time.Second)
 	ref.CollectedAt = timestamp(later)
 	i.Verification = &evidence.TargetVerification{
-		SchemaVersion: evidence.SchemaVersion, AdapterContract: i.AdapterContract, Before: i.Observation.Reference,
+		Before:           i.Observation.Reference,
 		BeforeGeneration: i.Observation.Generation, After: &ref, AfterGeneration: i.Observation.Generation,
 		State: evidence.VerificationVerified, Read: evidence.Collection{
 			Scope: i.Collection.Scope, Outcome: evidence.CollectionComplete, Items: 1,
@@ -34,7 +34,7 @@ func restoreInput(t testing.TB) diagnose.ClusterInput {
 	read := i.Collection
 	read.Scope.Name, read.Scope.Resource, read.Scope.Action = "", "openbaorestores", evidence.ReadList
 	i.Restores = &diagnose.ResourceInput[evidence.Restore]{
-		AdapterContract: i.AdapterContract, Collection: read, Observations: []evidence.Restore{request},
+		Collection: read, Observations: []evidence.Restore{request},
 	}
 	return i
 }
@@ -44,7 +44,6 @@ func restorePolicy(t testing.TB) diagnose.Policy {
 	i := restoreInput(t)
 	p := policy(t)
 	p.ReferenceTime = i.Verification.Read.Interval.CompletedAt
-	p.RestoreUIDBindingContracts = []string{i.AdapterContract}
 	p.Rules = []diagnose.RuleID{diagnose.RuleRestore}
 	return p
 }
@@ -134,19 +133,15 @@ func TestRestoreHoldNeverProvesUIDOwnership(t *testing.T) {
 	}
 }
 
-func TestRestoreUIDBindingCapabilityIsSeparateFromProjection(t *testing.T) {
+func TestRestoreUnconfirmedBindingsRemainInsufficient(t *testing.T) {
 	t.Parallel()
 	i, p := restoreInput(t), restorePolicy(t)
-	p.RestoreUIDBindingContracts = nil
+	i.Observation.RestoreOrigin = evidence.Text{State: evidence.ValueUnknown}
+	i.Restores.Observations[0].Target.UID = evidence.Text{State: evidence.ValueUnknown}
+	i.Restores.Observations[0].Execution.TargetUID = evidence.Text{State: evidence.ValueUnknown}
 	report, coverage := runRestore(t, i, p)
 	if coverage.State != diagnose.Insufficient || coverage.Reason != diagnose.ReasonAssociation || len(report.Findings) != 0 {
-		t.Fatal("approved field projection silently qualified UID-binding semantics")
-	}
-	for _, bindings := range [][]string{{"unapproved"}, {i.AdapterContract, i.AdapterContract}} {
-		p.RestoreUIDBindingContracts = bindings
-		if _, err := diagnose.Analyze(capture(i), p); !errors.Is(err, diagnose.ErrInvalidPolicy) {
-			t.Fatal("invalid binding policy was accepted")
-		}
+		t.Fatal("missing UID bindings confirmed restore ownership")
 	}
 }
 
@@ -282,7 +277,10 @@ func TestRestoreInputRejectsMismatchedVersionsAndSubjects(t *testing.T) {
 		{"version", func(i *diagnose.ClusterInput, _ *diagnose.Policy) {
 			i.Restores.Observations[0].Reference.APIVersion = "openbao.org/v1alpha2"
 		}, diagnose.ErrInvalidCapture},
-		{"old-policy", func(_ *diagnose.ClusterInput, p *diagnose.Policy) { p.RuleSetVersion = "4" }, diagnose.ErrUnsupportedVersion},
+		{
+			"invalid-reference-time", func(_ *diagnose.ClusterInput, p *diagnose.Policy) { p.ReferenceTime = time.Time{} },
+			diagnose.ErrInvalidPolicy,
+		},
 		{"subject-budget", func(_ *diagnose.ClusterInput, p *diagnose.Policy) { p.MaxSubjects = 1 }, diagnose.ErrInvalidCapture},
 		{"duplicate-request", func(i *diagnose.ClusterInput, _ *diagnose.Policy) {
 			i.Restores.Observations = append(i.Restores.Observations, i.Restores.Observations[0])

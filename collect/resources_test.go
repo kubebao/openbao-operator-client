@@ -25,7 +25,7 @@ func request() collect.Request {
 			Origin: "origin-1", Group: "openbao.org", Version: "v1alpha1", Resource: "openbaoclusters",
 			Namespace: "team", Action: evidence.ReadList, Selector: "app.kubernetes.io/managed-by=openbao-operator",
 		},
-		Contract: adapter.V1Alpha1Snapshot, Limits: collect.DefaultLimits(), Projection: adapter.DefaultProjectionLimits(),
+		Contract: adapter.OpenBaoV1Alpha1, Limits: collect.DefaultLimits(), Projection: adapter.DefaultProjectionLimits(),
 	}
 }
 
@@ -400,7 +400,7 @@ func TestApprovedResourcePathsAndExplicitAllNamespaces(t *testing.T) {
 			},
 		},
 		{
-			"OpenBaoRestore", "openbao.org", "v1alpha1", "openbaorestores", adapter.V1Alpha1Snapshot,
+			"OpenBaoRestore", "openbao.org", "v1alpha1", "openbaorestores", adapter.OpenBaoV1Alpha1,
 			func(c *collect.Client, r collect.Request) (evidence.Collection, error) {
 				result, err := c.Restores(context.Background(), r)
 				return result.Collection, err

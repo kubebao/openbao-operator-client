@@ -285,12 +285,12 @@ func TestControllerErrorsRemainHistoricalAndSubjectSpecific(t *testing.T) {
 	}
 }
 
-func TestRuleSetExpansionRejectsOldPolicyVersion(t *testing.T) {
+func TestCurrentRuleInventoryRejectsUnknownRules(t *testing.T) {
 	t.Parallel()
 	p := policy(t)
-	p.RuleSetVersion = "1"
-	if _, err := diagnose.Analyze(capture(input(t)), p); !errors.Is(err, diagnose.ErrUnsupportedVersion) {
-		t.Fatal("old rule set silently selected new rules")
+	p.Rules = append(p.Rules, diagnose.RuleID("KBAO-UNKNOWN-001"))
+	if _, err := diagnose.Analyze(capture(input(t)), p); !errors.Is(err, diagnose.ErrUnknownRule) {
+		t.Fatal("unknown rule accepted")
 	}
 	if len(diagnose.SupportedRules()) != 15 {
 		t.Fatal("unexpected executable inventory")

@@ -149,8 +149,6 @@ func (v WorkloadMetadata) Validate() error {
 // StatefulSet retains selector and template grouping labels as separate facts.
 // Consumers check their agreement only after confirming the cluster UID association.
 type StatefulSet struct {
-	SchemaVersion      string           `json:"schemaVersion"`
-	AdapterContract    string           `json:"adapterContract"`
 	Metadata           WorkloadMetadata `json:"metadata"`
 	Generation         Integer          `json:"generation"`
 	ObservedGeneration Integer          `json:"observedGeneration"`
@@ -167,12 +165,6 @@ func (v StatefulSet) Acknowledgement() GenerationState {
 }
 
 func (v StatefulSet) Validate() error {
-	if v.SchemaVersion != SchemaVersion {
-		return At("schemaVersion", ErrInvalidEvidence)
-	}
-	if !validText(v.AdapterContract, 253, false) {
-		return At("adapterContract", ErrInvalidEvidence)
-	}
 	if err := checkFields(fieldCheck{"metadata", v.Metadata.Validate()}, fieldCheck{"generation", v.Generation.Validate()},
 		fieldCheck{"observedGeneration", v.ObservedGeneration.Validate()}, fieldCheck{"desiredReplicas", validateCount(v.DesiredReplicas)},
 		fieldCheck{"readyReplicas", validateReadyCount(v.ReadyReplicas)},
@@ -259,23 +251,15 @@ func (v Containers) Validate() error {
 }
 
 type Pod struct {
-	SchemaVersion   string           `json:"schemaVersion"`
-	AdapterContract string           `json:"adapterContract"`
-	Metadata        WorkloadMetadata `json:"metadata"`
-	Generation      Integer          `json:"generation"`
-	Phase           Text             `json:"phase"`
-	Conditions      Conditions       `json:"conditions"`
-	InitContainers  Containers       `json:"initContainers"`
-	Containers      Containers       `json:"containers"`
+	Metadata       WorkloadMetadata `json:"metadata"`
+	Generation     Integer          `json:"generation"`
+	Phase          Text             `json:"phase"`
+	Conditions     Conditions       `json:"conditions"`
+	InitContainers Containers       `json:"initContainers"`
+	Containers     Containers       `json:"containers"`
 }
 
 func (v Pod) Validate() error {
-	if v.SchemaVersion != SchemaVersion {
-		return At("schemaVersion", ErrInvalidEvidence)
-	}
-	if !validText(v.AdapterContract, 253, false) {
-		return At("adapterContract", ErrInvalidEvidence)
-	}
 	if err := checkFields(fieldCheck{"metadata", v.Metadata.Validate()}, fieldCheck{"generation", v.Generation.Validate()},
 		fieldCheck{"phase", v.Phase.Validate()}, fieldCheck{"conditions", v.Conditions.Validate()},
 		fieldCheck{"initContainers", v.InitContainers.Validate()}, fieldCheck{"containers", v.Containers.Validate()}); err != nil {

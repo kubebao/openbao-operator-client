@@ -15,11 +15,9 @@ func ProjectRestore(raw []byte, options ProjectionOptions) (evidence.Restore, er
 	_, claimState := objectAt(object, "status", "submissionClaim")
 	restart, restartState := objectAt(object, "status", "restart")
 	result := evidence.Restore{
-		SchemaVersion:   evidence.SchemaVersion,
-		AdapterContract: string(options.Contract),
-		Reference:       ref,
-		Generation:      integer(object, "metadata", "generation"),
-		CreatedAt:       timestamp(object, "metadata", "creationTimestamp"),
+		Reference:  ref,
+		Generation: integer(object, "metadata", "generation"),
+		CreatedAt:  timestamp(object, "metadata", "creationTimestamp"),
 		TargetName: text(
 			object,
 			true,
@@ -56,6 +54,10 @@ func ProjectRestore(raw []byte, options ProjectionOptions) (evidence.Restore, er
 		Restart:            restartState,
 		RestartCompletedAt: timestamp(restart, "completedAt"),
 		Conditions:         projectConditions(object, options.Limits.MaxConditions, "status", "conditions"),
+	}
+	if !inspectedOperatorContract(options.Contract) {
+		result.Target.UID = evidence.Text{State: evidence.ValueUnknown}
+		result.Execution.TargetUID = evidence.Text{State: evidence.ValueUnknown}
 	}
 	if result.Validate() != nil {
 		return evidence.Restore{}, &ProjectionError{Code: InvalidInput}

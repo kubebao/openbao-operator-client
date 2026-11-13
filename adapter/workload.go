@@ -95,7 +95,6 @@ func ProjectStatefulSet(raw []byte, options ProjectionOptions) (evidence.Statefu
 		return evidence.StatefulSet{}, err
 	}
 	result := evidence.StatefulSet{
-		SchemaVersion: evidence.SchemaVersion, AdapterContract: string(options.Contract),
 		Metadata: projectWorkloadMetadata(root, ref, options.Limits.MaxEntries), Generation: integer(root, "metadata", "generation"),
 		ObservedGeneration: integer(root, "status", "observedGeneration"), DesiredReplicas: count(root, "spec", "replicas"),
 		ReadyReplicas:    count(root, "status", "readyReplicas"),
@@ -168,7 +167,6 @@ func ProjectPod(raw []byte, options ProjectionOptions) (evidence.Pod, error) {
 		return evidence.Pod{}, err
 	}
 	result := evidence.Pod{
-		SchemaVersion: evidence.SchemaVersion, AdapterContract: string(options.Contract),
 		Metadata: projectWorkloadMetadata(root, ref, options.Limits.MaxEntries), Generation: integer(root, "metadata", "generation"),
 		Phase:          enumText(root, []string{"Pending", "Running", "Succeeded", "Failed", "Unknown"}, "status", "phase"),
 		Conditions:     projectConditions(root, options.Limits.MaxConditions, "status", "conditions"),

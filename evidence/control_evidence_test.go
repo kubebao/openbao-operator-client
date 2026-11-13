@@ -20,7 +20,6 @@ func controlClusterFixture(t *testing.T) evidence.Cluster {
 	if err := json.Unmarshal(raw, &cluster); err != nil {
 		t.Fatal(err)
 	}
-	cluster.SchemaVersion = evidence.SchemaVersion
 	cluster.DeletionTimestamp = evidence.Timestamp{State: evidence.ValueUnknown}
 	if err := cluster.Validate(); err != nil {
 		t.Fatal(err)
@@ -65,16 +64,11 @@ func TestClusterDeletionTimestampValidation(t *testing.T) {
 	}
 }
 
-func TestClusterControlEvidenceRejectsOlderSchemas(t *testing.T) {
+func TestClusterControlEvidenceRetainsRequiredValueStates(t *testing.T) {
 	t.Parallel()
-	if evidence.SchemaVersion != "5" {
-		t.Fatal("control evidence needs schema 5")
-	}
-	for _, version := range []string{"", "1", "2", "3", "4", "future"} {
-		cluster := controlClusterFixture(t)
-		cluster.SchemaVersion = version
-		if err := cluster.Validate(); !errors.Is(err, evidence.ErrInvalidEvidence) {
-			t.Fatalf("schema %q validation = %v", version, err)
-		}
+	cluster := controlClusterFixture(t)
+	cluster.Paused = evidence.Boolean{}
+	if err := cluster.Validate(); !errors.Is(err, evidence.ErrInvalidEvidence) {
+		t.Fatal("zero value state accepted")
 	}
 }

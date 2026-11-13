@@ -29,13 +29,10 @@ type observation struct {
 }
 
 type capture struct {
-	EvidenceVersion string        `json:"evidenceVersion"`
-	AdapterContract string        `json:"adapterContract"`
-	Observations    []observation `json:"observations"`
+	Observations []observation `json:"observations"`
 }
 
 type evaluationPolicy struct {
-	RuleVersion  string   `json:"ruleVersion"`
 	Rules        []string `json:"rules"`
 	Reference    string   `json:"reference"`
 	BackupAge    int      `json:"backupAge"`
@@ -66,28 +63,18 @@ func replay(data []byte, policy evaluationPolicy) (analysis, error) {
 	if err := decoder.Decode(new(any)); err != io.EOF {
 		return result, errors.New("trailing capture content")
 	}
-	if input.AdapterContract != adapterContract {
-		return result, diagnose.ErrUnsupportedVersion
-	}
 	reference, err := time.Parse(time.RFC3339Nano, policy.Reference)
 	if err != nil {
 		return result, diagnose.ErrInvalidPolicy
 	}
-	actualPolicy := diagnose.DefaultPolicy(reference, []string{adapterContract})
-	actualPolicy.RuleSetVersion = policy.RuleVersion
-	if policy.RuleVersion == "1" {
-		actualPolicy.RuleSetVersion = diagnose.RuleSetVersion
-	}
+	actualPolicy := diagnose.DefaultPolicy(reference)
 	actualPolicy.Rules = []diagnose.RuleID{}
 	for _, rule := range policy.Rules {
 		actualPolicy.Rules = append(actualPolicy.Rules, diagnose.RuleID(rule))
 	}
 	actualPolicy.MaxBackupAge = time.Duration(policy.BackupAge) * time.Second
 	actualPolicy.StartupGrace = time.Duration(policy.StartupGrace) * time.Second
-	actual := diagnose.Capture{SchemaVersion: evidence.SchemaVersion, Clusters: []diagnose.ClusterInput{}}
-	if input.EvidenceVersion != "1" {
-		actual.SchemaVersion = input.EvidenceVersion
-	}
+	actual := diagnose.Capture{Clusters: []diagnose.ClusterInput{}}
 	collected := time.Date(2026, 11, 10, 10, 0, 0, 0, time.UTC)
 	for _, o := range input.Observations {
 		spec := map[string]any{"replicas": o.Desired, "paused": o.Paused}
@@ -111,7 +98,7 @@ func replay(data []byte, policy evaluationPolicy) (analysis, error) {
 		if err != nil {
 			return result, err
 		}
-		options := fixtureOptions(o.Identity.Origin, adapter.V1Alpha1Snapshot)
+		options := fixtureOptions(o.Identity.Origin, adapter.OpenBaoV1Alpha1)
 		options.CollectedAt = collected
 		cluster, err := adapter.ProjectCluster(raw, options)
 		if err != nil {
@@ -122,7 +109,7 @@ func replay(data []byte, policy evaluationPolicy) (analysis, error) {
 			Namespace: o.Identity.Namespace, Name: o.Identity.Name, Action: evidence.ReadGet,
 		}
 		actual.Clusters = append(actual.Clusters, diagnose.ClusterInput{
-			Subject: evidence.Identity(o.Identity), AdapterContract: adapterContract,
+			Subject:     evidence.Identity(o.Identity),
 			Observation: &cluster, Collection: evidence.Collection{
 				Scope: scope, Outcome: evidence.CollectionComplete, Items: 1,
 				Interval: evidence.Interval{StartedAt: collected, CompletedAt: collected},
@@ -169,9 +156,8 @@ func TestSerializedReplay(t *testing.T) {
 			got, err := replay(data, tc.Policy)
 			if tc.Error != "" {
 				expected := map[string]error{
-					"unsupported contract version": diagnose.ErrUnsupportedVersion,
-					"unknown rule":                 diagnose.ErrUnknownRule,
-					"duplicate subject":            diagnose.ErrDuplicateSubject,
+					"unknown rule":      diagnose.ErrUnknownRule,
+					"duplicate subject": diagnose.ErrDuplicateSubject,
 				}[tc.Error]
 				if err == nil || expected != nil && !errors.Is(err, expected) ||
 					expected == nil && !strings.Contains(err.Error(), tc.Error) {
@@ -208,14 +194,14 @@ func TestSerializedReplay(t *testing.T) {
 
 func TestReplayProcessBoundary(t *testing.T) {
 	t.Parallel()
-	policy := evaluationPolicy{RuleVersion: "1", Reference: "2026-11-10T10:00:00Z", BackupAge: 3600}
+	policy := evaluationPolicy{Reference: "2026-11-10T10:00:00Z", BackupAge: 3600}
 	for _, field := range []string{"exitCode", "resultCode", "failureThreshold"} {
-		data := []byte(`{"evidenceVersion":"1","adapterContract":"` + adapterContract + `","` + field + `":1}`)
+		data := []byte(`{"` + field + `":1}`)
 		if _, err := replay(data, policy); err == nil || !strings.Contains(err.Error(), "unknown field") {
 			t.Fatalf("process field %s accepted: %v", field, err)
 		}
 	}
-	data := []byte(`{"evidenceVersion":"1","adapterContract":"` + adapterContract + `"}`)
+	data := []byte(`{}`)
 	if _, err := replay(append(data, []byte(`{}`)...), policy); err == nil {
 		t.Fatal("trailing capture accepted")
 	}

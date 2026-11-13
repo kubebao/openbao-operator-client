@@ -2,8 +2,6 @@ package evidence
 
 import "strings"
 
-const SchemaVersion = "5"
-
 type ConditionStatus string
 
 const (
@@ -66,11 +64,8 @@ func (c Conditions) Validate() error {
 }
 
 // Cluster contains approved facts projected from one OpenBaoCluster read.
-// AdapterContract names projection semantics, not operator integration qualification.
 // Health, history, process results, and provider messages are not part of this value.
 type Cluster struct {
-	SchemaVersion      string          `json:"schemaVersion"`
-	AdapterContract    string          `json:"adapterContract"`
 	Reference          Reference       `json:"reference"`
 	CreatedAt          Timestamp       `json:"createdAt"`
 	DeletionTimestamp  Timestamp       `json:"deletionTimestamp"`
@@ -104,12 +99,6 @@ func (c Cluster) Acknowledgement() GenerationState {
 // Validate checks the normalized value, including after serialized replay.
 // It does not select an adapter or establish producer freshness.
 func (c Cluster) Validate() error {
-	if c.SchemaVersion != SchemaVersion {
-		return At("schemaVersion", ErrInvalidEvidence)
-	}
-	if !validText(c.AdapterContract, 253, false) {
-		return At("adapterContract", ErrInvalidEvidence)
-	}
 	if err := checkFields(
 		fieldCheck{"reference", c.Reference.Validate()}, fieldCheck{"createdAt", c.CreatedAt.Validate()},
 		fieldCheck{"deletionTimestamp", c.DeletionTimestamp.Validate()},

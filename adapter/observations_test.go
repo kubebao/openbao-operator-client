@@ -240,7 +240,7 @@ func TestNativeRecoveryIsNotAnApprovedAPI(t *testing.T) {
 	assertProjectionError(t, err, adapter.ResourceMismatch)
 }
 
-func TestEvidenceSchemaVersionChangesWithOperationalShape(t *testing.T) {
+func TestEvidenceSerializationContainsCurrentFieldsWithoutVersionGates(t *testing.T) {
 	t.Parallel()
 	cluster, err := adapter.ProjectCluster(operationalFixture(t), projectionOptions())
 	if err != nil {
@@ -250,13 +250,21 @@ func TestEvidenceSchemaVersionChangesWithOperationalShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cluster.SchemaVersion != "5" || restore.SchemaVersion != "5" {
-		t.Fatal("operational records did not declare the schema change")
+	for _, value := range []any{cluster, restore} {
+		raw, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, removed := range []string{"schemaVersion", "adapterContract", "restore-retention-v"} {
+			if bytes.Contains(raw, []byte(removed)) {
+				t.Fatalf("serialized evidence retained %s", removed)
+			}
+		}
 	}
-	cluster.SchemaVersion = "1"
-	restore.SchemaVersion = "1"
+	cluster.Paused = evidence.Boolean{}
+	restore.Target.UID = evidence.Text{}
 	if cluster.Validate() == nil || restore.Validate() == nil {
-		t.Fatal("old schema version accepted the new observation shape")
+		t.Fatal("required value states bypassed typed validation")
 	}
 }
 

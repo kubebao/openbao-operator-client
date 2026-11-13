@@ -8,10 +8,9 @@ import (
 )
 
 type Report struct {
-	SchemaVersion string     `json:"schemaVersion"`
-	Policy        Policy     `json:"policy"`
-	Findings      []Finding  `json:"findings"`
-	Coverage      []Coverage `json:"coverage"`
+	Policy   Policy     `json:"policy"`
+	Findings []Finding  `json:"findings"`
+	Coverage []Coverage `json:"coverage"`
 }
 
 type evaluation struct {
@@ -27,9 +26,6 @@ func Analyze(capture Capture, policy Policy) (Report, error) {
 	result := Report{Findings: []Finding{}, Coverage: []Coverage{}}
 	if err := policy.validate(); err != nil {
 		return result, evidence.At("policy", err)
-	}
-	if capture.SchemaVersion != evidence.SchemaVersion {
-		return result, evidence.At("schemaVersion", ErrUnsupportedVersion)
 	}
 	count := len(capture.Clusters)
 	for _, input := range capture.Clusters {
@@ -56,7 +52,7 @@ func Analyze(capture Capture, policy Policy) (Report, error) {
 		}
 		seen[input.Subject] = true
 	}
-	result.SchemaVersion, result.Policy = "1", canonicalPolicy(policy)
+	result.Policy = canonicalPolicy(policy)
 	for _, input := range capture.Clusters {
 		for _, rule := range SupportedRules() {
 			coverage, findings := evaluate(input, rule, policy)
@@ -80,11 +76,7 @@ func Analyze(capture Capture, policy Policy) (Report, error) {
 
 func canonicalPolicy(policy Policy) Policy {
 	policy.Rules = append([]RuleID{}, policy.Rules...)
-	policy.ApprovedContracts = append([]string{}, policy.ApprovedContracts...)
-	policy.RestoreUIDBindingContracts = append([]string{}, policy.RestoreUIDBindingContracts...)
 	slices.Sort(policy.Rules)
-	slices.Sort(policy.ApprovedContracts)
-	slices.Sort(policy.RestoreUIDBindingContracts)
 	policy.ReferenceTime = policy.ReferenceTime.UTC()
 	return policy
 }

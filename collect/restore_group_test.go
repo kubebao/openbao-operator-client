@@ -58,7 +58,7 @@ func assertNonemptyRestoreAssociations(t *testing.T, target evidence.Cluster, as
 
 func TestNonemptyRestoreCollectionKeepsUIDAssociationsAndDeclaredGroup(t *testing.T) {
 	t.Parallel()
-	for _, contract := range []adapter.Contract{adapter.KubeBaoV1Alpha1Snapshot, adapter.V1Alpha1Snapshot} {
+	for _, contract := range []adapter.Contract{adapter.KubeBaoV1Alpha1, adapter.OpenBaoV1Alpha1} {
 		t.Run(string(contract), func(t *testing.T) {
 			info, err := adapter.Describe(contract)
 			if err != nil {
@@ -118,7 +118,7 @@ func TestNonemptyRestoreCollectionKeepsUIDAssociationsAndDeclaredGroup(t *testin
 
 func TestNonemptyRestoreCollectionRejectsAnotherGroupWithoutFallback(t *testing.T) {
 	t.Parallel()
-	for _, contract := range []adapter.Contract{adapter.KubeBaoV1Alpha1Snapshot, adapter.V1Alpha1Snapshot} {
+	for _, contract := range []adapter.Contract{adapter.KubeBaoV1Alpha1, adapter.OpenBaoV1Alpha1} {
 		t.Run(string(contract), func(t *testing.T) {
 			info, err := adapter.Describe(contract)
 			if err != nil {

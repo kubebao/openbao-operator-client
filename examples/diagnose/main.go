@@ -16,14 +16,14 @@ func main() {
 		`"spec":{"replicas":3,"paused":false,"backup":{}},` +
 		`"status":{"observedGeneration":4,"readyReplicas":0,"backup":{"consecutiveFailures":0,"lastBackupTime":"2026-11-09T09:00:00Z"}}}`)
 	cluster, err := adapter.ProjectCluster(raw, adapter.ProjectionOptions{
-		Origin: "cluster-a", Contract: adapter.V1Alpha1Snapshot,
+		Origin: "cluster-a", Contract: adapter.OpenBaoV1Alpha1,
 		CollectedAt: reference, Limits: adapter.DefaultProjectionLimits(),
 	})
 	if err != nil {
 		panic(err)
 	}
 	input := diagnose.ClusterInput{
-		Subject: cluster.Reference.Identity, AdapterContract: cluster.AdapterContract, Observation: &cluster,
+		Subject: cluster.Reference.Identity, Observation: &cluster,
 		Collection: evidence.Collection{
 			Scope: evidence.Scope{
 				Origin: "cluster-a", Group: "openbao.org", Version: "v1alpha1",
@@ -32,8 +32,8 @@ func main() {
 			Outcome: evidence.CollectionComplete, Items: 1, Interval: evidence.Interval{StartedAt: reference, CompletedAt: reference},
 		},
 	}
-	report, err := diagnose.Analyze(diagnose.Capture{SchemaVersion: evidence.SchemaVersion, Clusters: []diagnose.ClusterInput{input}},
-		diagnose.DefaultPolicy(reference, []string{string(adapter.V1Alpha1Snapshot)}))
+	report, err := diagnose.Analyze(diagnose.Capture{Clusters: []diagnose.ClusterInput{input}},
+		diagnose.DefaultPolicy(reference))
 	if err != nil {
 		panic(err)
 	}

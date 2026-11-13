@@ -176,7 +176,7 @@ func collectTranscript(t *testing.T, pages []page, limit limits, before, after s
 			Origin: "origin-1", Group: "openbao.org", Version: "v1alpha1", Resource: "openbaorestores",
 			Namespace: "team", Action: evidence.ReadList,
 		},
-		Contract: adapter.V1Alpha1Snapshot, Limits: clientcollect.DefaultLimits(), Projection: adapter.DefaultProjectionLimits(),
+		Contract: adapter.OpenBaoV1Alpha1, Limits: clientcollect.DefaultLimits(), Projection: adapter.DefaultProjectionLimits(),
 	}
 	related.Limits.MaxPages, related.Limits.MaxCandidates = limit.Pages, limit.Candidates
 	related.Limits.PageSize = min(100, limit.Candidates)

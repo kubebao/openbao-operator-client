@@ -1,10 +1,9 @@
 package evidence
 
-// AssociateRestore compares normalized UID bindings under a selected source contract. A hold's
-// operation ID and request age never prove target ownership. All supplied identity
-// fields are checked before choosing a confirmation basis. The caller must select
-// a bindingContract that defines these UID fields; discovery alone is insufficient.
-func AssociateRestore(target Cluster, request Restore, bindingContract string) (Association, error) {
+// AssociateRestore compares normalized UID bindings for supported operator APIs.
+// A hold's operation ID and request age never prove target ownership. All supplied
+// identity fields are checked before choosing a confirmation basis.
+func AssociateRestore(target Cluster, request Restore) (Association, error) {
 	if target.Validate() != nil || request.Validate() != nil {
 		return Association{}, ErrInvalidEvidence
 	}
@@ -14,7 +13,8 @@ func AssociateRestore(target Cluster, request Restore, bindingContract string) (
 		result.State = AssociationForeign
 		return result, nil
 	}
-	if bindingContract == "" || target.AdapterContract != bindingContract || request.AdapterContract != bindingContract ||
+	if (owner.Group != "openbao.org" && owner.Group != "kubebao.org") ||
+		target.Reference.APIVersion != owner.Group+"/v1alpha1" ||
 		target.Reference.APIVersion != request.Reference.APIVersion {
 		return result, nil
 	}

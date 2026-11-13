@@ -40,5 +40,9 @@ The example projects a synthetic cluster and prints `2 findings, 15 coverage ent
 The module path is `github.com/kubebao/openbao-operator-client`. Releases use immutable `v0` tags, and the API can change
 between them. Consumers pin an immutable release tag or a Go pseudo-version of a published commit.
 
+Each release defines one evidence model and diagnostic implementation. Evidence and policy carry no separate schema
+or rule-set version. The client provides no compatibility readers for earlier serialized models. Consumers own their
+stored formats and must reject incompatible input before analysis.
+
 The project uses the [Apache License 2.0](LICENSE). [NOTICE](NOTICE) records scaffold provenance, and
 [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES) records dependency notices.

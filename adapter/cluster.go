@@ -25,8 +25,6 @@ func ProjectCluster(raw []byte, options ProjectionOptions) (evidence.Cluster, er
 		return evidence.Cluster{}, err
 	}
 	result := evidence.Cluster{
-		SchemaVersion:      evidence.SchemaVersion,
-		AdapterContract:    string(options.Contract),
 		Reference:          ref,
 		CreatedAt:          timestamp(object, "metadata", "creationTimestamp"),
 		DeletionTimestamp:  timestamp(object, "metadata", "deletionTimestamp"),
@@ -43,6 +41,8 @@ func ProjectCluster(raw []byte, options ProjectionOptions) (evidence.Cluster, er
 	projectOperationalFields(object, &result, options.Limits)
 	if inspectedOperatorContract(options.Contract) {
 		inferOmissions(object, &result)
+	} else {
+		result.RestoreOrigin = evidence.Text{State: evidence.ValueUnknown}
 	}
 	if result.Validate() != nil {
 		return evidence.Cluster{}, &ProjectionError{Code: InvalidInput}

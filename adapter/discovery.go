@@ -47,7 +47,6 @@ func ProjectDiscovery(raw []byte, resource string, options ProjectionOptions) (e
 	}
 	collected := options.CollectedAt.UTC()
 	result := evidence.Discovery{
-		SchemaVersion: evidence.SchemaVersion, AdapterContract: string(options.Contract),
 		Scope: evidence.Scope{
 			Origin: options.Origin, Group: info.APIGroup,
 			Version: strings.TrimPrefix(info.APIVersion, info.APIGroup+"/"), Resource: resource, Action: evidence.ReadDiscovery,
@@ -114,10 +113,15 @@ func discoveryVerbs(raw map[string]any, limit int) evidence.ReadVerbs {
 // Advertises checks a read verb against validated discovery facts. It does not
 // establish RBAC access, omission semantics, or integration qualification.
 func Advertises(discovery evidence.Discovery, verb evidence.ReadVerb) bool {
-	kind, err := ResourceKind(Contract(discovery.AdapterContract), discovery.Scope.Resource)
-	info, describeErr := Describe(Contract(discovery.AdapterContract))
-	return err == nil && describeErr == nil && discovery.Validate() == nil &&
-		discovery.Scope.Group == info.APIGroup && discovery.Scope.Version == strings.TrimPrefix(info.APIVersion, info.APIGroup+"/") &&
+	kind := map[string]string{
+		"openbaoclusters": "OpenBaoCluster", "openbaorestores": "OpenBaoRestore", "statefulsets": "StatefulSet", "pods": "Pod",
+	}[discovery.Scope.Resource]
+	scope := discovery.Scope
+	supported := (scope.Group == "openbao.org" || scope.Group == "kubebao.org") && scope.Version == "v1alpha1" &&
+		(kind == "OpenBaoCluster" || kind == "OpenBaoRestore") ||
+		scope.Group == "apps" && scope.Version == "v1" && kind == "StatefulSet" ||
+		scope.Group == "" && scope.Version == "v1" && kind == "Pod"
+	return supported && discovery.Validate() == nil &&
 		discovery.State == evidence.ObjectReported &&
 		discovery.Kind.State == evidence.ValueReported && *discovery.Kind.Value == kind &&
 		discovery.Namespaced.State == evidence.ValueReported && *discovery.Namespaced.Value &&

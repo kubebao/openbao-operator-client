@@ -8,9 +8,9 @@ Consumers own severity mapping, rendering, first-seen times, history, and proces
 
 ## Rules
 
-Rule set `9` implements the rules below. `SupportedRules` returns them. Selecting an unknown ID returns `ErrUnknownRule`.
-Selecting a reserved ID returns `ErrUnavailableRule`. Changing a rule's semantics or the executable inventory requires a
-new rule-set version, and `Analyze` rejects every other version.
+`SupportedRules` returns the implemented rules below. Selecting an unknown ID returns `ErrUnknownRule`.
+Selecting a reserved ID returns `ErrUnavailableRule`. Diagnostic behavior follows the client release; there is no
+independent rule-set version or matching gate.
 
 | Rule ID | Meaning | Subsubject |
 | --- | --- | --- |
@@ -36,28 +36,28 @@ supported operator contract has no public API for them, so they cannot produce f
 ## Inputs
 
 A `Capture` holds normalized evidence, not raw resources. Consumers decode JSON and enforce input byte limits. `Analyze`
-validates shapes and versions and fails without partial findings or raw values.
+validates the current typed shapes and fails without partial findings or raw values.
 
 Each `ClusterInput` declares:
 
-- The full subject identity and its projection contract.
+- The full subject identity.
 - The cluster read's `Collection`, and the projected `Observation` when the read produced one. A nil observation keeps
   coverage for a known subject whose read failed or was not requested.
 - An optional `Verification` from a later target read.
 - Optional `StatefulSets`, `Pods`, and `Restores` resource inputs. Nil means the scope was not requested.
 
-Subject, scope, contract, identity, API version, and verification must agree. A complete read must contain the
+Subject, scope, identity, API version, and verification must agree. A complete read must contain the
 observation's read time and a positive candidate count. Duplicate subjects are rejected. Equal UIDs in different origins
 are different subjects.
 
 ### Related resource inputs
 
-Each `ResourceInput` keeps its projection contract, its LIST `Collection`, and every admitted candidate before UID
+Each `ResourceInput` keeps its LIST `Collection` and every admitted candidate before UID
 filtering, including foreign resources. A complete input has exactly `Collection.Items` observations, and a valid empty
-list is a non-nil empty slice. Scope, origin, namespace, resource, version, contract, read times, and counts must agree.
+list is a non-nil empty slice. Scope, origin, namespace, resource, version, read times, and counts must agree.
 Duplicate UIDs or names are rejected.
 
-Restore reads use the cluster's group, version, and contract. Related reads happen after the cluster read and before the
+Restore reads use the cluster's group and version. Related reads happen after the cluster read and before the
 final verification.
 
 `Analyze` computes associations itself from owner references and reserved annotations, through the `evidence`
@@ -65,7 +65,7 @@ implementation. It accepts no caller-supplied association.
 
 ## Policy
 
-`DefaultPolicy(reference, contracts)` selects all supported rules and sets these values:
+`DefaultPolicy(reference)` selects all supported rules and sets these values:
 
 | Field | Default | Constraint |
 | --- | --- | --- |
@@ -75,10 +75,9 @@ implementation. It accepts no caller-supplied association.
 | `MaxSubjects` | 5,000 | Positive; counts clusters and all workload and restore candidates |
 | `ReportHistoricalRestores` | `true` | |
 
-`ApprovedContracts` is the caller's allowlist of projection contracts. Every supplied contract must be in it, including
-the contract of an empty or failed read. `RestoreUIDBindingContracts` is a subset of `ApprovedContracts`. Include a
-contract only when `adapter.Describe` declares `CapabilityRestoreUIDBinding` for it. Rules and contracts must be unique.
-A reference time before collection completion is invalid. The policy is part of the report.
+Rules must be unique. A reference time before collection completion is invalid. The policy is part of the report.
+Adapters validate the selected public API at the collection boundary. Diagnosis consumes normalized facts without an
+adapter allowlist.
 
 ## Coverage
 
@@ -208,8 +207,8 @@ or broadens a selector.
 
 ### Snapshot restores
 
-`KBAO-RESTORE-001` needs the cluster's contract in `RestoreUIDBindingContracts`, verified target verification, and a
-UID-confirmed request. It evaluates every confirmed request; display selection is separate.
+`KBAO-RESTORE-001` needs verified target verification and a UID-confirmed request under the same supported API group and
+version. It evaluates every confirmed request; display selection is separate.
 
 A uniquely held request with phase and execution stage `Unknown` is informational during confirmed disposable retention. This requires complete,
 unfiltered reads, a UID-confirmed target, reported lifecycle `Disposable`, a positive retention period, terminal result

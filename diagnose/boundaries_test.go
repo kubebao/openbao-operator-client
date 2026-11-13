@@ -18,7 +18,7 @@ func verification(t *testing.T, i diagnose.ClusterInput) evidence.TargetVerifica
 	read := after.CollectedAt.Value.Add(time.Second)
 	after.CollectedAt = timestamp(read)
 	value := evidence.TargetVerification{
-		SchemaVersion: evidence.SchemaVersion, AdapterContract: i.AdapterContract, Before: i.Observation.Reference,
+		Before:           i.Observation.Reference,
 		BeforeGeneration: i.Observation.Generation, After: &after, AfterGeneration: i.Observation.Generation,
 		State: evidence.VerificationVerified,
 		Read: evidence.Collection{

@@ -29,10 +29,6 @@ func evaluateRestores(input ClusterInput, policy Policy, coverage Coverage) (Cov
 		coverage.Reason = reason
 		return coverage, nil
 	}
-	if !slices.Contains(policy.RestoreUIDBindingContracts, input.AdapterContract) {
-		coverage.Reason = ReasonAssociation
-		return coverage, nil
-	}
 	result := evaluation{state: Evaluated, reason: ReasonNone}
 	if read.Outcome != evidence.CollectionComplete || input.Collection.Outcome != evidence.CollectionComplete {
 		result.insufficient(ReasonScopeIncomplete)
@@ -72,7 +68,7 @@ func restoreAssociations(input ClusterInput, policy Policy, result *evaluation) 
 			result.insufficient(ReasonStaleEvidence)
 			continue
 		}
-		association, err := evidence.AssociateRestore(*input.Observation, request, input.AdapterContract)
+		association, err := evidence.AssociateRestore(*input.Observation, request)
 		if err != nil {
 			result.insufficient(ReasonAssociation)
 			continue

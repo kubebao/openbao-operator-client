@@ -20,7 +20,8 @@ func (c *Client) validateTarget(target evidence.Cluster, request Request) error 
 	if err := target.Validate(); err != nil {
 		return evidence.At("target", errors.Join(ErrInvalidRequest, err))
 	}
-	if request.Contract != adapter.Contract(target.AdapterContract) {
+	info, err := adapter.Describe(request.Contract)
+	if err != nil || info.APIGroup != target.Reference.Identity.Group || info.APIVersion != target.Reference.APIVersion {
 		return evidence.At("contract", ErrInvalidRequest)
 	}
 	if target.Reference.CollectedAt.Value.After(time.Now()) {
@@ -51,7 +52,6 @@ func (c *Client) validateTarget(target evidence.Cluster, request Request) error 
 
 func uncollectedVerification(target evidence.Cluster, request Request) evidence.TargetVerification {
 	return evidence.TargetVerification{
-		SchemaVersion: evidence.SchemaVersion, AdapterContract: target.AdapterContract,
 		Before: target.Reference, BeforeGeneration: target.Generation, AfterGeneration: evidence.Integer{State: evidence.ValueUnknown},
 		Read: evidence.Collection{Scope: request.Scope, Outcome: evidence.CollectionNotCollected}, State: evidence.VerificationInsufficient,
 	}

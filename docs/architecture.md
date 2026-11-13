@@ -5,7 +5,7 @@ The library keeps three things apart: resource facts, their interpretation, and 
 | Package | Allowed first-party dependencies | External boundary |
 | --- | --- | --- |
 | `evidence` | None | Standard-library value types only |
-| `adapter` | `evidence` | Approved public API fields and version contracts |
+| `adapter` | `evidence` | Approved public API fields and omission rules |
 | `collect` | `adapter`, `evidence` | Caller-configured HTTP transport |
 | `diagnose` | `evidence` | Supplied policy and reference time; no I/O |
 | `operations` | `adapter`, `collect`, `evidence` | Caller-configured write transport; supplied observations and reference time |
@@ -25,6 +25,9 @@ consumer modules. Test imports follow the same direction.
   Findings can coexist with insufficient coverage. Empty findings do not mean complete evidence or a healthy cluster.
 - `operations` prepares bounded pause and maintenance patches for a qualified cluster identity. Its separate client submits
   one request through a caller-configured transport. Assessments use supplied evidence and never perform reads or writes.
+
+The client release defines the evidence model and diagnostic behavior. Adapter selection stays at projection and
+operation boundaries. Normalized evidence and evaluation policy carry no adapter identifiers or version counters.
 
 ## Consumer responsibilities
 

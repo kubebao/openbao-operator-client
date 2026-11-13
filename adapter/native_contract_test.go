@@ -16,19 +16,19 @@ func nativeDocument(raw []byte) []byte {
 
 func nativeOptions() adapter.ProjectionOptions {
 	options := projectionOptions()
-	options.Contract = adapter.KubeBaoV1Alpha1Snapshot
+	options.Contract = adapter.KubeBaoV1Alpha1
 	return options
 }
 
 func TestNativeContractDescription(t *testing.T) {
 	t.Parallel()
-	for _, contract := range []adapter.Contract{adapter.KubeBaoV1Alpha1Snapshot, adapter.KubeBaoV1Alpha1Unqualified} {
+	for _, contract := range []adapter.Contract{adapter.KubeBaoV1Alpha1, adapter.KubeBaoV1Alpha1Unqualified} {
 		info, err := adapter.Describe(contract)
 		if err != nil || info.ID != contract || info.APIGroup != "kubebao.org" || info.APIVersion != "kubebao.org/v1alpha1" ||
 			!reflect.DeepEqual(info.Kinds, []string{"OpenBaoCluster", "OpenBaoRestore"}) {
 			t.Fatalf("native description = %+v, %v", info, err)
 		}
-		inspected := contract == adapter.KubeBaoV1Alpha1Snapshot
+		inspected := contract == adapter.KubeBaoV1Alpha1
 		if slices.Contains(info.Capabilities, adapter.CapabilityRestoreUIDBinding) != inspected ||
 			(inspected && info.SourceRevision != "22894cdc0a4aa5c442a07f2bf9902fe28ce02ea1") ||
 			(!inspected && info.SourceRevision != "") {
@@ -48,12 +48,11 @@ func TestNativeProjectionPreservesApprovedFacts(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if native.Reference.Identity.Group != "kubebao.org" || native.Reference.APIVersion != "kubebao.org/v1alpha1" ||
-			native.AdapterContract != string(adapter.KubeBaoV1Alpha1Snapshot) {
+		if native.Reference.Identity.Group != "kubebao.org" || native.Reference.APIVersion != "kubebao.org/v1alpha1" {
 			t.Fatal("native API identity was lost")
 		}
-		native.AdapterContract, native.Reference.Identity.Group, native.Reference.APIVersion =
-			legacy.AdapterContract, legacy.Reference.Identity.Group, legacy.Reference.APIVersion
+		native.Reference.Identity.Group, native.Reference.APIVersion =
+			legacy.Reference.Identity.Group, legacy.Reference.APIVersion
 		if !reflect.DeepEqual(native, legacy) {
 			t.Fatal("native projection changed shared field or metadata semantics")
 		}
@@ -67,8 +66,8 @@ func TestNativeProjectionPreservesApprovedFacts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	native.AdapterContract, native.Reference.Identity.Group, native.Reference.APIVersion =
-		legacy.AdapterContract, legacy.Reference.Identity.Group, legacy.Reference.APIVersion
+	native.Reference.Identity.Group, native.Reference.APIVersion =
+		legacy.Reference.Identity.Group, legacy.Reference.APIVersion
 	if !reflect.DeepEqual(native, legacy) {
 		t.Fatal("native restore projection changed shared field semantics")
 	}
@@ -124,13 +123,14 @@ func TestNativeRestoreAssociationPreservesGroupBoundary(t *testing.T) {
 		{"native", func(*evidence.Cluster, *evidence.Restore) {}, evidence.AssociationConfirmed},
 		{"legacy-restore", func(_ *evidence.Cluster, r *evidence.Restore) {
 			r.Reference.Identity.Group, r.Reference.APIVersion = "openbao.org", "openbao.org/v1alpha1"
-			r.AdapterContract = string(adapter.V1Alpha1Snapshot)
 		}, evidence.AssociationForeign},
-		{"unqualified", func(c *evidence.Cluster, r *evidence.Restore) {
-			c.AdapterContract, r.AdapterContract = string(adapter.KubeBaoV1Alpha1Unqualified), string(adapter.KubeBaoV1Alpha1Unqualified)
-		}, evidence.AssociationUnconfirmed},
-		{"spoofed-contract", func(c *evidence.Cluster, r *evidence.Restore) {
-			c.AdapterContract, r.AdapterContract = string(adapter.V1Alpha1Snapshot), string(adapter.V1Alpha1Snapshot)
+		{"missing-bindings", func(c *evidence.Cluster, r *evidence.Restore) {
+			c.RestoreOrigin = evidence.Text{State: evidence.ValueUnknown}
+			r.Target.UID, r.Execution.TargetUID = evidence.Text{State: evidence.ValueUnknown}, evidence.Text{State: evidence.ValueUnknown}
+		}, evidence.AssociationCandidate},
+		{"unsupported-group", func(c *evidence.Cluster, r *evidence.Restore) {
+			c.Reference.Identity.Group, r.Reference.Identity.Group = "other.org", "other.org"
+			c.Reference.APIVersion, r.Reference.APIVersion = "other.org/v1alpha1", "other.org/v1alpha1"
 		}, evidence.AssociationUnconfirmed},
 		{"wrong-version", func(c *evidence.Cluster, r *evidence.Restore) {
 			c.Reference.APIVersion, r.Reference.APIVersion = "kubebao.org/v2", "kubebao.org/v2"

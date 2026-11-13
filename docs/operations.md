@@ -5,18 +5,19 @@ The `operations` package prepares and submits pause/resume and maintenance reque
 
 ## Prepare and review a request
 
-1. Select `adapter.V1Alpha1Snapshot` for `openbao.org` or `adapter.KubeBaoV1Alpha1Snapshot` for `kubebao.org`.
+1. Select `adapter.OpenBaoV1Alpha1` for `openbao.org` or `adapter.KubeBaoV1Alpha1` for `kubebao.org`.
 2. Collect the target cluster under the selected contract.
-3. Call `PreparePause(cluster, paused)` or `PrepareMaintenance(cluster, enabled)`.
+3. Call `PreparePause(cluster, contract, paused)` or `PrepareMaintenance(cluster, contract, enabled)`.
 4. Call `Plan.Patch()` to review the exact JSON Patch.
 5. Configure `operations.Client` with the intended API endpoint and an authorized transport.
 6. Submit the plan with bounded `SubmitOptions`.
 7. Collect new observations and assess the requested state.
 
-A plan binds the origin, API group, namespace, name, UID, resource version, and positive generation. Preparation rejects
-reported or invalid deletion timestamps. Only the two inspected source contracts are accepted, with the matching API
+A plan binds the adapter selection, origin, API group, namespace, name, UID, resource version, and positive generation.
+Preparation rejects reported or invalid deletion timestamps. Only the two inspected source contracts are accepted, with the matching API
 group and version. Unqualified contracts cannot prepare controls. Preparation does not check
-RBAC, admission, or operational eligibility.
+RBAC, admission, or operational eligibility. The selected adapter remains in the plan for response projection; it is not
+evidence provenance or permission to submit a request.
 
 The patch tests UID, resource version, and generation before changing the selected field. Pause/resume changes only
 `spec.paused`. Maintenance changes `spec.maintenance.enabled`; when its parent is absent or null, the patch creates the

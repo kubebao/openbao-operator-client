@@ -15,7 +15,7 @@ func main() {
   "spec":{"replicas":3},"status":{"observedGeneration":4}
 }`)
 	cluster, err := adapter.ProjectCluster(raw, adapter.ProjectionOptions{
-		Origin: "example-origin", Contract: adapter.V1Alpha1Snapshot,
+		Origin: "example-origin", Contract: adapter.OpenBaoV1Alpha1,
 		CollectedAt: time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC), Limits: adapter.DefaultProjectionLimits(),
 	})
 	if err != nil {

@@ -17,7 +17,7 @@ func jsonPlan() operations.Plan {
 	at := time.Date(2026, time.November, 11, 12, 0, 0, 0, time.UTC)
 	version, generation := "10", int64(4)
 	return operations.Plan{
-		AdapterContract: string(adapter.V1Alpha1Snapshot), Control: operations.ControlPause, Enabled: true,
+		Contract: adapter.OpenBaoV1Alpha1, Control: operations.ControlPause, Enabled: true,
 		MaintenanceState: evidence.ObjectUnknown, Generation: evidence.Integer{State: evidence.ValueReported, Value: &generation},
 		Target: evidence.Reference{
 			Identity: evidence.Identity{

@@ -45,7 +45,7 @@ func (p *Plan) UnmarshalJSON(raw []byte) error {
 }
 
 var planJSONFields = map[string][]string{
-	"":                       {"adapterContract", "target", "generation", "control", "enabled", "maintenanceState"},
+	"":                       {"contract", "target", "generation", "control", "enabled", "maintenanceState"},
 	"target":                 {"identity", "apiVersion", "resourceVersion", "collectedAt", "field"},
 	"target.identity":        {"origin", "group", "kind", "namespace", "name", "uid"},
 	"generation":             {"state", "value"},

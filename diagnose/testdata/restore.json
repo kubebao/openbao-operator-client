@@ -1,6 +1,4 @@
 {
-  "schemaVersion": "5",
-  "adapterContract": "openbao.org/v1alpha1@9671c306/restore-retention-v1",
   "reference": {
     "identity": {
       "origin": "cluster-a",

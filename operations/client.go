@@ -205,7 +205,7 @@ func responseReceipt(raw []byte, plan Plan, limits adapter.ProjectionLimits) (Re
 	cluster, err := adapter.ProjectCluster(raw, adapter.ProjectionOptions{
 		Origin:      plan.Target.Identity.Origin,
 		CollectedAt: time.Now().UTC(),
-		Contract:    adapter.Contract(plan.AdapterContract),
+		Contract:    plan.Contract,
 		Limits:      limits,
 	})
 	if err != nil || cluster.Reference.Identity != plan.Target.Identity ||

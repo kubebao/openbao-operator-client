@@ -238,17 +238,12 @@ func TestDisposableRetentionStillRequiresUniqueHoldAndCurrentUID(t *testing.T) {
 	}
 }
 
-func TestRestoreRetentionRejectsOldCaptureAndPolicyVersions(t *testing.T) {
+func TestRestoreRetentionRejectsMalformedNormalizedEvidence(t *testing.T) {
 	t.Parallel()
 	i, p := retentionInput(t, true)
-	old := capture(i)
-	old.SchemaVersion = "4"
-	if _, err := diagnose.Analyze(old, p); !errors.Is(err, diagnose.ErrUnsupportedVersion) {
-		t.Fatal("schema 4 capture accepted newly required restore evidence")
-	}
-	p.RuleSetVersion = "8"
-	if _, err := diagnose.Analyze(capture(i), p); !errors.Is(err, diagnose.ErrUnsupportedVersion) {
-		t.Fatal("rule set 8 accepted the new retention interpretation")
+	i.Restores.Observations[0].CleanupAfterSeconds = evidence.Integer{}
+	if _, err := diagnose.Analyze(capture(i), p); !errors.Is(err, diagnose.ErrInvalidCapture) {
+		t.Fatal("missing value state bypassed typed validation")
 	}
 }
 

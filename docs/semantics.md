@@ -1,18 +1,15 @@
 # Evidence semantics
 
 This document defines what normalized evidence means and how the library produces it. Diagnosis depends on these rules.
-Change them only with a new version of the affected contract, schema, or rule set.
 
-## Versions
+## Release contract
 
-These versions change independently:
+The client release defines the typed evidence model and diagnostic behavior. Evidence records, captures, policies, and
+reports have no separate schema or rule-set versions. Rule IDs identify diagnostics across evaluations.
 
-| Version | Current value | Changes when |
-| --- | --- | --- |
-| Evidence schema (`evidence.SchemaVersion`) | `5` | Normalized record shapes change. Validation rejects other versions. |
-| Adapter contract (`adapter.Contract`) | See [projection contracts](#projection-contracts) | Approved fields or omission rules change. |
-| Rule set (`diagnose.RuleSetVersion`) | `9` | Rule semantics or the executable rule inventory change. |
-| Report layout (`diagnose.Report.SchemaVersion`) | `1` | The report shape changes. |
+Adapters select the public API fields and omission semantics at collection boundaries. Their identifiers do not travel
+through normalized evidence or evaluation policy. Consumers that store evidence own their enclosing format and reject
+unsupported formats before analysis. The client provides no readers or migrations for earlier serialized models.
 
 ## Value states
 
@@ -48,15 +45,15 @@ version alone never selects one.
 
 | Contract | Kinds | Omission rules |
 | --- | --- | --- |
-| `openbao.org/v1alpha1@9671c306/restore-retention-v1` (`V1Alpha1Snapshot`) | `OpenBaoCluster`, `OpenBaoRestore` | Yes; also declares restore UID binding |
-| `openbao.org/v1alpha1/unqualified-v4` (`V1Alpha1Unqualified`) | `OpenBaoCluster`, `OpenBaoRestore` | None |
-| `kubebao.org/v1alpha1@22894cdc/restore-retention-v1` (`KubeBaoV1Alpha1Snapshot`) | `OpenBaoCluster`, `OpenBaoRestore` | Yes; also declares restore UID binding |
-| `kubebao.org/v1alpha1/unqualified-v2` (`KubeBaoV1Alpha1Unqualified`) | `OpenBaoCluster`, `OpenBaoRestore` | None |
-| `kubernetes/apps/v1@v0.37.2/workload-pools-v1` (`KubernetesAppsV1`) | `StatefulSet` | Yes |
-| `kubernetes/core/v1@v0.37.2/workload-pools-v1` (`KubernetesCoreV1`) | `Pod` | None |
+| `openbao.org/v1alpha1` (`OpenBaoV1Alpha1`) | `OpenBaoCluster`, `OpenBaoRestore` | Yes; also projects restore UID bindings |
+| `openbao.org/v1alpha1/unqualified` (`OpenBaoV1Alpha1Unqualified`) | `OpenBaoCluster`, `OpenBaoRestore` | None; restore UID bindings remain unknown |
+| `kubebao.org/v1alpha1` (`KubeBaoV1Alpha1`) | `OpenBaoCluster`, `OpenBaoRestore` | Yes; also projects restore UID bindings |
+| `kubebao.org/v1alpha1/unqualified` (`KubeBaoV1Alpha1Unqualified`) | `OpenBaoCluster`, `OpenBaoRestore` | None; restore UID bindings remain unknown |
+| `apps/v1` (`KubernetesAppsV1`) | `StatefulSet` | Yes |
+| `v1` (`KubernetesCoreV1`) | `Pod` | None |
 
-`V1Alpha1Snapshot` follows operator commit `9671c30623d609f948cf073e167f376de4ea9a85`.
-`KubeBaoV1Alpha1Snapshot` follows native operator candidate `22894cdc0a4aa5c442a07f2bf9902fe28ce02ea1`.
+`OpenBaoV1Alpha1` follows operator commit `9671c30623d609f948cf073e167f376de4ea9a85`.
+`KubeBaoV1Alpha1` follows native operator candidate `22894cdc0a4aa5c442a07f2bf9902fe28ce02ea1`.
 The Kubernetes contracts follow the
 public API declarations at `v0.37.2` and workload metadata at operator revision `9671c306`. Their `SourceRevision` identifies
 that operator source. `adapter.Describe` returns each contract's kinds and capabilities. It does not perform discovery,
@@ -64,12 +61,12 @@ check RBAC, or qualify an operator.
 
 The native API contract retains the operator's `openbao.org/*` workload labels and annotations. API-group selection
 does not rename metadata. Identity includes the API group and UID. A migration annotation does not establish that a
-legacy object and a native object are the same target. Restore association requires one inspected contract and matching
-API groups; names and migration metadata cannot join resources across groups.
+legacy object and a native object are the same target. Restore association requires a supported, matching API group and
+version and confirmed UID bindings; names and migration metadata cannot join resources across groups. Unqualified
+adapters leave the cluster's restore-origin UID and the request's target UIDs unknown.
 
 The operator contract includes `metadata.deletionTimestamp` on clusters. An omitted timestamp remains `unknown`;
-reported and invalid timestamps prevent control preparation. Serialized evidence must use schema `5` and the current
-contract identifiers. Validation rejects earlier schemas; collect a new capture instead of relabeling stored evidence.
+reported and invalid timestamps prevent control preparation. Validation checks the current typed shape after replay.
 
 ### Workload pools and revisions
 
@@ -215,12 +212,10 @@ Names, labels, and creation times identify candidates only. They never confirm o
 
 ### Restores
 
-`evidence.AssociateRestore` takes a binding contract that the caller selects. Only contracts that declare
-`CapabilityRestoreUIDBinding` define the UID fields. It checks every supplied target name and UID before confirming:
+`evidence.AssociateRestore` checks every supplied target name and UID before confirming:
 
 1. A request in another origin, namespace, or API group is `foreign`.
-2. A request is unconfirmed when the binding contract is empty, either record uses another contract, or their API
-   versions differ.
+2. A request is unconfirmed when its API version differs from the target's or the API is unsupported.
 3. A malformed binding object or field leaves the request unconfirmed.
 4. Any mismatch with the target name or UID makes the request `foreign`, or `conflict` if another field also matches.
 5. Otherwise the request is confirmed by `status.execution.targetUID`, then by `status.target.uid`, then by the cluster's
@@ -318,7 +313,7 @@ performs one named GET with `ExpectedUID` and returns this result.
 
 `Client.Related` takes a selected cluster and a `RelatedPlan`. The plan declares optional StatefulSet, Pod, and restore
 LISTs and a final verification GET. Every scope must match the target's origin and namespace, and restore reads use the
-target's contract. Nil scopes cause no reads. Requests are validated before I/O.
+target's API group and version. Nil scopes cause no reads. Requests are validated before I/O.
 
 Plan limits apply across the whole sequence. One request is reserved for verification. If the budget or deadline runs
 out first, verification stays `not_collected` and the sequence cannot be `complete`. Skipped scopes record

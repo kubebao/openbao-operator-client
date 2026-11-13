@@ -61,8 +61,9 @@ func (c *Client) validateRelated(target evidence.Cluster, plan RelatedPlan) erro
 			request.Scope.Namespace != target.Reference.Identity.Namespace {
 			return evidence.At(item.resource+".scope", ErrInvalidRequest)
 		}
-		if item.kind == "OpenBaoRestore" && request.Contract != adapter.Contract(target.AdapterContract) {
-			return evidence.At(item.resource+".contract", ErrInvalidRequest)
+		if item.kind == "OpenBaoRestore" && (request.Scope.Group != target.Reference.Identity.Group ||
+			request.Scope.Group+"/"+request.Scope.Version != target.Reference.APIVersion) {
+			return evidence.At(item.resource+".scope", ErrInvalidRequest)
 		}
 	}
 	return nil

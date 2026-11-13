@@ -14,13 +14,13 @@ func main() {
   "metadata":{"namespace":"team","name":"bao","uid":"cluster-1","resourceVersion":"10","generation":4},
   "spec":{"replicas":3,"paused":false},"status":{"observedGeneration":4}
 }`), adapter.ProjectionOptions{
-		Origin: "example-origin", Contract: adapter.V1Alpha1Snapshot,
+		Origin: "example-origin", Contract: adapter.OpenBaoV1Alpha1,
 		CollectedAt: time.Date(2026, time.November, 11, 12, 0, 0, 0, time.UTC), Limits: adapter.DefaultProjectionLimits(),
 	})
 	if err != nil {
 		panic(err)
 	}
-	plan, err := operations.PrepareMaintenance(cluster, true)
+	plan, err := operations.PrepareMaintenance(cluster, adapter.OpenBaoV1Alpha1, true)
 	if err != nil {
 		panic(err)
 	}
