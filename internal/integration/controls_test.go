@@ -51,9 +51,9 @@ func controlQualification(t *testing.T) controlFixture {
 	t.Cleanup(fixture.transport.CloseIdleConnections)
 	switch fixture.group {
 	case "openbao.org":
-		fixture.contract = adapter.V1Alpha1Snapshot
+		fixture.contract = adapter.OpenBaoV1Alpha1
 	case "kubebao.org":
-		fixture.contract = adapter.KubeBaoV1Alpha1Snapshot
+		fixture.contract = adapter.KubeBaoV1Alpha1
 	default:
 		t.Fatal("qualification requires an approved operator API group")
 	}
@@ -139,9 +139,9 @@ func (f controlFixture) plan(t *testing.T, ctx context.Context, name string, con
 	var plan operations.Plan
 	var err error
 	if control == operations.ControlPause {
-		plan, err = operations.PreparePause(cluster, enabled)
+		plan, err = operations.PreparePause(cluster, f.contract, enabled)
 	} else {
-		plan, err = operations.PrepareMaintenance(cluster, enabled)
+		plan, err = operations.PrepareMaintenance(cluster, f.contract, enabled)
 	}
 	if err != nil {
 		t.Fatal("prepare fixture control")

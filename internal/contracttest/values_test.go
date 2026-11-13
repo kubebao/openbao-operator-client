@@ -14,8 +14,7 @@ import (
 )
 
 // Value and condition fixtures call production projection. Remaining reference models are test-only.
-const adapterContract = "openbao.org/v1alpha1@9671c306/restore-retention-v1"
-
+//
 //go:embed testdata/*.json
 var fixtureFiles embed.FS
 
@@ -98,7 +97,7 @@ func projectFixture(t *testing.T, raw map[string]any, contract string) evidence.
 	}
 	selected := adapter.Contract(contract)
 	if contract == "unknown" {
-		selected = adapter.V1Alpha1Unqualified
+		selected = adapter.OpenBaoV1Alpha1Unqualified
 	}
 	result, err := adapter.ProjectCluster(data, adapter.ProjectionOptions{
 		Origin: "contract-cluster", CollectedAt: time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC),

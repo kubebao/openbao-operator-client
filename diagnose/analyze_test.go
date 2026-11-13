@@ -32,7 +32,7 @@ func input(t testing.TB) diagnose.ClusterInput {
 	}
 	at := *cluster.Reference.CollectedAt.Value
 	return diagnose.ClusterInput{
-		Subject: cluster.Reference.Identity, AdapterContract: cluster.AdapterContract, Observation: &cluster,
+		Subject: cluster.Reference.Identity, Observation: &cluster,
 		Collection: evidence.Collection{
 			Scope: evidence.Scope{
 				Origin: "cluster-a", Group: "openbao.org", Version: "v1alpha1", Resource: "openbaoclusters",
@@ -46,11 +46,11 @@ func input(t testing.TB) diagnose.ClusterInput {
 func policy(t testing.TB) diagnose.Policy {
 	t.Helper()
 	i := input(t)
-	return diagnose.DefaultPolicy(*i.Observation.Reference.CollectedAt.Value, []string{i.AdapterContract})
+	return diagnose.DefaultPolicy(*i.Observation.Reference.CollectedAt.Value)
 }
 
 func capture(inputs ...diagnose.ClusterInput) diagnose.Capture {
-	return diagnose.Capture{SchemaVersion: evidence.SchemaVersion, Clusters: inputs}
+	return diagnose.Capture{Clusters: inputs}
 }
 
 func integer(value int64) evidence.Integer {
@@ -234,18 +234,17 @@ func TestBackupAgeHasStrictThresholdAndPreservesPrecedence(t *testing.T) {
 	}
 }
 
-func TestAnalysisRejectsUnknownVersionsAndAmbiguousInputs(t *testing.T) {
+func TestAnalysisRejectsUnsupportedAPIsAndAmbiguousInputs(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		change func(*diagnose.Capture, *diagnose.Policy)
 		want   error
 	}{
-		{func(c *diagnose.Capture, _ *diagnose.Policy) { c.SchemaVersion = "future" }, diagnose.ErrUnsupportedVersion},
-		{func(_ *diagnose.Capture, p *diagnose.Policy) { p.RuleSetVersion = "future" }, diagnose.ErrUnsupportedVersion},
+		{func(c *diagnose.Capture, _ *diagnose.Policy) { c.Clusters[0].Collection.Scope.Version = "v2" }, diagnose.ErrInvalidCapture},
 		{func(c *diagnose.Capture, _ *diagnose.Policy) {
-			c.Clusters[0].AdapterContract = "future"
-			c.Clusters[0].Observation.AdapterContract = "future"
-		}, diagnose.ErrUnsupportedVersion},
+			c.Clusters[0].Subject.Group = "other.org"
+			c.Clusters[0].Collection.Scope.Group = "other.org"
+		}, diagnose.ErrInvalidCapture},
 		{func(_ *diagnose.Capture, p *diagnose.Policy) { p.Rules = []diagnose.RuleID{"RAW_CANARY"} }, diagnose.ErrUnknownRule},
 		{func(_ *diagnose.Capture, p *diagnose.Policy) { p.Rules = []diagnose.RuleID{diagnose.RuleRecovery} }, diagnose.ErrUnavailableRule},
 		{func(c *diagnose.Capture, _ *diagnose.Policy) { c.Clusters = append(c.Clusters, c.Clusters[0]) }, diagnose.ErrDuplicateSubject},
@@ -303,7 +302,6 @@ func FuzzAnalyzeNormalizedCapture(f *testing.F) {
 	f.Add([]byte(`{}`))
 	fuzzPolicy := workloadPolicy(f)
 	fuzzPolicy.Rules = diagnose.SupportedRules()
-	fuzzPolicy.RestoreUIDBindingContracts = []string{input(f).AdapterContract}
 	fuzzPolicy.ReferenceTime = restorePolicy(f).ReferenceTime
 	fuzzPolicy.MaxEvidenceAge = 2 * time.Hour // Exercise the fixed cluster, workload, and later restore seeds together.
 	f.Fuzz(func(t *testing.T, data []byte) {

@@ -34,7 +34,7 @@ func TestCollectedRestoresRetainUIDAndReadBoundaries(t *testing.T) {
 					Origin: "cluster-a", Group: "openbao.org", Version: "v1alpha1", Resource: "openbaoclusters",
 					Namespace: "team", Name: "bao", Action: evidence.ReadGet,
 				},
-				Contract: adapter.V1Alpha1Snapshot, Limits: collect.DefaultLimits(), Projection: adapter.DefaultProjectionLimits(),
+				Contract: adapter.OpenBaoV1Alpha1, Limits: collect.DefaultLimits(), Projection: adapter.DefaultProjectionLimits(),
 			}
 			initial, err := client.Clusters(context.Background(), request)
 			if err != nil || len(initial.Observations) != 1 {
@@ -52,22 +52,20 @@ func TestCollectedRestoresRetainUIDAndReadBoundaries(t *testing.T) {
 				t.Fatal(err)
 			}
 			input := diagnose.ClusterInput{
-				Subject: cluster.Reference.Identity, AdapterContract: cluster.AdapterContract, Observation: &cluster,
+				Subject: cluster.Reference.Identity, Observation: &cluster,
 				Collection: initial.Collection, Verification: &related.Verification,
 				Restores: &diagnose.ResourceInput[evidence.Restore]{
-					AdapterContract: cluster.AdapterContract,
-					Collection:      related.Restores.Collection, Observations: related.Restores.Observations,
+					Collection: related.Restores.Collection, Observations: related.Restores.Observations,
 				},
 			}
 			info, err := adapter.Describe(request.Contract)
 			if err != nil || !slices.Contains(info.Capabilities, adapter.CapabilityRestoreUIDBinding) {
 				t.Fatal("fixture contract has no inspected restore binding capability")
 			}
-			policy := diagnose.DefaultPolicy(time.Now(), []string{cluster.AdapterContract})
-			policy.RestoreUIDBindingContracts = []string{string(info.ID)}
+			policy := diagnose.DefaultPolicy(time.Now())
 			policy.Rules = []diagnose.RuleID{diagnose.RuleRestore}
 			report, err := diagnose.Analyze(
-				diagnose.Capture{SchemaVersion: evidence.SchemaVersion, Clusters: []diagnose.ClusterInput{input}},
+				diagnose.Capture{Clusters: []diagnose.ClusterInput{input}},
 				policy,
 			)
 			if err != nil || len(report.Findings) != tc.findings || transport.reads != 3 {

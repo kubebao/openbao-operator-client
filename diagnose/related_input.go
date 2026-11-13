@@ -2,7 +2,6 @@ package diagnose
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
@@ -10,27 +9,24 @@ import (
 func (c ClusterInput) validateRelatedInputs(p Policy) error {
 	if c.StatefulSets != nil {
 		if err := validateResourceInput(c, *c.StatefulSets, p, "apps", "v1", "statefulsets",
-			func(v evidence.StatefulSet) (evidence.Reference, string, error) {
-				return v.Metadata.Reference, v.AdapterContract, v.Validate()
+			func(v evidence.StatefulSet) (evidence.Reference, error) {
+				return v.Metadata.Reference, v.Validate()
 			}); err != nil {
 			return evidence.At("statefulSets", err)
 		}
 	}
 	if c.Pods != nil {
 		if err := validateResourceInput(c, *c.Pods, p, "", "v1", "pods",
-			func(v evidence.Pod) (evidence.Reference, string, error) {
-				return v.Metadata.Reference, v.AdapterContract, v.Validate()
+			func(v evidence.Pod) (evidence.Reference, error) {
+				return v.Metadata.Reference, v.Validate()
 			}); err != nil {
 			return evidence.At("pods", err)
 		}
 	}
 	if c.Restores != nil {
-		if c.Restores.AdapterContract != c.AdapterContract {
-			return invalidCapture("restores.adapterContract", nil)
-		}
 		err := validateResourceInput(c, *c.Restores, p, c.Subject.Group, c.Collection.Scope.Version, "openbaorestores",
-			func(v evidence.Restore) (evidence.Reference, string, error) {
-				return v.Reference, v.AdapterContract, v.Validate()
+			func(v evidence.Restore) (evidence.Reference, error) {
+				return v.Reference, v.Validate()
 			})
 		return evidence.At("restores", err)
 	}
@@ -38,11 +34,8 @@ func (c ClusterInput) validateRelatedInputs(p Policy) error {
 }
 
 func validateResourceInput[T any](cluster ClusterInput, input ResourceInput[T], p Policy, group, version, resource string,
-	describe func(T) (evidence.Reference, string, error),
+	describe func(T) (evidence.Reference, error),
 ) error {
-	if !slices.Contains(p.ApprovedContracts, input.AdapterContract) {
-		return evidence.At("adapterContract", ErrUnsupportedVersion)
-	}
 	read := input.Collection
 	if err := read.Validate(); err != nil {
 		return invalidCapture("collection", err)
@@ -71,12 +64,9 @@ func validateResourceInput[T any](cluster ClusterInput, input ResourceInput[T], 
 	}
 	for index, value := range input.Observations {
 		path := fmt.Sprintf("observations[%d]", index)
-		ref, contract, err := describe(value)
+		ref, err := describe(value)
 		if err != nil {
 			return invalidCapture(path, err)
-		}
-		if contract != input.AdapterContract {
-			return invalidCapture(path+".adapterContract", nil)
 		}
 		if ref.APIVersion != apiVersion {
 			return invalidCapture(path+".reference.apiVersion", nil)

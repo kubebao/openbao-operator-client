@@ -95,7 +95,7 @@ func TestCollectedWorkloadsRetainDiagnosticReadBoundaries(t *testing.T) {
 					Origin: "cluster-a", Group: "openbao.org", Version: "v1alpha1", Resource: "openbaoclusters",
 					Namespace: "team", Name: "bao", Action: evidence.ReadGet,
 				},
-				Contract: adapter.V1Alpha1Snapshot, Limits: collect.DefaultLimits(), Projection: adapter.DefaultProjectionLimits(),
+				Contract: adapter.OpenBaoV1Alpha1, Limits: collect.DefaultLimits(), Projection: adapter.DefaultProjectionLimits(),
 			}
 			initial, err := client.Clusters(context.Background(), request)
 			if err != nil || len(initial.Observations) != 1 {
@@ -117,21 +117,19 @@ func TestCollectedWorkloadsRetainDiagnosticReadBoundaries(t *testing.T) {
 				t.Fatal(err)
 			}
 			input := diagnose.ClusterInput{
-				Subject: cluster.Reference.Identity, AdapterContract: cluster.AdapterContract, Observation: &cluster,
+				Subject: cluster.Reference.Identity, Observation: &cluster,
 				Collection: initial.Collection, Verification: &related.Verification,
 				StatefulSets: &diagnose.ResourceInput[evidence.StatefulSet]{
-					AdapterContract: string(sets.Contract),
-					Collection:      related.StatefulSets.Collection, Observations: related.StatefulSets.Observations,
+					Collection: related.StatefulSets.Collection, Observations: related.StatefulSets.Observations,
 				},
 				Pods: &diagnose.ResourceInput[evidence.Pod]{
-					AdapterContract: string(pods.Contract),
-					Collection:      related.Pods.Collection, Observations: related.Pods.Observations,
+					Collection: related.Pods.Collection, Observations: related.Pods.Observations,
 				},
 			}
-			policy := diagnose.DefaultPolicy(time.Now(), []string{cluster.AdapterContract, string(sets.Contract), string(pods.Contract)})
+			policy := diagnose.DefaultPolicy(time.Now())
 			policy.Rules = []diagnose.RuleID{diagnose.RuleWorkload, diagnose.RulePod}
 			report, err := diagnose.Analyze(
-				diagnose.Capture{SchemaVersion: evidence.SchemaVersion, Clusters: []diagnose.ClusterInput{input}},
+				diagnose.Capture{Clusters: []diagnose.ClusterInput{input}},
 				policy,
 			)
 			if err != nil || len(report.Findings) != tc.findings || transport.reads != 4 {

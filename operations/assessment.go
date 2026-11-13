@@ -5,7 +5,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/kubebao/openbao-operator-client/adapter"
 	"github.com/kubebao/openbao-operator-client/collect"
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
@@ -102,7 +101,7 @@ func assessmentHeader(plan Plan, observed evidence.Cluster, policy AssessmentPol
 		policy.MaxEvidenceAge <= 0 || policy.MaxCandidates <= 0 {
 		return Assessment{}, ErrInvalidAssessment
 	}
-	if observed.AdapterContract != plan.AdapterContract || observed.Reference.Identity != plan.Target.Identity ||
+	if observed.Reference.Identity != plan.Target.Identity ||
 		observed.Reference.APIVersion != plan.Target.APIVersion {
 		result.add(AssessmentInsufficient, ReasonTargetChanged)
 		return result, nil
@@ -273,7 +272,7 @@ func AssessMaintenance(plan Plan, observed evidence.Cluster, related collect.Rel
 
 func maintenanceVerification(cluster evidence.Cluster, verification evidence.TargetVerification, policy AssessmentPolicy) bool {
 	return verification.Validate() == nil && verification.State == evidence.VerificationVerified &&
-		verification.AdapterContract == cluster.AdapterContract && sameControlReference(verification.Before, cluster.Reference) &&
+		sameControlReference(verification.Before, cluster.Reference) &&
 		sameControlInteger(verification.BeforeGeneration, cluster.Generation) && verification.After != nil &&
 		verification.After.ResourceVersion.State == evidence.ValueReported &&
 		*verification.After.ResourceVersion.Value == *cluster.Reference.ResourceVersion.Value &&
@@ -323,10 +322,14 @@ func maintenanceScope(cluster evidence.Cluster, read evidence.Collection, count 
 	return nil
 }
 
-func maintenanceReference(ref evidence.Reference, read evidence.Collection, contract, expected string,
+func maintenanceReference(ref evidence.Reference, read evidence.Collection,
 	policy AssessmentPolicy, result *Assessment,
 ) error {
-	if contract != expected || ref.Identity.Origin != read.Scope.Origin || ref.Identity.Namespace != read.Scope.Namespace ||
+	version := read.Scope.Version
+	if read.Scope.Group != "" {
+		version = read.Scope.Group + "/" + version
+	}
+	if ref.APIVersion != version || ref.Identity.Origin != read.Scope.Origin || ref.Identity.Namespace != read.Scope.Namespace ||
 		ref.Identity.Group != read.Scope.Group {
 		return ErrInvalidAssessment
 	}
@@ -384,7 +387,7 @@ func maintenanceSets(cluster evidence.Cluster, related collect.RelatedResult, po
 			return nil, ErrInvalidAssessment
 		}
 		names[ref.Identity.Name] = true
-		if err := maintenanceReference(ref, read, set.AdapterContract, string(adapter.KubernetesAppsV1), policy, result); err != nil {
+		if err := maintenanceReference(ref, read, policy, result); err != nil {
 			return nil, err
 		}
 		association, err := evidence.AssociateStatefulSet(set, cluster.Reference.Identity)
@@ -435,7 +438,7 @@ func maintenancePods(cluster evidence.Cluster, related collect.RelatedResult, se
 			return ErrInvalidAssessment
 		}
 		uids[ref.Identity.UID], names[ref.Identity.Name] = true, true
-		if err := maintenanceReference(ref, read, pod.AdapterContract, string(adapter.KubernetesCoreV1), policy, result); err != nil {
+		if err := maintenanceReference(ref, read, policy, result); err != nil {
 			return err
 		}
 		if err := maintenancePod(pod, sets, trueValue(cluster.Maintenance.Enabled), result); err != nil {

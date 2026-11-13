@@ -63,15 +63,14 @@ func TestCompletedDisposableRestore(t *testing.T) {
 		observed.Target.AppliedAt.State != evidence.ValueReported {
 		t.Fatal("completed disposable receipt lacks successful execution, original target UID, application time, or complete cleanup")
 	}
-	capture := diagnose.Capture{SchemaVersion: evidence.SchemaVersion, Clusters: []diagnose.ClusterInput{{
-		Subject: f.targetIdentity(), AdapterContract: string(f.contract), Collection: clusters.Collection,
+	capture := diagnose.Capture{Clusters: []diagnose.ClusterInput{{
+		Subject: f.targetIdentity(), Collection: clusters.Collection,
 		Restores: &diagnose.ResourceInput[evidence.Restore]{
-			AdapterContract: string(f.contract), Collection: restores.Collection, Observations: restores.Observations,
+			Collection: restores.Collection, Observations: restores.Observations,
 		},
 	}}}
-	policy := diagnose.DefaultPolicy(time.Now().UTC(), []string{string(f.contract)})
+	policy := diagnose.DefaultPolicy(time.Now().UTC())
 	policy.Rules = []diagnose.RuleID{diagnose.RuleRestore}
-	policy.RestoreUIDBindingContracts = []string{string(f.contract)}
 	report, err := diagnose.Analyze(capture, policy)
 	if err != nil {
 		t.Fatal("analyze the absent target without inferring recovery")
@@ -103,9 +102,9 @@ func restoreQualification(t *testing.T) restoreFixture {
 	}
 	switch f.group {
 	case "kubebao.org":
-		f.contract = adapter.KubeBaoV1Alpha1Snapshot
+		f.contract = adapter.KubeBaoV1Alpha1
 	case "openbao.org":
-		f.contract = adapter.V1Alpha1Snapshot
+		f.contract = adapter.OpenBaoV1Alpha1
 	}
 	if !f.valid() {
 		t.Fatal("restore qualification requires a loopback HTTP proxy, declared identities, inspected group, and bounded expectations")
@@ -148,8 +147,8 @@ func (f restoreFixture) requestIdentity() evidence.Identity {
 }
 
 func (f restoreFixture) valid() bool {
-	inspected := f.group == "kubebao.org" && f.contract == adapter.KubeBaoV1Alpha1Snapshot ||
-		f.group == "openbao.org" && f.contract == adapter.V1Alpha1Snapshot
+	inspected := f.group == "kubebao.org" && f.contract == adapter.KubeBaoV1Alpha1 ||
+		f.group == "openbao.org" && f.contract == adapter.OpenBaoV1Alpha1
 	return validRestoreEndpoint(f.endpoint) && inspected && f.targetIdentity().Validate() == nil &&
 		f.requestIdentity().Validate() == nil && len(f.namespace) <= 63 && qualificationName.MatchString(f.namespace) &&
 		validRestoreResourceName(f.targetName) && validRestoreResourceName(f.requestName) &&
@@ -228,11 +227,11 @@ func (f restoreFixture) collect(t *testing.T, ctx context.Context) (diagnose.Cap
 		t.Fatal("collect complete restore scope and verify the original target UID")
 	}
 	observed := f.observation(t, related.Restores.Observations)
-	capture := diagnose.Capture{SchemaVersion: evidence.SchemaVersion, Clusters: []diagnose.ClusterInput{{
-		Subject: target.Reference.Identity, AdapterContract: string(f.contract), Observation: &target,
+	capture := diagnose.Capture{Clusters: []diagnose.ClusterInput{{
+		Subject: target.Reference.Identity, Observation: &target,
 		Collection: clusters.Collection, Verification: &related.Verification,
 		Restores: &diagnose.ResourceInput[evidence.Restore]{
-			AdapterContract: string(f.contract), Collection: related.Restores.Collection, Observations: related.Restores.Observations,
+			Collection: related.Restores.Collection, Observations: related.Restores.Observations,
 		},
 	}}}
 	return capture, observed
@@ -319,9 +318,8 @@ func TestOperatorNonemptyRestore(t *testing.T) {
 		association.Target != f.targetIdentity() {
 		t.Fatal("restore lacks documented target UID confirmation")
 	}
-	policy := diagnose.DefaultPolicy(time.Now().UTC(), []string{string(f.contract)})
+	policy := diagnose.DefaultPolicy(time.Now().UTC())
 	policy.Rules = []diagnose.RuleID{diagnose.RuleRestore}
-	policy.RestoreUIDBindingContracts = []string{string(f.contract)}
 	report, err := diagnose.Analyze(capture, policy)
 	if err != nil {
 		t.Fatal("analyze projected restore evidence")
@@ -337,7 +335,7 @@ func restoreGuardFixture() restoreFixture {
 	return restoreFixture{
 		endpoint: "http://127.0.0.1:8001", origin: "declared-demo", namespace: "team", group: "kubebao.org",
 		targetName: "target", targetUID: "target-uid", requestName: "request", requestUID: "request-uid", phase: "Unknown",
-		wantFinding: "error", wantCoverage: "insufficient", contract: adapter.KubeBaoV1Alpha1Snapshot,
+		wantFinding: "error", wantCoverage: "insufficient", contract: adapter.KubeBaoV1Alpha1,
 	}
 }
 
@@ -360,7 +358,7 @@ func TestRestoreQualificationConfigurationGuard(t *testing.T) {
 		func(f *restoreFixture) { f.requestName = "" },
 		func(f *restoreFixture) { f.requestUID = "" },
 		func(f *restoreFixture) { f.group = "other.example" },
-		func(f *restoreFixture) { f.contract = adapter.V1Alpha1Snapshot },
+		func(f *restoreFixture) { f.contract = adapter.OpenBaoV1Alpha1 },
 		func(f *restoreFixture) { f.phase = "Succeeded" },
 		func(f *restoreFixture) { f.wantFinding = "critical" },
 		func(f *restoreFixture) { f.wantCoverage = "healthy" },

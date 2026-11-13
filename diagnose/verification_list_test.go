@@ -84,9 +84,4 @@ func TestListVerificationRejectsFilteredOrIncompleteDeclarations(t *testing.T) {
 			t.Fatal("filtered, incomplete, or duplicate list was accepted")
 		}
 	}
-	p := policy(t)
-	p.RuleSetVersion = "5"
-	if _, err := diagnose.Analyze(capture(i), p); !errors.Is(err, diagnose.ErrUnsupportedVersion) {
-		t.Fatal("old policy silently accepted expanded verification semantics")
-	}
 }

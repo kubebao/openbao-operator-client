@@ -22,7 +22,7 @@ func targetDocument(uid, generation string) string {
 func selectedTarget(t *testing.T) evidence.Cluster {
 	t.Helper()
 	value, err := adapter.ProjectCluster([]byte(targetDocument("cluster-1", `,"generation":1`)), adapter.ProjectionOptions{
-		Origin: "origin-1", Contract: adapter.V1Alpha1Snapshot, CollectedAt: time.Now().UTC().Add(-time.Second),
+		Origin: "origin-1", Contract: adapter.OpenBaoV1Alpha1, CollectedAt: time.Now().UTC().Add(-time.Second),
 		Limits: adapter.DefaultProjectionLimits(),
 	})
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kubebao/openbao-operator-client/adapter"
 	"github.com/kubebao/openbao-operator-client/operations"
 )
 
@@ -128,7 +129,7 @@ func TestSubmitMaintenanceRequiresMatchingValue(t *testing.T) {
 		{"missing-object", `{}`, operations.OutcomeUnknown},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			plan, err := operations.PrepareMaintenance(controlCluster(t, ""), true)
+			plan, err := operations.PrepareMaintenance(controlCluster(t, ""), adapter.OpenBaoV1Alpha1, true)
 			if err != nil {
 				t.Fatal(err)
 			}

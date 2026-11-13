@@ -8,12 +8,10 @@ import (
 )
 
 // LatestRestore selects a confirmed request for display. Ties use UID ascending.
-// The caller selects the approved UID-binding contract and API version. Selection does not
-// establish causality, submission acceptance, or operation success.
+// Selection does not establish causality, submission acceptance, or operation success.
 func LatestRestore(
 	target evidence.Cluster,
 	requests []evidence.Restore,
-	bindingContract, apiVersion string,
 ) (evidence.Restore, bool, error) {
 	if err := target.Validate(); err != nil {
 		return evidence.Restore{}, false, evidence.At("target", err)
@@ -22,7 +20,7 @@ func LatestRestore(
 	var latest evidence.Restore
 	found := false
 	for index, request := range requests {
-		association, err := evidence.AssociateRestore(target, request, bindingContract)
+		association, err := evidence.AssociateRestore(target, request)
 		if err != nil {
 			return evidence.Restore{}, false, evidence.At(fmt.Sprintf("requests[%d]", index), err)
 		}
@@ -34,8 +32,7 @@ func LatestRestore(
 			)
 		}
 		seen[id] = true
-		if target.Reference.APIVersion != apiVersion || request.Reference.APIVersion != apiVersion ||
-			association.State != evidence.AssociationConfirmed || request.CreatedAt.State != evidence.ValueReported ||
+		if association.State != evidence.AssociationConfirmed || request.CreatedAt.State != evidence.ValueReported ||
 			request.CreatedAt.Value.After(*request.Reference.CollectedAt.Value) {
 			continue
 		}

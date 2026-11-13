@@ -22,7 +22,7 @@
         "targetName": "bao",
         "targetUID": "",
         "executionUID": "cluster-1",
-        "contract": "openbao.org/v1alpha1@9671c306/restore-retention-v1",
+        "contract": "openbao.org/v1alpha1",
         "createdAt": "2026-11-10T10:00:00Z",
         "originRequestUID": ""
       },
@@ -38,7 +38,7 @@
         "targetName": "bao",
         "targetUID": "",
         "executionUID": "",
-        "contract": "openbao.org/v1alpha1@9671c306/restore-retention-v1",
+        "contract": "openbao.org/v1alpha1",
         "createdAt": "2026-11-10T11:00:00Z",
         "originRequestUID": ""
       },
@@ -54,7 +54,7 @@
         "targetName": "bao",
         "targetUID": "",
         "executionUID": "cluster-1",
-        "contract": "openbao.org/v1alpha1@9671c306/restore-retention-v1",
+        "contract": "openbao.org/v1alpha1",
         "createdAt": "2026-11-10T10:00:00Z",
         "originRequestUID": ""
       }
@@ -84,7 +84,7 @@
         "targetName": "bao",
         "targetUID": "",
         "executionUID": "",
-        "contract": "openbao.org/v1alpha1@9671c306/restore-retention-v1",
+        "contract": "openbao.org/v1alpha1",
         "createdAt": "2026-11-10T11:00:00Z",
         "originRequestUID": ""
       }
@@ -114,7 +114,7 @@
         "targetName": "bao",
         "targetUID": "",
         "executionUID": "cluster-1",
-        "contract": "openbao.org/v1alpha1@9671c306/restore-retention-v1",
+        "contract": "openbao.org/v1alpha1",
         "createdAt": "2026-11-10T10:00:00Z",
         "originRequestUID": ""
       },
@@ -130,7 +130,7 @@
         "targetName": "bao",
         "targetUID": "",
         "executionUID": "cluster-1",
-        "contract": "openbao.org/v1alpha1@9671c306/restore-retention-v1",
+        "contract": "openbao.org/v1alpha1",
         "createdAt": "2026-11-10T10:00:00Z",
         "originRequestUID": ""
       }

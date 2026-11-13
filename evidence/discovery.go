@@ -36,18 +36,16 @@ func (v ReadVerbs) Validate() error {
 // Discovery records advertised facts for one resource in one group/version.
 // It establishes neither caller authorization nor operator integration qualification.
 type Discovery struct {
-	SchemaVersion   string      `json:"schemaVersion"`
-	AdapterContract string      `json:"adapterContract"`
-	Scope           Scope       `json:"scope"`
-	CollectedAt     Timestamp   `json:"collectedAt"`
-	State           ObjectState `json:"state"`
-	Kind            Text        `json:"kind"`
-	Namespaced      Boolean     `json:"namespaced"`
-	Verbs           ReadVerbs   `json:"verbs"`
+	Scope       Scope       `json:"scope"`
+	CollectedAt Timestamp   `json:"collectedAt"`
+	State       ObjectState `json:"state"`
+	Kind        Text        `json:"kind"`
+	Namespaced  Boolean     `json:"namespaced"`
+	Verbs       ReadVerbs   `json:"verbs"`
 }
 
 func (v Discovery) Validate() error {
-	if v.SchemaVersion != SchemaVersion || !validText(v.AdapterContract, 253, false) || v.Scope.Validate() != nil ||
+	if v.Scope.Validate() != nil ||
 		v.Scope.Action != ReadDiscovery || v.Scope.Namespace != "" || v.Scope.Selector != "" ||
 		v.CollectedAt.Validate() != nil || v.CollectedAt.State != ValueReported || v.Kind.Validate() != nil ||
 		v.Namespaced.Validate() != nil || v.Namespaced.State == ValueImplied || v.Verbs.Validate() != nil {

@@ -20,8 +20,6 @@ const (
 // complete, unfiltered namespace LIST. A LIST preserves list-only reader permissions.
 // Verified means matching UID and positive metadata generation, not an atomic snapshot.
 type TargetVerification struct {
-	SchemaVersion    string            `json:"schemaVersion"`
-	AdapterContract  string            `json:"adapterContract"`
 	Before           Reference         `json:"before"`
 	BeforeGeneration Integer           `json:"beforeGeneration"`
 	After            *Reference        `json:"after,omitempty"`
@@ -53,12 +51,6 @@ func (v TargetVerification) Validate() error {
 }
 
 func (v TargetVerification) validateHeader() error {
-	if v.SchemaVersion != SchemaVersion {
-		return At("schemaVersion", ErrInvalidEvidence)
-	}
-	if !validText(v.AdapterContract, 253, false) {
-		return At("adapterContract", ErrInvalidEvidence)
-	}
 	if err := checkFields(fieldCheck{"before", v.Before.Validate()}, fieldCheck{"beforeGeneration", v.BeforeGeneration.Validate()},
 		fieldCheck{"afterGeneration", v.AfterGeneration.Validate()}, fieldCheck{"read", v.Read.Validate()}); err != nil {
 		return err
@@ -148,7 +140,7 @@ func generationVerification(before, after Integer) VerificationState {
 // target or establish deletion, even when they contain a matching observation.
 func NewTargetVerification(before Cluster, read Collection, observations []Cluster) (TargetVerification, error) {
 	value := TargetVerification{
-		SchemaVersion: SchemaVersion, AdapterContract: before.AdapterContract, Before: before.Reference,
+		Before:           before.Reference,
 		BeforeGeneration: before.Generation, AfterGeneration: Integer{State: ValueUnknown}, Read: read,
 		State: VerificationFailed,
 	}
@@ -174,9 +166,6 @@ func NewTargetVerification(before Cluster, read Collection, observations []Clust
 			return TargetVerification{}, At(fmt.Sprintf("observations[%d]", index), err)
 		}
 		path := fmt.Sprintf("observations[%d]", index)
-		if after.AdapterContract != before.AdapterContract {
-			return TargetVerification{}, At(path+".adapterContract", ErrInvalidEvidence)
-		}
 		if after.Reference.APIVersion != before.Reference.APIVersion {
 			return TargetVerification{}, At(path+".reference.apiVersion", ErrInvalidEvidence)
 		}

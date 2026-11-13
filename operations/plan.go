@@ -23,7 +23,7 @@ const (
 // It grants no permission and does not establish that the operator can apply the change.
 // Validate a deserialized plan before displaying or submitting it.
 type Plan struct {
-	AdapterContract  string               `json:"adapterContract"`
+	Contract         adapter.Contract     `json:"contract"`
 	Target           evidence.Reference   `json:"target"`
 	Generation       evidence.Integer     `json:"generation"`
 	Control          Control              `json:"control"`
@@ -32,17 +32,17 @@ type Plan struct {
 }
 
 // PreparePause plans a pause or resume without making requests.
-func PreparePause(cluster evidence.Cluster, paused bool) (Plan, error) {
-	return prepare(cluster, ControlPause, paused)
+func PreparePause(cluster evidence.Cluster, contract adapter.Contract, paused bool) (Plan, error) {
+	return prepare(cluster, contract, ControlPause, paused)
 }
 
 // PrepareMaintenance plans a maintenance flag change. It never resumes reconciliation.
 // A paused operator cannot propagate the flag to managed resources.
-func PrepareMaintenance(cluster evidence.Cluster, enabled bool) (Plan, error) {
-	return prepare(cluster, ControlMaintenance, enabled)
+func PrepareMaintenance(cluster evidence.Cluster, contract adapter.Contract, enabled bool) (Plan, error) {
+	return prepare(cluster, contract, ControlMaintenance, enabled)
 }
 
-func prepare(cluster evidence.Cluster, control Control, enabled bool) (Plan, error) {
+func prepare(cluster evidence.Cluster, contract adapter.Contract, control Control, enabled bool) (Plan, error) {
 	if cluster.Validate() != nil || cluster.DeletionTimestamp.State != evidence.ValueUnknown {
 		return Plan{}, ErrInvalidPlan
 	}
@@ -53,7 +53,7 @@ func prepare(cluster evidence.Cluster, control Control, enabled bool) (Plan, err
 		return Plan{}, ErrInvalidPlan
 	}
 	plan := Plan{
-		AdapterContract: cluster.AdapterContract, Target: copyReference(cluster.Reference),
+		Contract: contract, Target: copyReference(cluster.Reference),
 		Generation: copyInteger(cluster.Generation), Control: control, Enabled: enabled,
 		MaintenanceState: evidence.ObjectUnknown,
 	}
@@ -83,9 +83,9 @@ func validResourceName(value string) bool {
 // Validate checks the fixed control surface and every optimistic-concurrency precondition.
 // A valid plan can still be rejected by RBAC, admission, or a concurrent resource change.
 func (p Plan) Validate() error {
-	contract := adapter.Contract(p.AdapterContract)
+	contract := p.Contract
 	info, err := adapter.Describe(contract)
-	if err != nil || (contract != adapter.V1Alpha1Snapshot && contract != adapter.KubeBaoV1Alpha1Snapshot) ||
+	if err != nil || (contract != adapter.OpenBaoV1Alpha1 && contract != adapter.KubeBaoV1Alpha1) ||
 		p.Target.Validate() != nil ||
 		p.Target.Field != "" || p.Target.Identity.Kind != "OpenBaoCluster" ||
 		p.Target.Identity.Group != info.APIGroup || p.Target.APIVersion != info.APIVersion {

@@ -19,17 +19,17 @@ func workloadInput(t testing.TB) diagnose.ClusterInput {
 	set := readWorkloadFixture[evidence.StatefulSet](t, "statefulset")
 	pod := readWorkloadFixture[evidence.Pod](t, "pod")
 	i.StatefulSets = &diagnose.ResourceInput[evidence.StatefulSet]{
-		AdapterContract: set.AdapterContract, Collection: workloadCollection(i, "apps", "statefulsets"),
+		Collection:   workloadCollection(i, "apps", "statefulsets"),
 		Observations: []evidence.StatefulSet{set},
 	}
 	i.Pods = &diagnose.ResourceInput[evidence.Pod]{
-		AdapterContract: pod.AdapterContract, Collection: workloadCollection(i, "", "pods"), Observations: []evidence.Pod{pod},
+		Collection: workloadCollection(i, "", "pods"), Observations: []evidence.Pod{pod},
 	}
 	ref := i.Observation.Reference
 	at := ref.CollectedAt.Value.Add(time.Second)
 	ref.CollectedAt = timestamp(at)
 	i.Verification = &evidence.TargetVerification{
-		SchemaVersion: evidence.SchemaVersion, AdapterContract: i.AdapterContract, Before: i.Observation.Reference,
+		Before:           i.Observation.Reference,
 		BeforeGeneration: i.Observation.Generation, After: &ref, AfterGeneration: i.Observation.Generation,
 		State: evidence.VerificationVerified, Read: evidence.Collection{
 			Scope: i.Collection.Scope, Outcome: evidence.CollectionComplete, Items: 1,
@@ -63,9 +63,7 @@ func workloadCollection(i diagnose.ClusterInput, group, resource string) evidenc
 
 func workloadPolicy(t testing.TB) diagnose.Policy {
 	t.Helper()
-	i := workloadInput(t)
 	p := policy(t)
-	p.ApprovedContracts = append(p.ApprovedContracts, i.StatefulSets.AdapterContract, i.Pods.AdapterContract)
 	p.ReferenceTime = p.ReferenceTime.Add(time.Second)
 	p.Rules = []diagnose.RuleID{diagnose.RuleWorkload, diagnose.RulePod}
 	return p
@@ -317,8 +315,10 @@ func TestWorkloadInputRejectsContradictoryEnvelopes(t *testing.T) {
 			diagnose.ErrInvalidCapture,
 		},
 		{
-			"unapproved-contract", func(i *diagnose.ClusterInput, _ *diagnose.Policy) { i.Pods.AdapterContract = "other" },
-			diagnose.ErrUnsupportedVersion,
+			"unsupported-pod-version", func(i *diagnose.ClusterInput, _ *diagnose.Policy) {
+				i.Pods.Observations[0].Metadata.Reference.APIVersion = "v2"
+			},
+			diagnose.ErrInvalidCapture,
 		},
 		{"duplicate", func(i *diagnose.ClusterInput, _ *diagnose.Policy) {
 			i.Pods.Observations = append(i.Pods.Observations, i.Pods.Observations[0])
@@ -335,7 +335,10 @@ func TestWorkloadInputRejectsContradictoryEnvelopes(t *testing.T) {
 			i.Pods.Collection.Interval.CompletedAt = i.Verification.Read.Interval.StartedAt.Add(time.Second)
 		}, diagnose.ErrInvalidCapture},
 		{"subject-budget", func(_ *diagnose.ClusterInput, p *diagnose.Policy) { p.MaxSubjects = 2 }, diagnose.ErrInvalidCapture},
-		{"old-policy", func(_ *diagnose.ClusterInput, p *diagnose.Policy) { p.RuleSetVersion = "3" }, diagnose.ErrUnsupportedVersion},
+		{
+			"duplicate-rule", func(_ *diagnose.ClusterInput, p *diagnose.Policy) { p.Rules = append(p.Rules, p.Rules[0]) },
+			diagnose.ErrInvalidPolicy,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			i, p := workloadInput(t), workloadPolicy(t)

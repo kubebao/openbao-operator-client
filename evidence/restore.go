@@ -3,8 +3,6 @@ package evidence
 // Restore contains reported request and execution facts. It never authorizes replay
 // or equates submission, target application, and managed restart completion.
 type Restore struct {
-	SchemaVersion            string           `json:"schemaVersion"`
-	AdapterContract          string           `json:"adapterContract"`
 	Reference                Reference        `json:"reference"`
 	Generation               Integer          `json:"generation"`
 	CreatedAt                Timestamp        `json:"createdAt"`
@@ -47,7 +45,7 @@ func (v RestoreExecution) Validate() error {
 }
 
 func (v Restore) Validate() error {
-	if v.SchemaVersion != SchemaVersion || !validText(v.AdapterContract, 253, false) || v.Reference.Validate() != nil ||
+	if v.Reference.Validate() != nil ||
 		v.Reference.Identity.Kind != "OpenBaoRestore" || !v.SubmissionClaim.Valid() ||
 		v.Target.Validate() != nil || v.Execution.Validate() != nil ||
 		v.Generation.State == ValueImplied || v.CleanupAfterSeconds.State == ValueImplied || v.Conditions.Validate() != nil {

@@ -3,7 +3,6 @@ package diagnose_test
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -307,12 +306,6 @@ func TestOperationalReplayExcludesProviderText(t *testing.T) {
 	b, err := json.Marshal(second)
 	if err != nil || !bytes.Equal(a, b) || strings.Contains(string(a), "CANARY") {
 		t.Fatal("operational replay was nondeterministic or copied producer text")
-	}
-	for _, version := range []string{"1", "2"} {
-		p.RuleSetVersion = version
-		if _, err := diagnose.Analyze(decoded, p); !errors.Is(err, diagnose.ErrUnsupportedVersion) {
-			t.Fatal("old policy silently enabled operational rules")
-		}
 	}
 }
 

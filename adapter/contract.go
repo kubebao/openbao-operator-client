@@ -5,16 +5,16 @@ package adapter
 type Contract string
 
 const (
-	// V1Alpha1Snapshot projects the inspected source contract, including maintenance and restore-retention evidence.
-	V1Alpha1Snapshot Contract = "openbao.org/v1alpha1@9671c306/restore-retention-v1"
-	// V1Alpha1Unqualified projects the same approved fields without inferring omitted values.
-	V1Alpha1Unqualified Contract = "openbao.org/v1alpha1/unqualified-v4"
-	// KubeBaoV1Alpha1Snapshot projects the inspected native API contract. Workload metadata retains openbao.org keys.
-	KubeBaoV1Alpha1Snapshot Contract = "kubebao.org/v1alpha1@22894cdc/restore-retention-v1"
+	// OpenBaoV1Alpha1 projects the inspected source contract, including maintenance and restore-retention evidence.
+	OpenBaoV1Alpha1 Contract = "openbao.org/v1alpha1"
+	// OpenBaoV1Alpha1Unqualified projects the same approved fields without inferring omitted values.
+	OpenBaoV1Alpha1Unqualified Contract = "openbao.org/v1alpha1/unqualified"
+	// KubeBaoV1Alpha1 projects the inspected native API contract. Workload metadata retains openbao.org keys.
+	KubeBaoV1Alpha1 Contract = "kubebao.org/v1alpha1"
 	// KubeBaoV1Alpha1Unqualified projects native API fields without inferring omitted values.
-	KubeBaoV1Alpha1Unqualified Contract = "kubebao.org/v1alpha1/unqualified-v2"
-	KubernetesAppsV1           Contract = "kubernetes/apps/v1@v0.37.2/workload-pools-v1"
-	KubernetesCoreV1           Contract = "kubernetes/core/v1@v0.37.2/workload-pools-v1"
+	KubeBaoV1Alpha1Unqualified Contract = "kubebao.org/v1alpha1/unqualified"
+	KubernetesAppsV1           Contract = "apps/v1"
+	KubernetesCoreV1           Contract = "v1"
 )
 
 type Capability string
@@ -49,12 +49,12 @@ type ContractInfo struct {
 func Describe(contract Contract) (ContractInfo, error) {
 	info := ContractInfo{ID: contract, APIGroup: "openbao.org", APIVersion: "openbao.org/v1alpha1"}
 	switch contract {
-	case V1Alpha1Snapshot:
+	case OpenBaoV1Alpha1:
 		info.SourceRevision = "9671c30623d609f948cf073e167f376de4ea9a85"
-	case V1Alpha1Unqualified:
-	case KubeBaoV1Alpha1Snapshot, KubeBaoV1Alpha1Unqualified:
+	case OpenBaoV1Alpha1Unqualified:
+	case KubeBaoV1Alpha1, KubeBaoV1Alpha1Unqualified:
 		info.APIGroup, info.APIVersion = "kubebao.org", "kubebao.org/v1alpha1"
-		if contract == KubeBaoV1Alpha1Snapshot {
+		if contract == KubeBaoV1Alpha1 {
 			info.SourceRevision = "22894cdc0a4aa5c442a07f2bf9902fe28ce02ea1"
 		}
 	case KubernetesAppsV1:
@@ -84,5 +84,5 @@ func Describe(contract Contract) (ContractInfo, error) {
 }
 
 func inspectedOperatorContract(contract Contract) bool {
-	return contract == V1Alpha1Snapshot || contract == KubeBaoV1Alpha1Snapshot
+	return contract == OpenBaoV1Alpha1 || contract == KubeBaoV1Alpha1
 }

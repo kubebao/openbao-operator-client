@@ -46,7 +46,7 @@ func fixtureTarget(t *testing.T, target identity, r request) (evidence.Cluster, 
 	if err != nil {
 		t.Fatal(err)
 	}
-	options := fixtureOptions(target.Origin, adapter.V1Alpha1Snapshot)
+	options := fixtureOptions(target.Origin, adapter.OpenBaoV1Alpha1)
 	value, err := adapter.ProjectCluster(data, options)
 	if err == nil {
 		value.Reference.Identity = evidence.Identity(target)
@@ -103,7 +103,7 @@ func fixtureRestore(t *testing.T, r request) (evidence.Restore, error) {
 	}
 	contract := adapter.Contract(r.Contract)
 	if r.Contract == "unknown" {
-		contract = adapter.V1Alpha1Unqualified
+		contract = adapter.OpenBaoV1Alpha1Unqualified
 	}
 	value, err := adapter.ProjectRestore(data, fixtureOptions(r.Identity.Origin, contract))
 	if err == nil {
@@ -147,7 +147,7 @@ func latest(t *testing.T, target identity, requests []request) string {
 		}
 		projected = append(projected, value)
 	}
-	result, found, err := diagnose.LatestRestore(owner, projected, string(adapter.V1Alpha1Snapshot), "openbao.org/v1alpha1")
+	result, found, err := diagnose.LatestRestore(owner, projected)
 	if err != nil {
 		t.Fatal(err)
 	}

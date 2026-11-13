@@ -17,7 +17,7 @@ import (
 func projectionOptions() adapter.ProjectionOptions {
 	return adapter.ProjectionOptions{
 		Origin: "origin-1", CollectedAt: time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC),
-		Contract: adapter.V1Alpha1Snapshot, Limits: adapter.DefaultProjectionLimits(),
+		Contract: adapter.OpenBaoV1Alpha1, Limits: adapter.DefaultProjectionLimits(),
 	}
 }
 
@@ -86,7 +86,7 @@ func TestClusterProjection(t *testing.T) {
 func TestClusterOmissionPolicyIsExplicit(t *testing.T) {
 	t.Parallel()
 	options := projectionOptions()
-	options.Contract = adapter.V1Alpha1Unqualified
+	options.Contract = adapter.OpenBaoV1Alpha1Unqualified
 	got, err := adapter.ProjectCluster(clusterFixture(t), options)
 	if err != nil {
 		t.Fatal(err)
@@ -248,12 +248,12 @@ func TestConditionOrderAndEmptySerialization(t *testing.T) {
 
 func TestContractDescriptionDoesNotShareMutableState(t *testing.T) {
 	t.Parallel()
-	first, err := adapter.Describe(adapter.V1Alpha1Snapshot)
+	first, err := adapter.Describe(adapter.OpenBaoV1Alpha1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	first.Capabilities[0] = "changed"
-	second, err := adapter.Describe(adapter.V1Alpha1Snapshot)
+	second, err := adapter.Describe(adapter.OpenBaoV1Alpha1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +264,7 @@ func TestContractDescriptionDoesNotShareMutableState(t *testing.T) {
 
 func TestRestoreBindingCapabilityRequiresInspectedSemantics(t *testing.T) {
 	t.Parallel()
-	for _, contract := range []adapter.Contract{adapter.V1Alpha1Snapshot, adapter.V1Alpha1Unqualified} {
+	for _, contract := range []adapter.Contract{adapter.OpenBaoV1Alpha1, adapter.OpenBaoV1Alpha1Unqualified} {
 		info, err := adapter.Describe(contract)
 		if err != nil {
 			t.Fatal(err)
@@ -273,7 +273,7 @@ func TestRestoreBindingCapabilityRequiresInspectedSemantics(t *testing.T) {
 		for _, capability := range info.Capabilities {
 			binding = binding || capability == adapter.CapabilityRestoreUIDBinding
 		}
-		if binding != (contract == adapter.V1Alpha1Snapshot) {
+		if binding != (contract == adapter.OpenBaoV1Alpha1) {
 			t.Fatal("unqualified projection acquired inspected UID-binding semantics")
 		}
 	}

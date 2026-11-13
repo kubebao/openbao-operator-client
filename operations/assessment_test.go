@@ -28,7 +28,7 @@ func assessmentCluster(t testing.TB, at time.Time, generation int64, paused, mai
 	"spec":{"version":"2.7.2","replicas":1,"paused":%t,"maintenance":{"enabled":%t}},
 	"status":{"observedGeneration":%d,"conditions":[{"type":"Available","status":%q,"reason":%q,"observedGeneration":%d}]}}`,
 		generation, generation, paused, maintenance, generation, condition, reason, generation)
-	value, err := adapter.ProjectCluster([]byte(raw), assessmentOptions(at, adapter.V1Alpha1Snapshot))
+	value, err := adapter.ProjectCluster([]byte(raw), assessmentOptions(at, adapter.OpenBaoV1Alpha1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,9 +47,9 @@ func assessmentPlan(t testing.TB, paused bool, enabled bool) operations.Plan {
 	var plan operations.Plan
 	var err error
 	if paused {
-		plan, err = operations.PreparePause(before, enabled)
+		plan, err = operations.PreparePause(before, adapter.OpenBaoV1Alpha1, enabled)
 	} else {
-		plan, err = operations.PrepareMaintenance(before, enabled)
+		plan, err = operations.PrepareMaintenance(before, adapter.OpenBaoV1Alpha1, enabled)
 	}
 	if err != nil {
 		t.Fatal(err)
@@ -127,7 +127,7 @@ func TestAssessPauseNeedsProducerAcknowledgement(t *testing.T) {
 	t.Parallel()
 	for _, enabled := range []bool{true, false} {
 		before := assessmentCluster(t, assessmentTime, 1, !enabled, false)
-		plan, err := operations.PreparePause(before, enabled)
+		plan, err := operations.PreparePause(before, adapter.OpenBaoV1Alpha1, enabled)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -17,9 +17,6 @@ func restoreGroupInput(t testing.TB, native bool) (diagnose.ClusterInput, diagno
 	if !native {
 		return i, p
 	}
-	const contract = "kubebao.org/v1alpha1@22894cdc/restore-retention-v1"
-	i.AdapterContract, i.Observation.AdapterContract, i.Restores.AdapterContract = contract, contract, contract
-	i.Verification.AdapterContract = contract
 	for _, ref := range []*evidence.Reference{
 		&i.Observation.Reference, &i.Verification.Before, i.Verification.After, &i.Restores.Observations[0].Reference,
 	} {
@@ -28,8 +25,6 @@ func restoreGroupInput(t testing.TB, native bool) (diagnose.ClusterInput, diagno
 	i.Subject = i.Observation.Reference.Identity
 	i.Collection.Scope.Group = "kubebao.org"
 	i.Restores.Collection.Scope.Group, i.Verification.Read.Scope.Group = "kubebao.org", "kubebao.org"
-	i.Restores.Observations[0].AdapterContract = contract
-	p.ApprovedContracts, p.RestoreUIDBindingContracts = []string{contract}, []string{contract}
 	return i, p
 }
 
@@ -80,8 +75,6 @@ func TestRestoreDisplaySelectionDoesNotReplaceEarlierHeldConcern(t *testing.T) {
 			display, found, err := diagnose.LatestRestore(
 				*i.Observation,
 				i.Restores.Observations,
-				i.AdapterContract,
-				i.Observation.Reference.APIVersion,
 			)
 			if err != nil || !found || display.Reference.Identity != latest.Reference.Identity {
 				t.Fatal("newer foreign or name-only request displaced the latest UID-confirmed display record")
@@ -123,8 +116,6 @@ func TestRestoreDiagnosisKeepsIdenticalUIDsInDifferentAPIGroupsSeparate(t *testi
 	for _, i := range []*diagnose.ClusterInput{&legacy, &native} {
 		i.Observation.RestoreHold = text(i.Restores.Observations[0].Reference.Identity.UID)
 	}
-	p.ApprovedContracts = []string{legacy.AdapterContract, native.AdapterContract}
-	p.RestoreUIDBindingContracts = slices.Clone(p.ApprovedContracts)
 	p.ReportHistoricalRestores = false
 	report, err := diagnose.Analyze(capture(legacy, native), p)
 	if err != nil || len(report.Findings) != 2 {

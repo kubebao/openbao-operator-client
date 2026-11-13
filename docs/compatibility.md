@@ -6,16 +6,22 @@ The client supports Kubernetes 1.34 and later. Pod readiness evaluation needs th
 on Pod conditions. `PodObservedGenerationTracking` does that and is enabled by default from 1.34. If it is disabled, Pod
 readiness coverage is `insufficient` with `generation_unconfirmed`. A `Failed` phase still produces a finding.
 
-## Contracts
+## Release compatibility
+
+The Go API and diagnostic semantics can change between `v0` releases. Consumers update to a qualified client commit
+together. The client does not guarantee compatibility for earlier evidence JSON or diagnostic policy. Consumer database
+formats and user data are separate responsibilities; changing the client does not authorize resetting them.
+
+## Adapter selection
 
 | Contract | Source | Validation |
 | --- | --- | --- |
-| `openbao.org/v1alpha1@9671c306/restore-retention-v1` | Operator commit `9671c30623d609f948cf073e167f376de4ea9a85` | Source inspected; unit and fixture tests; local controls and restore observation integration with `0.6.1` |
-| `openbao.org/v1alpha1/unqualified-v4` | Same fields, no omission rules | Unit and fixture tests |
-| `kubebao.org/v1alpha1@22894cdc/restore-retention-v1` | Native operator candidate `22894cdc0a4aa5c442a07f2bf9902fe28ce02ea1` | Source inspected; unit and fixture tests; local control integration with this candidate and restore observations with edge `587dd163` |
-| `kubebao.org/v1alpha1/unqualified-v2` | Same native fields, no omission rules | Unit and fixture tests |
-| `kubernetes/apps/v1@v0.37.2/workload-pools-v1` | Kubernetes API declarations `v0.37.2`; operator workload metadata at `9671c306` | Source inspected; unit and fixture tests; local operator integration |
-| `kubernetes/core/v1@v0.37.2/workload-pools-v1` | Kubernetes API declarations `v0.37.2`; operator workload metadata at `9671c306` | Source inspected; unit and fixture tests; local operator integration |
+| `openbao.org/v1alpha1` | Operator commit `9671c30623d609f948cf073e167f376de4ea9a85` | Source inspected; unit and fixture tests; local controls and restore observation integration with `0.6.1` |
+| `openbao.org/v1alpha1/unqualified` | Reported fields without omission rules or restore UID bindings | Unit and fixture tests |
+| `kubebao.org/v1alpha1` | Native operator candidate `22894cdc0a4aa5c442a07f2bf9902fe28ce02ea1` | Source inspected; unit and fixture tests; local control integration with this candidate and restore observations with edge `587dd163` |
+| `kubebao.org/v1alpha1/unqualified` | Reported native fields without omission rules or restore UID bindings | Unit and fixture tests |
+| `apps/v1` | Kubernetes API declarations `v0.37.2`; operator workload metadata at `9671c306` | Source inspected; unit and fixture tests; local operator integration |
+| `v1` | Kubernetes API declarations `v0.37.2`; operator workload metadata at `9671c306` | Source inspected; unit and fixture tests; local operator integration |
 
 Validation levels mean:
 
@@ -25,10 +31,9 @@ Validation levels mean:
 - **Local observation integration**: the console and CLI ran against operator `0.6.1` on Kubernetes 1.36.1 in an isolated
   cluster. This covered cluster GET and LIST, UID-associated StatefulSet and Pod observations, empty restore LISTs,
   target verification, denied reads, healthy selected diagnostics, and status-watch interruption. A completed Job Pod
-  with the cluster label was excluded from StatefulSet membership. This evidence covers the schema `2` observation
-  contract. It does not qualify schema `4`, control submission, maintenance propagation assessment, non-empty restores,
-  or every rule.
-- **Local operator integration** for schema `4`: the library ran against released operator `0.6.1` (source
+  with the cluster label was excluded from StatefulSet membership. This covers observation field behavior. It does not
+  qualify control submission, maintenance propagation assessment, nonempty restores, or every rule.
+- **Local operator integration**: the library ran against released operator `0.6.1` (source
   `5b5470714cfa2ff4372634e229c77b55be8f65b3`) and the native candidate `22894cdc` in separate disposable Kind clusters.
   Both used Kubernetes 1.36.1, Linux/arm64, OpenBao 2.7.2, the Development profile, self-initialization, and enabled
   admission policies. Each environment covered one voter, one voter plus one read replica, a configured zero read pool,
@@ -36,11 +41,13 @@ Validation levels mean:
   observations listed below for these fixtures. It does not qualify another operator build, a completed upgrade, HA,
   production operation, or control behavior on Kubernetes 1.34.
 
-Package compilation, fixtures, and API discovery do not establish compatibility with an installed operator.
+These environment checks establish public API field and control behavior. They do not qualify every later client
+commit. Releases require both consumers to be qualified against the exact candidate. Package compilation, fixtures,
+and API discovery do not establish compatibility with an installed operator.
 
 ## Restore observations
 
-Local restore observation integration covers evidence schema `5` and rule set `9` with nonempty restore lists:
+Local restore observation integration covers the public fields used for nonempty restore lists:
 
 - Native operator edge commit `587dd16386bc5a234520e22eec1bbedb904fa6dd`, Kubernetes `1.36.1+k3s1`, Linux/amd64, and
   OpenBao `2.7.2` in the migrated demo. Reads cover an existing-target `Unknown` request bound to the current migrated
@@ -72,8 +79,9 @@ and a discarded response after one accepted PATCH. A later read confirms the req
 the client does not resubmit. A wrong-UID patch test does not qualify an actual delete-and-recreate replacement.
 Server dry-run acceptance does not prove that a later request will be accepted.
 
-Evidence schema `5` and the current operator and workload contract identifiers are required. Earlier serialized captures
-must be recollected. Consumer release pins are managed in their repositories.
+The client release defines the current typed model. It has no independent evidence schema or rule-set counter and no
+reader for earlier serialized models. Consumers pin the client and own stored-format rejection. Existing public tags
+remain immutable.
 
 Maintenance propagation assessment covers one stable voter pool and a configured read-replica pool, including a
 zero-replica pool. A settled blue/green deployment needs a valid `Idle` phase and consistent stable-revision evidence.

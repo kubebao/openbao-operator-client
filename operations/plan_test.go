@@ -18,7 +18,7 @@ func controlCluster(t testing.TB, maintenance string) evidence.Cluster {
 		`"metadata":{"namespace":"team","name":"bao","uid":"cluster-1","resourceVersion":"opaque-1","generation":7},` +
 		`"spec":{"version":"2.7.2","replicas":3,"paused":false` + maintenance + `},"status":{"observedGeneration":7}}`
 	cluster, err := adapter.ProjectCluster([]byte(raw), adapter.ProjectionOptions{
-		Origin: "origin-1", Contract: adapter.V1Alpha1Snapshot,
+		Origin: "origin-1", Contract: adapter.OpenBaoV1Alpha1,
 		CollectedAt: time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC), Limits: adapter.DefaultProjectionLimits(),
 	})
 	if err != nil {
@@ -29,7 +29,7 @@ func controlCluster(t testing.TB, maintenance string) evidence.Cluster {
 
 func pausePlan(t testing.TB) operations.Plan {
 	t.Helper()
-	plan, err := operations.PreparePause(controlCluster(t, ""), true)
+	plan, err := operations.PreparePause(controlCluster(t, ""), adapter.OpenBaoV1Alpha1, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,9 +62,9 @@ func TestControlPatches(t *testing.T) {
 			var plan operations.Plan
 			var err error
 			if tc.control == operations.ControlPause {
-				plan, err = operations.PreparePause(cluster, tc.enabled)
+				plan, err = operations.PreparePause(cluster, adapter.OpenBaoV1Alpha1, tc.enabled)
 			} else {
-				plan, err = operations.PrepareMaintenance(cluster, tc.enabled)
+				plan, err = operations.PrepareMaintenance(cluster, adapter.OpenBaoV1Alpha1, tc.enabled)
 			}
 			if err != nil {
 				t.Fatal(err)
@@ -105,7 +105,7 @@ func TestPrepareRejectsUnsafeEvidence(t *testing.T) {
 		name   string
 		mutate func(*evidence.Cluster)
 	}{
-		{"unqualified-contract", func(c *evidence.Cluster) { c.AdapterContract = string(adapter.V1Alpha1Unqualified) }},
+		{"unsupported-version", func(c *evidence.Cluster) { c.Reference.APIVersion = "openbao.org/v2" }},
 		{"missing-version", func(c *evidence.Cluster) { c.Reference.ResourceVersion = evidence.Text{State: evidence.ValueUnknown} }},
 		{"missing-generation", func(c *evidence.Cluster) { c.Generation = evidence.Integer{State: evidence.ValueUnknown} }},
 		{"deleting", func(c *evidence.Cluster) {
@@ -119,10 +119,10 @@ func TestPrepareRejectsUnsafeEvidence(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			cluster := controlCluster(t, "")
 			tc.mutate(&cluster)
-			if _, err := operations.PreparePause(cluster, true); !errors.Is(err, operations.ErrInvalidPlan) {
+			if _, err := operations.PreparePause(cluster, adapter.OpenBaoV1Alpha1, true); !errors.Is(err, operations.ErrInvalidPlan) {
 				t.Fatalf("pause error = %v", err)
 			}
-			if _, err := operations.PrepareMaintenance(cluster, true); !errors.Is(err, operations.ErrInvalidPlan) {
+			if _, err := operations.PrepareMaintenance(cluster, adapter.OpenBaoV1Alpha1, true); !errors.Is(err, operations.ErrInvalidPlan) {
 				t.Fatalf("maintenance error = %v", err)
 			}
 		})
@@ -178,12 +178,12 @@ func TestPrepareRejectsInvalidControlFields(t *testing.T) {
 	t.Parallel()
 	cluster := controlCluster(t, `,"maintenance":{"enabled":false}`)
 	cluster.Paused = evidence.Boolean{State: evidence.ValueInvalid}
-	if _, err := operations.PreparePause(cluster, true); !errors.Is(err, operations.ErrInvalidPlan) {
+	if _, err := operations.PreparePause(cluster, adapter.OpenBaoV1Alpha1, true); !errors.Is(err, operations.ErrInvalidPlan) {
 		t.Fatalf("invalid pause field error = %v", err)
 	}
 	cluster = controlCluster(t, `,"maintenance":{"enabled":false}`)
 	cluster.Maintenance.Enabled = evidence.Boolean{State: evidence.ValueInvalid}
-	if _, err := operations.PrepareMaintenance(cluster, true); !errors.Is(err, operations.ErrInvalidPlan) {
+	if _, err := operations.PrepareMaintenance(cluster, adapter.OpenBaoV1Alpha1, true); !errors.Is(err, operations.ErrInvalidPlan) {
 		t.Fatalf("invalid maintenance field error = %v", err)
 	}
 }
@@ -192,7 +192,7 @@ func TestPlanCopiesPreconditionsAndPreservesPausedIntent(t *testing.T) {
 	t.Parallel()
 	cluster := controlCluster(t, "")
 	*cluster.Paused.Value = true
-	plan, err := operations.PrepareMaintenance(cluster, true)
+	plan, err := operations.PrepareMaintenance(cluster, adapter.OpenBaoV1Alpha1, true)
 	if err != nil {
 		t.Fatal(err)
 	}

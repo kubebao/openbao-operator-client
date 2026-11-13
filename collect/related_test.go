@@ -26,7 +26,7 @@ func relatedPlan() collect.RelatedPlan {
 	return collect.RelatedPlan{
 		StatefulSets: relatedRequest(adapter.KubernetesAppsV1, "apps", "v1", "statefulsets"),
 		Pods:         relatedRequest(adapter.KubernetesCoreV1, "", "v1", "pods"),
-		Restores:     relatedRequest(adapter.V1Alpha1Snapshot, "openbao.org", "v1alpha1", "openbaorestores"),
+		Restores:     relatedRequest(adapter.OpenBaoV1Alpha1, "openbao.org", "v1alpha1", "openbaorestores"),
 		Verify:       verifyRequest(), Limits: collect.DefaultLimits(),
 	}
 }
@@ -180,7 +180,10 @@ func TestRelatedHasOneDeadlineAndRejectsInvalidPlansBeforeIO(t *testing.T) {
 	for _, change := range []func(*collect.RelatedPlan){
 		func(p *collect.RelatedPlan) { p.Pods.Scope.Namespace = "other" },
 		func(p *collect.RelatedPlan) { p.Verify.ExpectedUID = "other" },
-		func(p *collect.RelatedPlan) { p.Restores.Contract = adapter.V1Alpha1Unqualified },
+		func(p *collect.RelatedPlan) {
+			p.Restores.Contract = adapter.KubeBaoV1Alpha1
+			p.Restores.Scope.Group = "kubebao.org"
+		},
 		func(p *collect.RelatedPlan) { p.StatefulSets, p.Pods, p.Restores = nil, nil, nil },
 	} {
 		plan := relatedPlan()

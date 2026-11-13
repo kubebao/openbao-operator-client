@@ -16,7 +16,6 @@ import (
 )
 
 func nativeControlCluster(cluster evidence.Cluster) evidence.Cluster {
-	cluster.AdapterContract = string(adapter.KubeBaoV1Alpha1Snapshot)
 	cluster.Reference.Identity.Group, cluster.Reference.APIVersion = "kubebao.org", "kubebao.org/v1alpha1"
 	return cluster
 }
@@ -24,10 +23,13 @@ func nativeControlCluster(cluster evidence.Cluster) evidence.Cluster {
 func TestNativeControlPlansBindContractAndGroup(t *testing.T) {
 	t.Parallel()
 	cluster := nativeControlCluster(controlCluster(t, `,"maintenance":{"enabled":false}`))
-	preparers := []func(evidence.Cluster, bool) (operations.Plan, error){operations.PreparePause, operations.PrepareMaintenance}
+	preparers := []func(evidence.Cluster, adapter.Contract, bool) (operations.Plan, error){
+		operations.PreparePause,
+		operations.PrepareMaintenance,
+	}
 	for _, prepare := range preparers {
-		plan, err := prepare(cluster, true)
-		if err != nil || plan.Validate() != nil || plan.AdapterContract != string(adapter.KubeBaoV1Alpha1Snapshot) ||
+		plan, err := prepare(cluster, adapter.KubeBaoV1Alpha1, true)
+		if err != nil || plan.Validate() != nil || plan.Contract != adapter.KubeBaoV1Alpha1 ||
 			plan.Target.Identity.Group != "kubebao.org" {
 			t.Fatalf("native plan = %+v, %v", plan, err)
 		}
@@ -40,10 +42,10 @@ func TestNativeControlPlansBindContractAndGroup(t *testing.T) {
 			t.Fatalf("native plan replay = %+v, %v", replay, err)
 		}
 		for _, contract := range []adapter.Contract{
-			adapter.V1Alpha1Snapshot, adapter.V1Alpha1Unqualified, adapter.KubeBaoV1Alpha1Unqualified, adapter.KubernetesAppsV1,
+			adapter.OpenBaoV1Alpha1, adapter.OpenBaoV1Alpha1Unqualified, adapter.KubeBaoV1Alpha1Unqualified, adapter.KubernetesAppsV1,
 		} {
 			changed := plan
-			changed.AdapterContract = string(contract)
+			changed.Contract = contract
 			if !errors.Is(changed.Validate(), operations.ErrInvalidPlan) {
 				t.Fatalf("native group accepted contract %s", contract)
 			}
@@ -69,7 +71,7 @@ func TestNativeSubmitPinsRequestAndResponse(t *testing.T) {
 		{"legacy-response", false, acceptedPause, operations.OutcomeUnknown},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			plan, err := operations.PreparePause(nativeControlCluster(controlCluster(t, "")), true)
+			plan, err := operations.PreparePause(nativeControlCluster(controlCluster(t, "")), adapter.KubeBaoV1Alpha1, true)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -99,7 +101,7 @@ func TestNativePauseAndMaintenanceAssessment(t *testing.T) {
 	t.Parallel()
 	for _, enabled := range []bool{true, false} {
 		before := nativeControlCluster(assessmentCluster(t, assessmentTime, 1, !enabled, false))
-		plan, err := operations.PreparePause(before, enabled)
+		plan, err := operations.PreparePause(before, adapter.KubeBaoV1Alpha1, enabled)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -109,7 +111,7 @@ func TestNativePauseAndMaintenanceAssessment(t *testing.T) {
 			t.Fatalf("native pause=%t: %+v, %v", enabled, assessment, err)
 		}
 		before = nativeControlCluster(assessmentCluster(t, assessmentTime, 1, false, !enabled))
-		plan, err = operations.PrepareMaintenance(before, enabled)
+		plan, err = operations.PrepareMaintenance(before, adapter.KubeBaoV1Alpha1, enabled)
 		if err != nil {
 			t.Fatal(err)
 		}
