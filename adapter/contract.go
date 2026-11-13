@@ -5,14 +5,14 @@ package adapter
 type Contract string
 
 const (
-	// V1Alpha1Snapshot projects the inspected source contract, including maintenance topology evidence.
-	V1Alpha1Snapshot Contract = "openbao.org/v1alpha1@9671c306/maintenance-pools-v1"
+	// V1Alpha1Snapshot projects the inspected source contract, including maintenance and restore-retention evidence.
+	V1Alpha1Snapshot Contract = "openbao.org/v1alpha1@9671c306/restore-retention-v1"
 	// V1Alpha1Unqualified projects the same approved fields without inferring omitted values.
-	V1Alpha1Unqualified Contract = "openbao.org/v1alpha1/unqualified-v3"
+	V1Alpha1Unqualified Contract = "openbao.org/v1alpha1/unqualified-v4"
 	// KubeBaoV1Alpha1Snapshot projects the inspected native API contract. Workload metadata retains openbao.org keys.
-	KubeBaoV1Alpha1Snapshot Contract = "kubebao.org/v1alpha1@22894cdc/maintenance-pools-v1"
+	KubeBaoV1Alpha1Snapshot Contract = "kubebao.org/v1alpha1@22894cdc/restore-retention-v1"
 	// KubeBaoV1Alpha1Unqualified projects native API fields without inferring omitted values.
-	KubeBaoV1Alpha1Unqualified Contract = "kubebao.org/v1alpha1/unqualified-v1"
+	KubeBaoV1Alpha1Unqualified Contract = "kubebao.org/v1alpha1/unqualified-v2"
 	KubernetesAppsV1           Contract = "kubernetes/apps/v1@v0.37.2/workload-pools-v1"
 	KubernetesCoreV1           Contract = "kubernetes/core/v1@v0.37.2/workload-pools-v1"
 )

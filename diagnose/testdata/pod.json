@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "4",
+  "schemaVersion": "5",
   "adapterContract": "kubernetes/core/v1@v0.37.2/workload-pools-v1",
   "metadata": {
     "pool": {"state": "unknown"},

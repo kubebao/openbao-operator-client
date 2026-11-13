@@ -26,6 +26,8 @@ func ProjectRestore(raw []byte, options ProjectionOptions) (evidence.Restore, er
 			"spec",
 			"cluster",
 		),
+		TargetLifecycle:     enumText(object, []string{"Retain", "Disposable"}, "spec", "targetLifecycle"),
+		CleanupAfterSeconds: restoreCleanupSeconds(object),
 		Phase: enumText(
 			object,
 			[]string{"Pending", "Validating", "Running", "Completed", "Failed", "Unknown"},
@@ -48,6 +50,7 @@ func ProjectRestore(raw []byte, options ProjectionOptions) (evidence.Restore, er
 				[]string{"Prepared", "Committed", "Created", "TerminalObserved", "FollowThroughComplete", "Unknown"},
 				"stage",
 			),
+			TerminalResult: enumText(execution, []string{"Succeeded", "Failed"}, "terminalResult"),
 		},
 		SubmissionClaim:    claimState,
 		Restart:            restartState,
@@ -58,4 +61,12 @@ func ProjectRestore(raw []byte, options ProjectionOptions) (evidence.Restore, er
 		return evidence.Restore{}, &ProjectionError{Code: InvalidInput}
 	}
 	return result, nil
+}
+
+func restoreCleanupSeconds(object map[string]any) evidence.Integer {
+	result := integer(object, "spec", "cleanupAfterSeconds")
+	if result.Value != nil && (*result.Value < 0 || *result.Value > 86400) {
+		return evidence.Integer{State: evidence.ValueInvalid}
+	}
+	return result
 }

@@ -97,6 +97,41 @@ Use `openbao.org` for the legacy source contract. Record exact operator sources,
 test output. The four fixtures do not qualify active blue/green transitions or a revisioned pool after an upgrade unless
 that fixture actually exercises them. After a failure, inspect the remaining fixture state before running the test again.
 
+## Nonempty restore qualification
+
+`TestOperatorNonemptyRestore` reads a caller-provisioned restore through a loopback `kubectl proxy`. It performs only
+the declared target GET, an unfiltered namespace restore LIST, and a final target GET. It verifies exact request and
+target UIDs, the selected API contract, the reported phase, finding severity, coverage, and serialized replay. It never
+creates, retries, acknowledges, or deletes a restore.
+
+1. Provision fixtures and record their context, namespace, target/request names, and UIDs. Start the proxy with its
+   explicit kubeconfig and context. Verify the proxy target before running the test; the declared context identifies
+   evidence origin and does not configure the proxy.
+2. Set every declared value and expected result. For confirmed disposable retention:
+
+   ```sh
+   OPENBAO_CLIENT_RESTORES_ENDPOINT=http://127.0.0.1:18161 \
+   OPENBAO_CLIENT_RESTORES_CONTEXT="$context" \
+   OPENBAO_CLIENT_RESTORES_NAMESPACE="$namespace" \
+   OPENBAO_CLIENT_RESTORES_GROUP=kubebao.org \
+   OPENBAO_CLIENT_RESTORES_TARGET="$target" \
+   OPENBAO_CLIENT_RESTORES_TARGET_UID="$target_uid" \
+   OPENBAO_CLIENT_RESTORES_REQUEST="$request" \
+   OPENBAO_CLIENT_RESTORES_REQUEST_UID="$request_uid" \
+   OPENBAO_CLIENT_RESTORES_PHASE=Unknown \
+   OPENBAO_CLIENT_RESTORES_FINDING=info \
+   OPENBAO_CLIENT_RESTORES_COVERAGE=evaluated \
+   GOWORK=off go test -race -count=1 -v ./internal/integration -run '^TestOperatorNonemptyRestore$'
+   ```
+
+3. After disposable cleanup, run `TestCompletedDisposableRestore` with the recorded original UIDs, phase `Completed`,
+   finding `none`, and coverage `insufficient`. It checks the retained cleanup receipt and absent target. A removed target
+   cannot support current target findings or establish recovery. The fixture orchestrator separately verifies original
+   PVC and Job absence.
+
+Both tests skip unless `OPENBAO_CLIENT_RESTORES_ENDPOINT` is set. A skip is not runtime qualification. Synthetic semantic
+and transport tests run under `make check`. Keep fixture provisioning and credentials outside the shared client.
+
 ## Qualification and releases
 
 Qualify both consumers against the exact candidate commit before you create a `v0` tag. Record the evidence in the pull
