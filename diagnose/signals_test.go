@@ -380,3 +380,15 @@ func TestConditionFindingsNameTheConditionAndEtcdIsAdvisory(t *testing.T) {
 		}
 	}
 }
+
+func TestRecognizedConditionMatchesTheRuleInventory(t *testing.T) {
+	t.Parallel()
+	for name, want := range map[string]bool{
+		"TLSReady": true, "EtcdEncryptionWarning": true, "UserAccessBootstrap": true, "ReadReplicasReady": true,
+		"Available": false, "OpenBaoSealed": false, "FutureCondition": false,
+	} {
+		if diagnose.RecognizedCondition(name) != want {
+			t.Fatalf("RecognizedCondition(%q) != %v", name, want)
+		}
+	}
+}

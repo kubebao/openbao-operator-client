@@ -75,6 +75,13 @@ func sealed(cluster evidence.Cluster) evaluation {
 	return result
 }
 
+// RecognizedCondition reports whether KBAO-CONDITION-001 interprets the named condition type. Consumers can use it to
+// explain which reported conditions limited that rule's coverage.
+func RecognizedCondition(name string) bool {
+	_, recognized := conditionPolarity(name)
+	return recognized
+}
+
 func conditionPolarity(name string) (evidence.ConditionStatus, bool) {
 	if slices.Contains([]string{"Degraded", "SecurityRisk", etcdEncryptionWarning, "NodeSecurityCapabilityMismatch"}, name) {
 		return evidence.ConditionTrue, true
