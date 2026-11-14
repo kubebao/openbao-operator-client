@@ -296,3 +296,99 @@ func TestCurrentRuleInventoryRejectsUnknownRules(t *testing.T) {
 		t.Fatal("unexpected executable inventory")
 	}
 }
+
+func TestReadReplicaConditionsApplyOnlyToConfiguredReadReplicas(t *testing.T) {
+	t.Parallel()
+	notConfigured := func(name string, status evidence.ConditionStatus) evidence.Condition {
+		value := condition(name, status, 4)
+		value.Reason = text("NoReadReplicasConfigured")
+		return value
+	}
+	conditions := []evidence.Condition{
+		notConfigured("ReadReplicaStorageConfigured", evidence.ConditionFalse), notConfigured("ReadReplicasReady", evidence.ConditionFalse),
+		notConfigured("ReadServingAvailable", evidence.ConditionFalse), condition("TLSReady", evidence.ConditionFalse, 4),
+	}
+	for _, tc := range []struct {
+		name  string
+		pool  func(*evidence.ReplicaCounts)
+		want  []string
+		other bool
+	}{
+		{"absent pool", func(p *evidence.ReplicaCounts) { p.Configuration = evidence.ObjectAbsent }, []string{"TLSReady"}, false},
+		{"zero replicas", func(p *evidence.ReplicaCounts) {
+			p.Configuration, p.State, p.Desired = evidence.ObjectReported, evidence.ObjectAbsent, integer(0)
+		}, []string{"TLSReady"}, false},
+		{"requested replicas", func(p *evidence.ReplicaCounts) {
+			p.Configuration, p.State, p.Desired = evidence.ObjectReported, evidence.ObjectAbsent, integer(2)
+		}, []string{"ReadReplicaStorageConfigured", "ReadReplicasReady", "ReadServingAvailable", "TLSReady"}, false},
+		{"unknown pool and operator reason", func(p *evidence.ReplicaCounts) {
+			p.Configuration, p.State = evidence.ObjectUnknown, evidence.ObjectUnknown
+		}, []string{"TLSReady"}, false},
+		{"unknown pool and another reason", func(p *evidence.ReplicaCounts) {
+			p.Configuration, p.State = evidence.ObjectUnknown, evidence.ObjectUnknown
+		}, []string{"ReadReplicasReady", "TLSReady"}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			i := input(t)
+			tc.pool(&i.Observation.ReadReplicas)
+			values := append([]evidence.Condition{}, conditions...)
+			if tc.other {
+				values = []evidence.Condition{condition("ReadReplicasReady", evidence.ConditionFalse, 4), conditions[3]}
+			}
+			setConditions(i.Observation, values...)
+			if i.Observation.Validate() != nil {
+				t.Fatal("invalid test cluster")
+			}
+			report, coverage := runRule(t, i, diagnose.RuleCondition)
+			got := []string{}
+			for _, found := range report.Findings {
+				got = append(got, found.Subsubject)
+			}
+			slices.Sort(got)
+			if coverage.State != diagnose.Evaluated || !slices.Equal(got, tc.want) {
+				t.Fatalf("findings for %v, want %v (coverage %s)", got, tc.want, coverage.State)
+			}
+		})
+	}
+}
+
+func TestConditionFindingsNameTheConditionAndEtcdIsAdvisory(t *testing.T) {
+	t.Parallel()
+	i := input(t)
+	setConditions(i.Observation, condition("EtcdEncryptionWarning", evidence.ConditionTrue, 4),
+		condition("TLSReady", evidence.ConditionFalse, 4))
+	report, _ := runRule(t, i, diagnose.RuleCondition)
+	if len(report.Findings) != 2 {
+		t.Fatalf("findings = %+v", report.Findings)
+	}
+	for _, found := range report.Findings {
+		switch found.Subsubject {
+		case "EtcdEncryptionWarning":
+			if found.Severity != diagnose.Info || !strings.Contains(found.Summary, "encrypts Secrets at rest in etcd") {
+				t.Fatalf("etcd advisory = %+v", found)
+			}
+		case "TLSReady":
+			if found.Severity != diagnose.Warning || found.Summary != "The operator reports TLSReady=False for the current generation." {
+				t.Fatalf("condition finding = %+v", found)
+			}
+		default:
+			t.Fatalf("unexpected finding %+v", found)
+		}
+		if strings.Contains(found.Summary, "CANARY") {
+			t.Fatal("a condition reason reached finding text")
+		}
+	}
+}
+
+func TestRecognizedConditionMatchesTheRuleInventory(t *testing.T) {
+	t.Parallel()
+	for name, want := range map[string]bool{
+		"TLSReady": true, "EtcdEncryptionWarning": true, "UserAccessBootstrap": true, "ReadReplicasReady": true,
+		"Available": false, "OpenBaoSealed": false, "FutureCondition": false,
+	} {
+		if diagnose.RecognizedCondition(name) != want {
+			t.Fatalf("RecognizedCondition(%q) != %v", name, want)
+		}
+	}
+}

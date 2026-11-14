@@ -96,9 +96,13 @@ An omitted primitive stays `unknown` unless one of these rules applies:
   `status.observedGeneration` are equal positive integers and `spec.replicas` is reported. Missing `spec.replicas` stays
   unknown; projection does not apply API-server defaults.
 - `spec.paused` (cluster) is implied `false` when the `spec` object is present and valid. A missing `spec` stays unknown.
+- `status.backup.consecutiveFailures` (cluster) is implied `0` only when `status.backup` is present and both
+  `lastBackupTime` and `lastAttemptTime` are reported, with `lastBackupTime` at or after `lastAttemptTime`. The operator
+  records the attempt time when an attempt starts and resets the count in the same status update that records a success,
+  so the latest attempt succeeded. A later attempt, or a missing or malformed time, leaves the count unknown.
 
-These rules follow non-pointer `omitempty` fields in the pinned sources. Failure counts are never implied as zero, and
-history-conflict flags are never implied as false.
+These rules follow non-pointer `omitempty` fields in the pinned sources. The failure-count rule also needs the corroborating
+times above; an omitted failure count alone is never zero. History-conflict flags are never implied as false.
 
 ### Projection input
 
