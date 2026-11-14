@@ -257,3 +257,11 @@ func validateCount(v Integer) error {
 	}
 	return nil
 }
+
+// Runtime records the optional runtime request object without applying defaults.
+type Runtime struct {
+	State     ObjectState `json:"state"`
+	RestartAt Text        `json:"restartAt"`
+}
+
+func (v Runtime) Validate() error { return validateObject(v.State, v.RestartAt) }

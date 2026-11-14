@@ -48,17 +48,22 @@ func projectWorkloadMetadata(root map[string]any, ref evidence.Reference, limit 
 		maintenance = evidence.Text{State: evidence.ValueInvalid}
 	}
 	pool, revision := evidence.Text{State: evidence.ValueUnknown}, evidence.Text{State: evidence.ValueUnknown}
+	restartAt, controllerRevision := evidence.Text{State: evidence.ValueUnknown}, evidence.Text{State: evidence.ValueUnknown}
 	if ref.Identity.Kind == "Pod" {
+		restartAt = annotation(root, "openbao.org/restart-at")
+		controllerRevision = workloadLabel(root, "controller-revision-hash", "metadata", "labels")
 		pool = projectWorkloadPool(root, "metadata", "labels")
 		revision = projectWorkloadRevision(root, "metadata", "labels")
 	}
 	return evidence.WorkloadMetadata{
 		Reference: ref, Owners: projectOwners(root, limit),
-		ClusterOwnerUID:   annotation(root, "openbao.org/owner-uid"),
-		Maintenance:       maintenance,
-		Pool:              pool,
-		Revision:          revision,
-		DeletionTimestamp: timestamp(root, "metadata", "deletionTimestamp"),
+		ClusterOwnerUID:    annotation(root, "openbao.org/owner-uid"),
+		Maintenance:        maintenance,
+		RestartAt:          restartAt,
+		ControllerRevision: controllerRevision,
+		Pool:               pool,
+		Revision:           revision,
+		DeletionTimestamp:  timestamp(root, "metadata", "deletionTimestamp"),
 	}
 }
 
@@ -97,11 +102,20 @@ func ProjectStatefulSet(raw []byte, options ProjectionOptions) (evidence.Statefu
 	result := evidence.StatefulSet{
 		Metadata: projectWorkloadMetadata(root, ref, options.Limits.MaxEntries), Generation: integer(root, "metadata", "generation"),
 		ObservedGeneration: integer(root, "status", "observedGeneration"), DesiredReplicas: count(root, "spec", "replicas"),
-		ReadyReplicas:    count(root, "status", "readyReplicas"),
-		SelectorPool:     projectWorkloadPool(root, "spec", "selector", "matchLabels"),
-		SelectorRevision: projectWorkloadRevision(root, "spec", "selector", "matchLabels"),
-		TemplatePool:     projectWorkloadPool(root, "spec", "template", "metadata", "labels"),
-		TemplateRevision: projectWorkloadRevision(root, "spec", "template", "metadata", "labels"),
+		ReadyReplicas:     count(root, "status", "readyReplicas"),
+		SelectorPool:      projectWorkloadPool(root, "spec", "selector", "matchLabels"),
+		SelectorRevision:  projectWorkloadRevision(root, "spec", "selector", "matchLabels"),
+		TemplatePool:      projectWorkloadPool(root, "spec", "template", "metadata", "labels"),
+		TemplateRevision:  projectWorkloadRevision(root, "spec", "template", "metadata", "labels"),
+		TemplateRestartAt: text(root, false, "spec", "template", "metadata", "annotations", "openbao.org/restart-at"),
+		UpdateStrategy:    enumText(root, []string{"RollingUpdate", "OnDelete"}, "spec", "updateStrategy", "type"),
+		RollingPartition:  count(root, "spec", "updateStrategy", "rollingUpdate", "partition"),
+		CurrentRevision:   workloadRevision(root, "status", "currentRevision"),
+		UpdateRevision:    workloadRevision(root, "status", "updateRevision"),
+		CurrentReplicas:   count(root, "status", "currentReplicas"),
+		UpdatedReplicas:   count(root, "status", "updatedReplicas"),
+		MinReadySeconds:   count(root, "spec", "minReadySeconds"),
+		AvailableReplicas: count(root, "status", "availableReplicas"),
 	}
 	if result.ReadyReplicas.State == evidence.ValueUnknown && result.DesiredReplicas.State == evidence.ValueReported &&
 		result.Acknowledgement() == evidence.GenerationCurrent {
@@ -177,4 +191,12 @@ func ProjectPod(raw []byte, options ProjectionOptions) (evidence.Pod, error) {
 		return evidence.Pod{}, &ProjectionError{Code: InvalidInput}
 	}
 	return result, nil
+}
+
+func workloadRevision(root map[string]any, path ...string) evidence.Text {
+	value := text(root, false, path...)
+	if evidence.ValidateWorkloadRevision(value) != nil {
+		return evidence.Text{State: evidence.ValueInvalid}
+	}
+	return value
 }

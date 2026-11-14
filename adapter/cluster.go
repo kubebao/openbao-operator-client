@@ -39,6 +39,10 @@ func ProjectCluster(raw []byte, options ProjectionOptions) (evidence.Cluster, er
 		Conditions:         projectConditions(object, options.Limits.MaxConditions, "status", "conditions"),
 	}
 	projectOperationalFields(object, &result, options.Limits)
+	runtime, state := objectAt(object, "spec", "runtime")
+	result.Runtime = evidence.Runtime{State: state, RestartAt: text(runtime, false, "restartAt")}
+	result.UpgradeStrategy = enumText(object, []string{"RollingUpdate", "BlueGreen"}, "spec", "upgrade", "strategy")
+	result.AcceptedUpgradeStrategy = enumText(object, []string{"RollingUpdate", "BlueGreen"}, "status", "acceptedUpgradeStrategy")
 	if inspectedOperatorContract(options.Contract) {
 		inferOmissions(object, &result)
 	} else {

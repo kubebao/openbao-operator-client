@@ -94,19 +94,30 @@ func reportedBoolean(value bool) evidence.Boolean {
 }
 
 func assessmentHeader(plan Plan, observed evidence.Cluster, policy AssessmentPolicy, control Control) (Assessment, error) {
+	if plan.Validate() != nil || plan.Control != control {
+		return Assessment{}, ErrInvalidAssessment
+	}
+	return assessmentTarget(plan.Target, plan.Generation, observed, policy)
+}
+
+func assessmentTarget(
+	target evidence.Reference,
+	generation evidence.Integer,
+	observed evidence.Cluster,
+	policy AssessmentPolicy,
+) (Assessment, error) {
 	result := newAssessment()
 	at := policy.ReferenceTime
-	if plan.Validate() != nil || plan.Control != control || observed.Validate() != nil ||
-		(evidence.Timestamp{State: evidence.ValueReported, Value: &at}).Validate() != nil ||
+	if observed.Validate() != nil || (evidence.Timestamp{State: evidence.ValueReported, Value: &at}).Validate() != nil ||
 		policy.MaxEvidenceAge <= 0 || policy.MaxCandidates <= 0 {
 		return Assessment{}, ErrInvalidAssessment
 	}
-	if observed.Reference.Identity != plan.Target.Identity ||
-		observed.Reference.APIVersion != plan.Target.APIVersion {
+	if observed.Reference.Identity != target.Identity ||
+		observed.Reference.APIVersion != target.APIVersion {
 		result.add(AssessmentInsufficient, ReasonTargetChanged)
 		return result, nil
 	}
-	if !observed.Reference.CollectedAt.Value.After(*plan.Target.CollectedAt.Value) || observed.Reference.CollectedAt.Value.After(at) {
+	if !observed.Reference.CollectedAt.Value.After(*target.CollectedAt.Value) || observed.Reference.CollectedAt.Value.After(at) {
 		result.add(AssessmentInsufficient, ReasonInconsistentTime)
 	}
 	if at.Sub(*observed.Reference.CollectedAt.Value) > policy.MaxEvidenceAge {
@@ -125,7 +136,7 @@ func assessmentHeader(plan Plan, observed evidence.Cluster, policy AssessmentPol
 	if observed.Reference.ResourceVersion.State != evidence.ValueReported {
 		result.add(AssessmentInsufficient, ReasonMissingField)
 	}
-	if observed.Generation.State != evidence.ValueReported || *observed.Generation.Value < *plan.Generation.Value ||
+	if observed.Generation.State != evidence.ValueReported || *observed.Generation.Value < *generation.Value ||
 		observed.Acknowledgement() != evidence.GenerationCurrent {
 		result.add(AssessmentInsufficient, ReasonGeneration)
 	}

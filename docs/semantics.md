@@ -53,7 +53,7 @@ version alone never selects one.
 | `v1` (`KubernetesCoreV1`) | `Pod` | None |
 
 `OpenBaoV1Alpha1` follows operator commit `9671c30623d609f948cf073e167f376de4ea9a85`.
-`KubeBaoV1Alpha1` follows native operator candidate `22894cdc0a4aa5c442a07f2bf9902fe28ce02ea1`.
+`KubeBaoV1Alpha1` follows operator `0.7.0-rc.1`, source `7b9bbf8b1a2aa3a62e2235607073df3e912643b5`.
 The Kubernetes contracts follow the
 public API declarations at `v0.37.2` and workload metadata at operator revision `9671c306`. Their `SourceRevision` identifies
 that operator source. `adapter.Describe` returns each contract's kinds and capabilities. It does not perform discovery,
@@ -140,6 +140,23 @@ or `resource_mismatch`. Errors never contain parser messages, source values, or 
 `status.execution.terminalResult`. Lifecycle accepts `Retain` or `Disposable`; retention accepts integers from `0` to
 `86400`; terminal result accepts `Succeeded` or `Failed`. Missing values remain unknown. Projection does not default an
 omitted retention value or infer application, cleanup, or recovery from these fields.
+
+### Restart evidence
+
+The cluster projection keeps the `spec.runtime` object state, its `restartAt` marker, `spec.upgrade.strategy`, and
+`status.acceptedUpgradeStrategy`. Reported strategy values are `RollingUpdate` or `BlueGreen`. An omitted requested or
+accepted strategy remains unknown; restart preparation requires both to be reported. Markers retain bounded approved
+text. The restart plan requires a new RFC 3339 timestamp.
+
+StatefulSet projection keeps the Pod-template `openbao.org/restart-at` annotation, update strategy, rolling partition,
+minimum ready duration, and current/update revisions and replica counts. Pod projection keeps the restart annotation
+and `controller-revision-hash` label. These fields do not establish ownership; assessment first validates UID ancestry.
+Omitted status counts remain unknown except for the existing qualified ready-count omission rule. A configured zero
+pool can be assessed from its declared zero desired count, current generation and revisions, and a complete empty owned
+Pod population without changing unknown counters into reported values.
+
+Restart markers and revisions alone do not establish completion. Assessment also requires current Pod readiness and
+complete, fresh read scopes. See [rolling restart](operations.md#rolling-restart).
 
 ### Excluded data
 

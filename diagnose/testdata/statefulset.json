@@ -1,5 +1,16 @@
 {
+  "templateRestartAt": {"state":"unknown"},
+  "updateStrategy": {"state":"unknown"},
+  "rollingPartition": {"state":"unknown"},
+  "currentRevision": {"state":"unknown"},
+  "updateRevision": {"state":"unknown"},
+  "currentReplicas": {"state":"unknown"},
+  "updatedReplicas": {"state":"unknown"},
+  "minReadySeconds": {"state":"unknown"},
+  "availableReplicas": {"state":"unknown"},
   "metadata": {
+    "restartAt": {"state":"unknown"},
+    "controllerRevision": {"state":"unknown"},
     "pool": {"state": "unknown"},
     "revision": {"state": "unknown"},
     "reference": {

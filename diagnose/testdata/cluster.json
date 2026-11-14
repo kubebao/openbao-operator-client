@@ -1,4 +1,7 @@
 {
+  "runtime": {"state":"unknown","restartAt":{"state":"unknown"}},
+  "upgradeStrategy": {"state":"unknown"},
+  "acceptedUpgradeStrategy": {"state":"unknown"},
   "reference": {
     "identity": {
       "origin": "cluster-a",

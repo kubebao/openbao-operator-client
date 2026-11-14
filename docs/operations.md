@@ -1,6 +1,6 @@
 # Cluster controls
 
-The `operations` package prepares and submits pause/resume and maintenance requests. It uses a separate write client;
+The `operations` package prepares and submits pause/resume, maintenance, and rolling-restart requests. It uses a separate write client;
 `collect.Client` remains read-only. The operator owns reconciliation and lifecycle safety.
 
 ## Prepare and review a request
@@ -33,6 +33,48 @@ Run a preview without network access:
 ```sh
 go run ./examples/controls
 ```
+
+## Rolling restart
+
+`PrepareRestart(cluster, contract, marker)` returns a separate `RestartPlan`. Supply a new RFC 3339 timestamp, generated
+once by the caller. Preparation rejects an unchanged marker, invalid identity or parent shape, and a deleting target.
+It requires current generation acknowledgement, reported requested and accepted `RollingUpdate` strategies, and no
+Blue/Green status. The conservative client policy also refuses paused reconciliation, a restore hold, an operation
+lock, or active or unknown break-glass state. Maintenance alone does not block restart.
+
+`RestartPlan.Patch` tests UID, resource version, and generation, then changes only `spec.runtime.restartAt`. When
+`spec.runtime` is absent or null, it creates that object with the requested marker. A reported runtime object keeps its
+other fields. `Client.SubmitRestart` sends at most one PATCH and supports the same server dry-run, bounds, and outcome
+classifications as `Submit`. An accepted response must contain the marker on the selected target with a later generation.
+
+After an unknown submission outcome, retain the same plan and marker. Collect new evidence to assess the requested
+state. The client never retries the mutation or changes pause, maintenance, restore holds, or other restrictions.
+
+`AssessRestart(plan, cluster, related, policy)` evaluates supplied evidence without I/O. It needs complete, fresh
+StatefulSet and Pod scopes and final target verification. The result separates configured marker state from observed
+rollout convergence. Convergence requires all of these facts:
+
+- The selected cluster retains its identity, acknowledges its generation, and reports the requested marker.
+- The stable voter pool and every configured steady read-replica pool have confirmed UID associations and exact desired
+  Pod populations. A zero-replica read pool retains its StatefulSet and has no live Pods.
+- Every pool uses `RollingUpdate` without a partition that excludes ordinals, acknowledges its generation, and reports
+  equal, nonempty current and update revisions.
+- Each StatefulSet template and every live owned Pod report the requested restart marker. Each Pod's
+  `controller-revision-hash` matches its StatefulSet update revision.
+- Replica counts match the desired population. Every live owned Pod is running, nonterminating, and has a current
+  `Ready=True` condition. A positive `minReadySeconds` also needs matching available-replica evidence.
+
+Missing, malformed, stale, conflicting, or incomplete evidence cannot establish convergence. Deleting workloads remain
+pending. A changed target, interrupted reads, or an unsupported topology prevents an observed result.
+
+Blue/Green voter StatefulSets use `OnDelete`; this API does not support their restart workflow. The client does not delete
+Pods. The operator and StatefulSet controller perform supported rollouts. With steady read replicas, the operator
+converges the read pool before propagating the marker to voters.
+
+An observed result describes current rollout convergence. It does not establish that this request caused historical Pod
+replacement, prove serving health or Raft quorum, or reserve a lifecycle operation. Runtime qualification compares Pod
+UIDs before and after the request separately. The client operation-lock guard is a conservative precondition, not an
+operator guarantee that every concurrent runtime change is serialized.
 
 ## Submit once
 

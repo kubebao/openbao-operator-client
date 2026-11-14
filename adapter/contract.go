@@ -55,7 +55,7 @@ func Describe(contract Contract) (ContractInfo, error) {
 	case KubeBaoV1Alpha1, KubeBaoV1Alpha1Unqualified:
 		info.APIGroup, info.APIVersion = "kubebao.org", "kubebao.org/v1alpha1"
 		if contract == KubeBaoV1Alpha1 {
-			info.SourceRevision = "22894cdc0a4aa5c442a07f2bf9902fe28ce02ea1"
+			info.SourceRevision = "7b9bbf8b1a2aa3a62e2235607073df3e912643b5"
 		}
 	case KubernetesAppsV1:
 		return ContractInfo{

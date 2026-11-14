@@ -13,6 +13,7 @@ import (
 func poolMetadata() evidence.WorkloadMetadata {
 	at := time.Date(2026, time.November, 11, 12, 0, 0, 0, time.UTC)
 	return evidence.WorkloadMetadata{
+		RestartAt: evidence.Text{State: evidence.ValueUnknown}, ControllerRevision: evidence.Text{State: evidence.ValueUnknown},
 		Reference: evidence.Reference{
 			Identity:   evidence.Identity{Origin: "test", Group: "", Kind: "Pod", Namespace: "team", Name: "bao-0", UID: "pod-1"},
 			APIVersion: "v1", ResourceVersion: evidence.Text{State: evidence.ValueUnknown},

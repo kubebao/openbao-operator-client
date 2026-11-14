@@ -66,30 +66,33 @@ func (c Conditions) Validate() error {
 // Cluster contains approved facts projected from one OpenBaoCluster read.
 // Health, history, process results, and provider messages are not part of this value.
 type Cluster struct {
-	Reference          Reference       `json:"reference"`
-	CreatedAt          Timestamp       `json:"createdAt"`
-	DeletionTimestamp  Timestamp       `json:"deletionTimestamp"`
-	Generation         Integer         `json:"generation"`
-	ObservedGeneration Integer         `json:"observedGeneration"`
-	DesiredVersion     Text            `json:"desiredVersion"`
-	ObservedVersion    Text            `json:"observedVersion"`
-	Phase              Text            `json:"phase"`
-	DesiredReplicas    Integer         `json:"desiredReplicas"`
-	ReadyReplicas      Integer         `json:"readyReplicas"`
-	Paused             Boolean         `json:"paused"`
-	Conditions         Conditions      `json:"conditions"`
-	Backup             Backup          `json:"backup"`
-	Upgrade            Upgrade         `json:"upgrade"`
-	BlueGreen          BlueGreen       `json:"blueGreen"`
-	ReadReplicas       ReplicaCounts   `json:"readReplicas"`
-	Maintenance        Maintenance     `json:"maintenance"`
-	RestoreOrigin      Text            `json:"restoreOrigin"`
-	RestoreHold        Text            `json:"restoreHold"`
-	OperationLock      OperationLock   `json:"operationLock"`
-	BreakGlass         BreakGlass      `json:"breakGlass"`
-	LegacyRestore      LegacyRestore   `json:"legacyRestore"`
-	WorkloadError      ControllerError `json:"workloadError"`
-	AdminOpsError      ControllerError `json:"adminOpsError"`
+	Reference               Reference       `json:"reference"`
+	CreatedAt               Timestamp       `json:"createdAt"`
+	DeletionTimestamp       Timestamp       `json:"deletionTimestamp"`
+	Generation              Integer         `json:"generation"`
+	ObservedGeneration      Integer         `json:"observedGeneration"`
+	DesiredVersion          Text            `json:"desiredVersion"`
+	ObservedVersion         Text            `json:"observedVersion"`
+	Phase                   Text            `json:"phase"`
+	DesiredReplicas         Integer         `json:"desiredReplicas"`
+	ReadyReplicas           Integer         `json:"readyReplicas"`
+	Paused                  Boolean         `json:"paused"`
+	Conditions              Conditions      `json:"conditions"`
+	Backup                  Backup          `json:"backup"`
+	Upgrade                 Upgrade         `json:"upgrade"`
+	BlueGreen               BlueGreen       `json:"blueGreen"`
+	ReadReplicas            ReplicaCounts   `json:"readReplicas"`
+	Runtime                 Runtime         `json:"runtime"`
+	UpgradeStrategy         Text            `json:"upgradeStrategy"`
+	AcceptedUpgradeStrategy Text            `json:"acceptedUpgradeStrategy"`
+	Maintenance             Maintenance     `json:"maintenance"`
+	RestoreOrigin           Text            `json:"restoreOrigin"`
+	RestoreHold             Text            `json:"restoreHold"`
+	OperationLock           OperationLock   `json:"operationLock"`
+	BreakGlass              BreakGlass      `json:"breakGlass"`
+	LegacyRestore           LegacyRestore   `json:"legacyRestore"`
+	WorkloadError           ControllerError `json:"workloadError"`
+	AdminOpsError           ControllerError `json:"adminOpsError"`
 }
 
 func (c Cluster) Acknowledgement() GenerationState {
@@ -131,6 +134,9 @@ func (c Cluster) Validate() error {
 		fieldCheck{"blueGreen", c.BlueGreen.Validate()},
 		fieldCheck{"readReplicas", c.ReadReplicas.Validate()},
 		fieldCheck{"maintenance", c.Maintenance.Validate()},
+		fieldCheck{"runtime", c.Runtime.Validate()},
+		fieldCheck{"upgradeStrategy", validateEnum(c.UpgradeStrategy, "RollingUpdate", "BlueGreen")},
+		fieldCheck{"acceptedUpgradeStrategy", validateEnum(c.AcceptedUpgradeStrategy, "RollingUpdate", "BlueGreen")},
 		fieldCheck{"restoreOrigin", c.RestoreOrigin.Validate()},
 		fieldCheck{"restoreHold", c.RestoreHold.Validate()},
 		fieldCheck{"operationLock", c.OperationLock.Validate()},
@@ -149,6 +155,21 @@ func validateReadyCount(v Integer) error {
 		return err
 	}
 	if v.Value != nil && (*v.Value < 0 || *v.Value > 2147483647) {
+		return ErrInvalidEvidence
+	}
+	return nil
+}
+
+func validateEnum(value Text, values ...string) error {
+	if value.Validate() != nil || value.State == ValueImplied {
+		return ErrInvalidEvidence
+	}
+	if value.Value != nil {
+		for _, allowed := range values {
+			if *value.Value == allowed {
+				return nil
+			}
+		}
 		return ErrInvalidEvidence
 	}
 	return nil

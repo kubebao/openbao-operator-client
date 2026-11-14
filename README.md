@@ -2,7 +2,7 @@
 
 Shared Go library for the [OpenBao Operator](https://github.com/kubebao/openbao-operator) console and CLI. It reads
 OpenBao Operator and Kubernetes resources, projects approved fields into typed evidence, and evaluates diagnostic rules
-on that evidence. A separate operations client submits guarded pause and maintenance requests.
+on that evidence. A separate operations client submits guarded pause, maintenance, and rolling-restart requests.
 
 | Package | Responsibility |
 | --- | --- |
@@ -10,7 +10,7 @@ on that evidence. A separate operations client submits guarded pause and mainten
 | `adapter` | Projection of approved public API fields from JSON under an explicit contract. |
 | `collect` | Bounded discovery, GET, and LIST reads through a caller-configured HTTP transport. |
 | `diagnose` | Pure rule evaluation with caller-supplied policy and reference time. Returns findings and coverage. |
-| `operations` | Plans and submits pause and maintenance requests, then assesses supplied observations. |
+| `operations` | Plans and submits pause, maintenance, and rolling-restart requests, then assesses supplied observations. |
 
 The operator owns reconciliation and lifecycle safety. The console and CLI own credentials, kubeconfig loading,
 scheduling, persistence, rendering, and process exit codes.

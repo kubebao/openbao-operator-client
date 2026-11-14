@@ -144,6 +144,45 @@ request description, and summarize it in the release notes for the tag:
 
 A skipped check is not qualification. Update [compatibility](compatibility.md) when a validation level changes.
 
+## Restart qualification
+
+`TestOperatorRestartQualification` mutates only a declared disposable Kind fixture. It requires context
+`kind-client-restart-rc1`, namespace `restart-tests`, native `kubebao.org` resources, exact target UIDs, and mutation
+opt-in. Prepare an isolated cluster with operator `0.7.0-rc.1`, admission enabled, and these initialized Development
+fixtures:
+
+| Name | Voters | Steady read replicas | Upgrade strategy |
+| --- | --- | --- | --- |
+| `voter` | 1 | Not configured | `RollingUpdate` |
+| `read-pool` | 3 | 1 | `RollingUpdate` |
+| `zero-read` | 1 | 0 | `RollingUpdate` |
+| `blue-green` | 1 | Not configured | `BlueGreen` |
+
+Create a `restart-reader` ServiceAccount with cluster GET/LIST and StatefulSet/Pod LIST permissions, and no PATCH
+permission. Start a loopback `kubectl proxy` with the disposable kubeconfig and context supplied explicitly. Do not use
+an existing operational environment. Replace each UID below with the corresponding fixture UID:
+
+```sh
+OPENBAO_CLIENT_RESTART_ENDPOINT=http://127.0.0.1:18164 \
+OPENBAO_CLIENT_RESTART_CONTEXT=kind-client-restart-rc1 \
+OPENBAO_CLIENT_RESTART_NAMESPACE=restart-tests \
+OPENBAO_CLIENT_RESTART_GROUP=kubebao.org \
+OPENBAO_CLIENT_RESTART_ALLOW_MUTATION=true \
+OPENBAO_CLIENT_RESTART_FIXTURES='{"voter":"<uid>","read-pool":"<uid>","zero-read":"<uid>","blue-green":"<uid>"}' \
+GOWORK=off go test -race -count=1 -timeout 15m ./internal/integration \
+  -run '^TestOperatorRestartQualification$' -v
+```
+
+The harness checks server dry-run without persistence, RBAC denial, cancellation before transport, failed UID/resource-
+version/generation patch tests, and refusal of the Blue/Green fixture before transport. It then requests one restart per
+rolling fixture, waits for verified current convergence, and compares original and final owned Pod UIDs. The voter test
+discards one accepted response and confirms convergence through reads without resubmitting. It reads no Secrets or
+OpenBao endpoints and performs no direct Pod mutations.
+
+Stop the owned proxy and delete the disposable Kind cluster after qualification. Preserve operator, image, chart, CRD,
+Kubernetes, client, and consumer identities in the qualification pull request. Pod replacement and ready convergence on
+one Kubernetes node do not establish fault-domain availability or Raft quorum safety.
+
 ## Hosted checks
 
 The Check workflow runs on pull requests, `main` pushes, and manual dispatch. `CI Required` fails if any prerequisite

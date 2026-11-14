@@ -92,13 +92,15 @@ func (v Owners) Validate() error {
 // WorkloadMetadata records approved resource metadata. Pool and Revision report
 // Pod labels only. Grouping labels never establish resource ownership.
 type WorkloadMetadata struct {
-	Reference         Reference `json:"reference"`
-	Owners            Owners    `json:"owners"`
-	ClusterOwnerUID   Text      `json:"clusterOwnerUID"`
-	Maintenance       Text      `json:"maintenance"`
-	Pool              Text      `json:"pool"`
-	Revision          Text      `json:"revision"`
-	DeletionTimestamp Timestamp `json:"deletionTimestamp"`
+	Reference          Reference `json:"reference"`
+	Owners             Owners    `json:"owners"`
+	ClusterOwnerUID    Text      `json:"clusterOwnerUID"`
+	RestartAt          Text      `json:"restartAt"`
+	ControllerRevision Text      `json:"controllerRevision"`
+	Maintenance        Text      `json:"maintenance"`
+	Pool               Text      `json:"pool"`
+	Revision           Text      `json:"revision"`
+	DeletionTimestamp  Timestamp `json:"deletionTimestamp"`
 }
 
 var workloadRevision = regexp.MustCompile(`^[A-Za-z0-9](?:[-A-Za-z0-9_.]{0,61}[A-Za-z0-9])?$`)
@@ -124,6 +126,8 @@ func ValidateWorkloadPool(value Text) error {
 func (v WorkloadMetadata) Validate() error {
 	if err := checkFields(fieldCheck{"reference", v.Reference.Validate()}, fieldCheck{"owners", v.Owners.Validate()},
 		fieldCheck{"clusterOwnerUID", v.ClusterOwnerUID.Validate()}, fieldCheck{"maintenance", v.Maintenance.Validate()},
+		fieldCheck{"restartAt", v.RestartAt.Validate()},
+		fieldCheck{"controllerRevision", ValidateWorkloadRevision(v.ControllerRevision)},
 		fieldCheck{"pool", ValidateWorkloadPool(v.Pool)}, fieldCheck{"revision", ValidateWorkloadRevision(v.Revision)},
 		fieldCheck{"deletionTimestamp", v.DeletionTimestamp.Validate()}); err != nil {
 		return err
@@ -133,7 +137,8 @@ func (v WorkloadMetadata) Validate() error {
 		if v.Reference.APIVersion != "apps/v1" {
 			return At("reference.apiVersion", ErrInvalidEvidence)
 		}
-		if v.Pool.State != ValueUnknown || v.Revision.State != ValueUnknown {
+		if v.Pool.State != ValueUnknown || v.Revision.State != ValueUnknown || v.RestartAt.State != ValueUnknown ||
+			v.ControllerRevision.State != ValueUnknown {
 			return At("pool", ErrInvalidEvidence)
 		}
 	case "Pod":
@@ -158,6 +163,15 @@ type StatefulSet struct {
 	SelectorRevision   Text             `json:"selectorRevision"`
 	TemplatePool       Text             `json:"templatePool"`
 	TemplateRevision   Text             `json:"templateRevision"`
+	TemplateRestartAt  Text             `json:"templateRestartAt"`
+	UpdateStrategy     Text             `json:"updateStrategy"`
+	RollingPartition   Integer          `json:"rollingPartition"`
+	CurrentRevision    Text             `json:"currentRevision"`
+	UpdateRevision     Text             `json:"updateRevision"`
+	CurrentReplicas    Integer          `json:"currentReplicas"`
+	UpdatedReplicas    Integer          `json:"updatedReplicas"`
+	MinReadySeconds    Integer          `json:"minReadySeconds"`
+	AvailableReplicas  Integer          `json:"availableReplicas"`
 }
 
 func (v StatefulSet) Acknowledgement() GenerationState {
@@ -171,7 +185,16 @@ func (v StatefulSet) Validate() error {
 		fieldCheck{"selectorPool", ValidateWorkloadPool(v.SelectorPool)},
 		fieldCheck{"selectorRevision", ValidateWorkloadRevision(v.SelectorRevision)},
 		fieldCheck{"templatePool", ValidateWorkloadPool(v.TemplatePool)},
-		fieldCheck{"templateRevision", ValidateWorkloadRevision(v.TemplateRevision)}); err != nil {
+		fieldCheck{"templateRevision", ValidateWorkloadRevision(v.TemplateRevision)},
+		fieldCheck{"templateRestartAt", v.TemplateRestartAt.Validate()},
+		fieldCheck{"updateStrategy", validateEnum(v.UpdateStrategy, "RollingUpdate", "OnDelete")},
+		fieldCheck{"rollingPartition", validateCount(v.RollingPartition)},
+		fieldCheck{"currentRevision", ValidateWorkloadRevision(v.CurrentRevision)},
+		fieldCheck{"updateRevision", ValidateWorkloadRevision(v.UpdateRevision)},
+		fieldCheck{"currentReplicas", validateCount(v.CurrentReplicas)},
+		fieldCheck{"updatedReplicas", validateCount(v.UpdatedReplicas)},
+		fieldCheck{"minReadySeconds", validateCount(v.MinReadySeconds)},
+		fieldCheck{"availableReplicas", validateCount(v.AvailableReplicas)}); err != nil {
 		return err
 	}
 	if v.Metadata.Reference.Identity.Kind != "StatefulSet" {

@@ -30,7 +30,7 @@ func TestNativeContractDescription(t *testing.T) {
 		}
 		inspected := contract == adapter.KubeBaoV1Alpha1
 		if slices.Contains(info.Capabilities, adapter.CapabilityRestoreUIDBinding) != inspected ||
-			(inspected && info.SourceRevision != "22894cdc0a4aa5c442a07f2bf9902fe28ce02ea1") ||
+			(inspected && info.SourceRevision != "7b9bbf8b1a2aa3a62e2235607073df3e912643b5") ||
 			(!inspected && info.SourceRevision != "") {
 			t.Fatal("native qualification boundary changed")
 		}
