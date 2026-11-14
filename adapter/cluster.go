@@ -60,6 +60,15 @@ func inferOmissions(object map[string]any, result *evidence.Cluster) {
 		zero := int64(0)
 		result.ReadyReplicas = evidence.Integer{State: evidence.ValueImplied, Value: &zero}
 	}
+	// The operator resets consecutiveFailures to an omitted zero in the same status update that records
+	// lastBackupTime, and records lastAttemptTime when an attempt starts. A success at or after the last attempt
+	// therefore means the latest attempt succeeded and no consecutive failures exist.
+	if backup := &result.Backup; backup.State == evidence.ObjectReported && backup.ConsecutiveFailures.State == evidence.ValueUnknown &&
+		backup.LastSuccessAt.State == evidence.ValueReported && backup.LastAttemptAt.State == evidence.ValueReported &&
+		!backup.LastSuccessAt.Value.Before(*backup.LastAttemptAt.Value) {
+		zero := int64(0)
+		backup.ConsecutiveFailures = evidence.Integer{State: evidence.ValueImplied, Value: &zero}
+	}
 	if result.Paused.State == evidence.ValueUnknown {
 		if spec, state := field(object, "spec"); state == evidence.ValueReported {
 			if _, ok := spec.(map[string]any); ok {

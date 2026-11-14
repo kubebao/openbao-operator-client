@@ -345,3 +345,34 @@ func TestOperationalFindingsRespectCollectionBoundaries(t *testing.T) {
 		})
 	}
 }
+
+func TestImpliedZeroFailureCountCompletesBackupRules(t *testing.T) {
+	t.Parallel()
+	i := input(t)
+	zero := int64(0)
+	backup := &i.Observation.Backup
+	backup.ConsecutiveFailures = evidence.Integer{State: evidence.ValueImplied, Value: &zero}
+	backup.LastAttemptAt = backup.LastSuccessAt
+	if i.Observation.Validate() != nil {
+		t.Fatal("a corroborated implied zero failure count is invalid")
+	}
+	p := policy(t)
+	p.Rules = []diagnose.RuleID{diagnose.RuleBackupFailed, diagnose.RuleBackupAbsent}
+	report, err := diagnose.Analyze(capture(i), p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range report.Coverage {
+		if slices.Contains(p.Rules, c.Rule) && c.State != diagnose.Evaluated {
+			t.Fatalf("%s coverage = %s, want evaluated", c.Rule, c.State)
+		}
+	}
+	if len(report.Findings) != 0 {
+		t.Fatalf("a successful latest attempt produced findings: %+v", report.Findings)
+	}
+	later := backup.LastSuccessAt.Value.Add(time.Minute)
+	backup.LastAttemptAt = timestamp(later)
+	if i.Observation.Validate() == nil {
+		t.Fatal("an implied zero failure count was accepted after a later attempt")
+	}
+}

@@ -129,8 +129,15 @@ hold values, and instructions never appear in findings.
 - **Sealing** (`KBAO-CLUSTER-002`) needs a current `OpenBaoSealed` condition and a known pause state.
   `OpenBaoSealed=True` is critical. Pause suppresses the finding.
 - **Recognized conditions** (`KBAO-CONDITION-001`) cover a fixed list of conditions and polarities. `Degraded=True` and
-  `TLSReady=False` are examples of adverse states, which are warnings. Each condition needs its own current
-  acknowledgement. Unknown names are ignored. `Available` and `OpenBaoSealed` use only their own rules.
+  `TLSReady=False` are examples of adverse states, which are warnings. The summary names the condition type and status,
+  such as `TLSReady=False`; reasons stay out of findings. Each condition needs its own current acknowledgement. Unknown
+  names are ignored. `Available` and `OpenBaoSealed` use only their own rules.
+  - `ReadReplicaStorageConfigured`, `ReadReplicasReady`, `ReadServingAvailable`, and `ReadReplicasAutopilotHealthy`
+    apply only to a configured read-replica pool. An absent or null `spec.readReplicas`, or zero desired read replicas,
+    excludes them. A positive desired count includes them. When the spec does not decide, the operator's
+    `NoReadReplicasConfigured` reason excludes the condition.
+  - `EtcdEncryptionWarning=True` is `info`. The operator reports it because it cannot inspect the API server's
+    encryption configuration, not because encryption is known to be disabled.
 - **Generation** (`KBAO-GENERATION-001`) warns on stale or inconsistent acknowledgement, with separate text. A missing or
   zero acknowledgement is insufficient, not a finding.
 
@@ -156,8 +163,9 @@ replicas is critical; any other shortfall is a warning.
 
 ### Backups
 
-All backup rules need reported backup configuration, reported backup status, and a reported failure count. Absent
-configuration is `not_applicable`. Missing or invalid values are insufficient; a missing failure count is never zero.
+All backup rules need reported backup configuration, reported backup status, and a reported or implied failure count.
+Absent configuration is `not_applicable`. Missing or invalid values are insufficient. The adapter implies a zero count only
+when the recorded success is at or after the last attempt; see [semantics](semantics.md#omission-rules).
 
 A positive failure count takes precedence. It makes the other two rules `evaluated` with reason
 `higher_priority_backup_signal` and no finding, even when the policy excludes `KBAO-BACKUP-001`.

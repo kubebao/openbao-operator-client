@@ -284,3 +284,38 @@ func FuzzProjectRestore(f *testing.F) {
 		}
 	})
 }
+
+func TestBackupFailureCountIsImpliedOnlyAfterASuccessfulLatestAttempt(t *testing.T) {
+	t.Parallel()
+	base := bytes.Replace(operationalFixture(t), []byte(`"consecutiveFailures":2,`), nil, 1)
+	attempt := []byte(`"lastAttemptTime":"2026-11-10T11:00:00Z",`)
+	for _, tc := range []struct {
+		name    string
+		attempt string
+		want    evidence.ValueState
+	}{
+		{"attempt after success", string(attempt), evidence.ValueUnknown},
+		{"success after attempt", `"lastAttemptTime":"2026-11-10T09:59:50Z",`, evidence.ValueImplied},
+		{"success at attempt", `"lastAttemptTime":"2026-11-10T10:00:00Z",`, evidence.ValueImplied},
+		{"no recorded attempt", ``, evidence.ValueUnknown},
+		{"malformed attempt", `"lastAttemptTime":"yesterday",`, evidence.ValueUnknown},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			data := bytes.Replace(base, attempt, []byte(tc.attempt), 1)
+			got, err := adapter.ProjectCluster(data, projectionOptions())
+			if err != nil {
+				t.Fatal(err)
+			}
+			count := got.Backup.ConsecutiveFailures
+			if count.State != tc.want || tc.want == evidence.ValueImplied && *count.Value != 0 {
+				t.Fatalf("consecutive failures = %+v, want state %s", count, tc.want)
+			}
+		})
+	}
+	got, err := adapter.ProjectCluster(bytes.Replace(operationalFixture(t), attempt,
+		[]byte(`"lastAttemptTime":"2026-11-10T09:00:00Z",`), 1), projectionOptions())
+	if err != nil || got.Backup.ConsecutiveFailures.State != evidence.ValueReported || *got.Backup.ConsecutiveFailures.Value != 2 {
+		t.Fatal("a reported failure count was replaced by an inference")
+	}
+}

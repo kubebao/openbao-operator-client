@@ -133,10 +133,18 @@ func (v Backup) Validate() error {
 		validateChild(v.State, v.RestoreTest.State) != nil || v.RestoreTest.Validate() != nil {
 		return ErrInvalidEvidence
 	}
+	// An adapter can imply a zero failure count only from a reported success at or after the last attempt.
+	if v.ConsecutiveFailures.State == ValueImplied && (v.LastSuccessAt.State != ValueReported || v.LastAttemptAt.State != ValueReported ||
+		v.LastSuccessAt.Value.Before(*v.LastAttemptAt.Value)) {
+		return ErrInvalidEvidence
+	}
 	for _, count := range []Integer{v.ConsecutiveFailures, v.SizeBytes} {
-		if count.State == ValueImplied || count.Value != nil && *count.Value < 0 {
+		if count.Value != nil && *count.Value < 0 {
 			return ErrInvalidEvidence
 		}
+	}
+	if v.SizeBytes.State == ValueImplied {
+		return ErrInvalidEvidence
 	}
 	if v.ConsecutiveFailures.Value != nil && *v.ConsecutiveFailures.Value > 2147483647 {
 		return ErrInvalidEvidence

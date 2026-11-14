@@ -6,8 +6,9 @@ func backupPrerequisites(backup evidence.Backup) evaluation {
 	if backup.Configuration == evidence.ObjectAbsent {
 		return evaluation{state: NotApplicable, reason: ReasonNotConfigured}
 	}
+	failures := backup.ConsecutiveFailures.State
 	if backup.Configuration != evidence.ObjectReported || backup.State != evidence.ObjectReported ||
-		backup.ConsecutiveFailures.State != evidence.ValueReported {
+		failures != evidence.ValueReported && failures != evidence.ValueImplied {
 		return evaluation{state: Insufficient, reason: ReasonMissingField}
 	}
 	return evaluation{state: Evaluated, reason: ReasonNone}
