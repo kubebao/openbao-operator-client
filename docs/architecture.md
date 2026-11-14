@@ -23,7 +23,7 @@ consumer modules. Test imports follow the same direction.
   namespaces, API groups, resources, or selectors that the caller declares.
 - `diagnose` receives normalized evidence, selected rules, policy, and a reference time. It returns findings and coverage.
   Findings can coexist with insufficient coverage. Empty findings do not mean complete evidence or a healthy cluster.
-- `operations` prepares bounded pause and maintenance patches for a qualified cluster identity. Its separate client submits
+- `operations` prepares bounded pause, maintenance, and restart patches for a qualified cluster identity. Its separate client submits
   one request through a caller-configured transport. Assessments use supplied evidence and never perform reads or writes.
 
 The client release defines the evidence model and diagnostic behavior. Adapter selection stays at projection and

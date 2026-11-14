@@ -1,5 +1,7 @@
 {
   "metadata": {
+    "restartAt": {"state":"unknown"},
+    "controllerRevision": {"state":"unknown"},
     "pool": {"state": "unknown"},
     "revision": {"state": "unknown"},
     "reference": {

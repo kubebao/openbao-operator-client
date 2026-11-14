@@ -18,7 +18,7 @@ formats and user data are separate responsibilities; changing the client does no
 | --- | --- | --- |
 | `openbao.org/v1alpha1` | Operator commit `9671c30623d609f948cf073e167f376de4ea9a85` | Source inspected; unit and fixture tests; local controls and restore observation integration with `0.6.1` |
 | `openbao.org/v1alpha1/unqualified` | Reported fields without omission rules or restore UID bindings | Unit and fixture tests |
-| `kubebao.org/v1alpha1` | Native operator candidate `22894cdc0a4aa5c442a07f2bf9902fe28ce02ea1` | Source inspected; unit and fixture tests; local control integration with this candidate and restore observations with edge `587dd163` |
+| `kubebao.org/v1alpha1` | Operator `0.7.0-rc.1`, source `7b9bbf8b1a2aa3a62e2235607073df3e912643b5` | Source inspected; unit and fixture tests; pause/maintenance baseline `22894cdc`, restore baseline `587dd163`, and restart qualification described below |
 | `kubebao.org/v1alpha1/unqualified` | Reported native fields without omission rules or restore UID bindings | Unit and fixture tests |
 | `apps/v1` | Kubernetes API declarations `v0.37.2`; operator workload metadata at `9671c306` | Source inspected; unit and fixture tests; local operator integration |
 | `v1` | Kubernetes API declarations `v0.37.2`; operator workload metadata at `9671c306` | Source inspected; unit and fixture tests; local operator integration |
@@ -93,8 +93,38 @@ incomplete observations.
 The native contract preserves the operator's `openbao.org/*` metadata keys. It does not establish compatibility with a
 released `kubebao.org` operator. Consumers must select a contract; matching discovery alone is not qualification.
 
-Restart, backup, upgrade, restore, recovery acknowledgements, scaling, and general configuration writes are not exposed
-through this package.
+Backup, upgrade, restore, recovery acknowledgements, scaling, and general configuration writes are not exposed through
+this package.
+
+## Rolling restart
+
+The client prepares and submits a guarded `spec.runtime.restartAt` change and assesses current rollout convergence.
+Support is limited to reported requested and accepted `RollingUpdate` strategies and stable voter/read-replica pools.
+Blue/Green and `OnDelete` workflows are unsupported. Preparation requires complete restriction and strategy evidence;
+an API-group match alone does not establish support.
+
+The inspected restart implementation is operator `0.7.0-rc.1`, source
+`7b9bbf8b1a2aa3a62e2235607073df3e912643b5`, using the native `kubebao.org` API. The release is a prerelease. Legacy API
+projection and synthetic cases do not qualify a legacy operator release for restart. See
+[restart assessment](operations.md#rolling-restart) for required rollout evidence and the distinction between convergence
+and historical Pod replacement.
+
+Local runtime qualification uses the released `0.7.0-rc.1` chart and digest-pinned images on Kubernetes `1.36.1`,
+Linux/arm64, and OpenBao `2.7.2` in one disposable Kind node. Initialized Development fixtures cover one voter, three
+voters with one steady read replica, and one voter with a configured zero read pool. Each rolling fixture reaches
+observed convergence and replaces all original UID-owned Pods. A separate initialized Blue/Green fixture is refused
+before transport.
+
+The same run verifies server dry-run without persistence, RBAC denial, cancellation before transport, and failed UID,
+resource-version, and generation patch tests. One accepted voter PATCH has its response discarded; subsequent reads
+establish convergence under the same marker without retrying the mutation. This covers runtime replacement and
+convergence for these native fixtures. Partitioned updates, positive minimum-ready durations, incomplete reads,
+identity conflicts, and most other failure branches remain unit and synthetic coverage.
+
+This does not qualify a legacy operator release, Blue/Green restart execution, another Kubernetes version or platform,
+fault-domain availability, serving health, Raft quorum safety, or production operation. No existing operational
+environment is part of this qualification. Exact release, image, chart, CRD, client, and consumer identities belong in
+the qualification pull request.
 
 ## Unsupported
 

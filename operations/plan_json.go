@@ -19,7 +19,7 @@ func (p *Plan) UnmarshalJSON(raw []byte) error {
 	}
 	tokens := json.NewDecoder(bytes.NewReader(raw))
 	tokens.UseNumber()
-	if consumePlanJSON(tokens, 0, "") != nil {
+	if consumePlanJSON(tokens, 0, "", planJSONFields) != nil {
 		return ErrInvalidPlan
 	}
 	if _, err := tokens.Token(); err != io.EOF {
@@ -53,7 +53,7 @@ var planJSONFields = map[string][]string{
 	"target.collectedAt":     {"state", "value"},
 }
 
-func consumePlanJSON(decoder *json.Decoder, depth int, path string) error {
+func consumePlanJSON(decoder *json.Decoder, depth int, path string, fields map[string][]string) error {
 	if depth > 32 {
 		return ErrInvalidPlan
 	}
@@ -72,7 +72,7 @@ func consumePlanJSON(decoder *json.Decoder, depth int, path string) error {
 	for decoder.More() {
 		key, keyErr := decoder.Token()
 		name, valid := key.(string)
-		if keyErr != nil || !valid || keys[name] || !slices.Contains(planJSONFields[path], name) {
+		if keyErr != nil || !valid || keys[name] || !slices.Contains(fields[path], name) {
 			return ErrInvalidPlan
 		}
 		keys[name] = true
@@ -80,7 +80,7 @@ func consumePlanJSON(decoder *json.Decoder, depth int, path string) error {
 		if path != "" {
 			child = path + "." + name
 		}
-		if consumePlanJSON(decoder, depth+1, child) != nil {
+		if consumePlanJSON(decoder, depth+1, child, fields) != nil {
 			return ErrInvalidPlan
 		}
 	}

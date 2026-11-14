@@ -83,20 +83,7 @@ func validResourceName(value string) bool {
 // Validate checks the fixed control surface and every optimistic-concurrency precondition.
 // A valid plan can still be rejected by RBAC, admission, or a concurrent resource change.
 func (p Plan) Validate() error {
-	contract := p.Contract
-	info, err := adapter.Describe(contract)
-	if err != nil || (contract != adapter.OpenBaoV1Alpha1 && contract != adapter.KubeBaoV1Alpha1) ||
-		p.Target.Validate() != nil ||
-		p.Target.Field != "" || p.Target.Identity.Kind != "OpenBaoCluster" ||
-		p.Target.Identity.Group != info.APIGroup || p.Target.APIVersion != info.APIVersion {
-		return ErrInvalidPlan
-	}
-	id := p.Target.Identity
-	if len(id.Namespace) > 63 || !dnsLabel.MatchString(id.Namespace) || !validResourceName(id.Name) {
-		return ErrInvalidPlan
-	}
-	if p.Target.ResourceVersion.State != evidence.ValueReported || len(*p.Target.ResourceVersion.Value) > 253 ||
-		p.Generation.Validate() != nil || p.Generation.State != evidence.ValueReported || *p.Generation.Value <= 0 {
+	if validateControlTarget(p.Contract, p.Target, p.Generation) != nil {
 		return ErrInvalidPlan
 	}
 	switch p.Control {
@@ -111,6 +98,26 @@ func (p Plan) Validate() error {
 			return ErrInvalidPlan
 		}
 	default:
+		return ErrInvalidPlan
+	}
+	return nil
+}
+
+func validateControlTarget(selected adapter.Contract, target evidence.Reference, generation evidence.Integer) error {
+	contract := selected
+	info, err := adapter.Describe(contract)
+	if err != nil || (contract != adapter.OpenBaoV1Alpha1 && contract != adapter.KubeBaoV1Alpha1) ||
+		target.Validate() != nil ||
+		target.Field != "" || target.Identity.Kind != "OpenBaoCluster" ||
+		target.Identity.Group != info.APIGroup || target.APIVersion != info.APIVersion {
+		return ErrInvalidPlan
+	}
+	id := target.Identity
+	if len(id.Namespace) > 63 || !dnsLabel.MatchString(id.Namespace) || !validResourceName(id.Name) {
+		return ErrInvalidPlan
+	}
+	if target.ResourceVersion.State != evidence.ValueReported || len(*target.ResourceVersion.Value) > 253 ||
+		generation.Validate() != nil || generation.State != evidence.ValueReported || *generation.Value <= 0 {
 		return ErrInvalidPlan
 	}
 	return nil
@@ -135,10 +142,14 @@ func (p Plan) Patch() ([]byte, error) {
 			change.Path, change.Value = "/spec/maintenance", map[string]bool{"enabled": p.Enabled}
 		}
 	}
+	return marshalControlPatch(p.Target, p.Generation, change)
+}
+
+func marshalControlPatch(target evidence.Reference, generation evidence.Integer, change patchOperation) ([]byte, error) {
 	operations := []patchOperation{
-		{Operation: "test", Path: "/metadata/uid", Value: p.Target.Identity.UID},
-		{Operation: "test", Path: "/metadata/resourceVersion", Value: *p.Target.ResourceVersion.Value},
-		{Operation: "test", Path: "/metadata/generation", Value: *p.Generation.Value},
+		{Operation: "test", Path: "/metadata/uid", Value: target.Identity.UID},
+		{Operation: "test", Path: "/metadata/resourceVersion", Value: *target.ResourceVersion.Value},
+		{Operation: "test", Path: "/metadata/generation", Value: *generation.Value},
 		change,
 	}
 	raw, err := json.Marshal(operations)

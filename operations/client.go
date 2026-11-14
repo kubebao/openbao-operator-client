@@ -112,6 +112,18 @@ func (c *Client) Submit(ctx context.Context, plan Plan, options SubmitOptions) (
 	if err != nil {
 		return Result{}, err
 	}
+	return c.submit(
+		ctx,
+		plan.Target,
+		patch,
+		options,
+		func(raw []byte) (Receipt, bool) { return responseReceipt(raw, plan, options.Projection) },
+	)
+}
+
+func (c *Client) submit(ctx context.Context, target evidence.Reference, patch []byte, options SubmitOptions,
+	receipt func([]byte) (Receipt, bool),
+) (result Result, err error) {
 	ctx, cancel := context.WithTimeout(ctx, options.Timeout)
 	defer cancel()
 	result = Result{Outcome: OutcomeNotSubmitted, StartedAt: time.Now().UTC()}
@@ -119,7 +131,7 @@ func (c *Client) Submit(ctx context.Context, plan Plan, options SubmitOptions) (
 	if ctx.Err() != nil {
 		return result, nil
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPatch, c.requestURL(plan, options.DryRun), bytes.NewReader(patch))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPatch, c.requestURL(target, options.DryRun), bytes.NewReader(patch))
 	if err != nil {
 		return Result{}, ErrInvalidRequest
 	}
@@ -163,20 +175,20 @@ func (c *Client) Submit(ctx context.Context, plan Plan, options SubmitOptions) (
 	if readErr != nil || closeErr != nil || len(body) > budget || ctx.Err() != nil {
 		return result, nil
 	}
-	receipt, valid := responseReceipt(body, plan, options.Projection)
+	projectedReceipt, valid := receipt(body)
 	if !valid || ctx.Err() != nil {
 		return result, nil
 	}
-	result.Outcome, result.Receipt = OutcomeAccepted, &receipt
+	result.Outcome, result.Receipt = OutcomeAccepted, &projectedReceipt
 	if options.DryRun {
 		result.Outcome = OutcomeDryRunAccepted
 	}
 	return result, nil
 }
 
-func (c *Client) requestURL(plan Plan, dryRun bool) string {
-	id := plan.Target.Identity
-	version := strings.TrimPrefix(plan.Target.APIVersion, id.Group+"/")
+func (c *Client) requestURL(target evidence.Reference, dryRun bool) string {
+	id := target.Identity
+	version := strings.TrimPrefix(target.APIVersion, id.Group+"/")
 	endpoint := c.endpoint.JoinPath("apis", id.Group, version, "namespaces", id.Namespace, "openbaoclusters", id.Name)
 	if dryRun {
 		endpoint.RawQuery = url.Values{"dryRun": {"All"}}.Encode()
