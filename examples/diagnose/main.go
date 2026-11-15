@@ -1,7 +1,10 @@
+// Command diagnose projects a synthetic OpenBaoCluster, analyzes it with the
+// default policy, and prints the number of findings and coverage entries.
 package main
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/kubebao/openbao-operator-client/adapter"
@@ -16,26 +19,36 @@ func main() {
 		`"spec":{"replicas":3,"paused":false,"backup":{}},` +
 		`"status":{"observedGeneration":4,"readyReplicas":0,"backup":{"consecutiveFailures":0,"lastBackupTime":"2026-11-09T09:00:00Z"}}}`)
 	cluster, err := adapter.ProjectCluster(raw, adapter.ProjectionOptions{
-		Origin: "cluster-a", Contract: adapter.OpenBaoV1Alpha1,
-		CollectedAt: reference, Limits: adapter.DefaultProjectionLimits(),
+		Origin:      "cluster-a",
+		Contract:    adapter.OpenBaoV1Alpha1,
+		CollectedAt: reference,
+		Limits:      adapter.DefaultProjectionLimits(),
 	})
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	input := diagnose.ClusterInput{
-		Subject: cluster.Reference.Identity, Observation: &cluster,
+		Subject:     cluster.Reference.Identity,
+		Observation: &cluster,
 		Collection: evidence.Collection{
 			Scope: evidence.Scope{
-				Origin: "cluster-a", Group: "openbao.org", Version: "v1alpha1",
-				Resource: "openbaoclusters", Namespace: "team", Name: "bao", Action: evidence.ReadGet,
+				Origin:    "cluster-a",
+				Group:     "openbao.org",
+				Version:   "v1alpha1",
+				Resource:  "openbaoclusters",
+				Namespace: "team",
+				Name:      "bao",
+				Action:    evidence.ReadGet,
 			},
-			Outcome: evidence.CollectionComplete, Items: 1, Interval: evidence.Interval{StartedAt: reference, CompletedAt: reference},
+			Outcome:  evidence.CollectionComplete,
+			Items:    1,
+			Interval: evidence.Interval{StartedAt: reference, CompletedAt: reference},
 		},
 	}
-	report, err := diagnose.Analyze(diagnose.Capture{Clusters: []diagnose.ClusterInput{input}},
-		diagnose.DefaultPolicy(reference))
+	capture := diagnose.Capture{Clusters: []diagnose.ClusterInput{input}}
+	report, err := diagnose.Analyze(capture, diagnose.DefaultPolicy(reference))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	fmt.Printf("%d findings, %d coverage entries\n", len(report.Findings), len(report.Coverage))
 }

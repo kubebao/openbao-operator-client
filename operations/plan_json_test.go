@@ -14,11 +14,12 @@ import (
 )
 
 func jsonPlan() operations.Plan {
-	at := time.Date(2026, time.November, 11, 12, 0, 0, 0, time.UTC)
-	version, generation := "10", int64(4)
 	return operations.Plan{
-		Contract: adapter.OpenBaoV1Alpha1, Control: operations.ControlPause, Enabled: true,
-		MaintenanceState: evidence.ObjectUnknown, Generation: evidence.Integer{State: evidence.ValueReported, Value: &generation},
+		Contract:         adapter.OpenBaoV1Alpha1,
+		Control:          operations.ControlPause,
+		Enabled:          true,
+		MaintenanceState: evidence.ObjectUnknown,
+		Generation:       evidence.Integer{State: evidence.ValueReported, Value: new(int64(4))},
 		Target: evidence.Reference{
 			Identity: evidence.Identity{
 				Origin:    "test",
@@ -29,8 +30,11 @@ func jsonPlan() operations.Plan {
 				UID:       "uid-1",
 			},
 			APIVersion:      "openbao.org/v1alpha1",
-			ResourceVersion: evidence.Text{State: evidence.ValueReported, Value: &version},
-			CollectedAt:     evidence.Timestamp{State: evidence.ValueReported, Value: &at},
+			ResourceVersion: evidence.Text{State: evidence.ValueReported, Value: new("10")},
+			CollectedAt: evidence.Timestamp{
+				State: evidence.ValueReported,
+				Value: new(time.Date(2026, time.November, 11, 12, 0, 0, 0, time.UTC)),
+			},
 		},
 	}
 }

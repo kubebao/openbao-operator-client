@@ -65,7 +65,8 @@ func TestBackupPrecedenceRequiresObservedFields(t *testing.T) {
 				if len(report.Findings) != 0 {
 					t.Fatal("unknown or invalid evidence became a backup finding")
 				}
-			} else if len(report.Findings) != 1 || report.Findings[0].Rule != tc.want || report.Findings[0].Severity != diagnose.SeverityWarning {
+			} else if len(report.Findings) != 1 || report.Findings[0].Rule != tc.want ||
+				report.Findings[0].Severity != diagnose.SeverityWarning {
 				t.Fatal("backup precedence or severity changed")
 			}
 			for _, rule := range []diagnose.RuleID{diagnose.RuleBackupFailed, diagnose.RuleBackupAbsent, diagnose.RuleBackupAge} {
@@ -349,9 +350,8 @@ func TestOperationalFindingsRespectCollectionBoundaries(t *testing.T) {
 func TestImpliedZeroFailureCountCompletesBackupRules(t *testing.T) {
 	t.Parallel()
 	i := input(t)
-	zero := int64(0)
 	backup := &i.Observation.Backup
-	backup.ConsecutiveFailures = evidence.Integer{State: evidence.ValueImplied, Value: &zero}
+	backup.ConsecutiveFailures = evidence.Integer{State: evidence.ValueImplied, Value: new(int64(0))}
 	backup.LastAttemptAt = backup.LastSuccessAt
 	if i.Observation.Validate() != nil {
 		t.Fatal("a corroborated implied zero failure count is invalid")

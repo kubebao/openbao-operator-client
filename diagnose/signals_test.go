@@ -13,16 +13,12 @@ import (
 )
 
 func condition(name string, status evidence.ConditionStatus, observed int64) evidence.Condition {
-	reason := "REASON_CANARY"
 	return evidence.Condition{
 		Type:               name,
 		Status:             status,
 		ObservedGeneration: integer(observed),
-		Reason: evidence.Text{
-			State: evidence.ValueReported,
-			Value: &reason,
-		},
-		LastTransitionAt: evidence.Timestamp{State: evidence.ValueUnknown},
+		Reason:             evidence.Text{State: evidence.ValueReported, Value: new("REASON_CANARY")},
+		LastTransitionAt:   evidence.Timestamp{State: evidence.ValueUnknown},
 	}
 }
 

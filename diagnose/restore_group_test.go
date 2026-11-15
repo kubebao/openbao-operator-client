@@ -80,7 +80,8 @@ func TestRestoreDisplaySelectionDoesNotReplaceEarlierHeldConcern(t *testing.T) {
 				t.Fatal("newer foreign or name-only request displaced the latest UID-confirmed display record")
 			}
 			first, coverage := runRestore(t, i, p)
-			if coverage.State != diagnose.CoverageInsufficient || coverage.Reason != diagnose.ReasonAssociation || len(first.Findings) != 1 ||
+			if coverage.State != diagnose.CoverageInsufficient || coverage.Reason != diagnose.ReasonAssociation ||
+				len(first.Findings) != 1 ||
 				first.Findings[0].Severity != diagnose.SeverityError ||
 				first.Findings[0].Subject != held.Reference.Identity {
 				t.Fatal("display selection or unresolved candidate hid the earlier independently confirmed held failure")

@@ -21,7 +21,9 @@ func evaluateWorkloads(input ClusterInput, rule RuleID, policy Policy, coverage 
 	if rule == RulePod && input.Pods != nil {
 		read = &input.Pods.Collection
 	}
-	coverage.State, coverage.Reason, coverage.Outcome = CoverageNotRequested, ReasonNotRequested, evidence.CollectionNotRequested
+	coverage.State = CoverageNotRequested
+	coverage.Reason = ReasonNotRequested
+	coverage.Outcome = evidence.CollectionNotRequested
 	if read == nil {
 		return coverage, nil
 	}
@@ -29,7 +31,8 @@ func evaluateWorkloads(input ClusterInput, rule RuleID, policy Policy, coverage 
 	if read.Outcome == evidence.CollectionNotRequested {
 		return coverage, nil
 	}
-	coverage.State, coverage.Reason = CoverageInsufficient, ReasonMissingObservation
+	coverage.State = CoverageInsufficient
+	coverage.Reason = ReasonMissingObservation
 	if reason := relatedTarget(input, policy); reason != ReasonNone {
 		coverage.Reason = reason
 		return coverage, nil
@@ -47,16 +50,17 @@ func evaluateWorkloads(input ClusterInput, rule RuleID, policy Policy, coverage 
 	if input.Collection.Outcome != evidence.CollectionComplete {
 		result.insufficient(ReasonScopeIncomplete)
 	}
-	coverage.State, coverage.Reason, coverage.Reasons = result.state, result.reason, result.coverageReasons()
-	return coverage, result.findings
+	return result.apply(coverage)
 }
 
 func relatedTarget(input ClusterInput, policy Policy) CoverageReason {
 	if input.Observation == nil {
 		return ReasonMissingObservation
 	}
-	if input.Collection.Outcome == evidence.CollectionDeleted || input.Collection.Outcome == evidence.CollectionReplaced ||
-		input.Verification == nil || input.Verification.State != evidence.VerificationVerified {
+	if input.Collection.Outcome == evidence.CollectionDeleted || input.Collection.Outcome == evidence.CollectionReplaced {
+		return ReasonVerification
+	}
+	if input.Verification == nil || input.Verification.State != evidence.VerificationVerified {
 		return ReasonVerification
 	}
 	if !fresh(input.Observation.Reference, input.Collection, policy) {
@@ -65,9 +69,14 @@ func relatedTarget(input ClusterInput, policy Policy) CoverageReason {
 	return ReasonNone
 }
 
+// fresh reports whether a reference was collected within its read, not after the
+// reference time, and within the policy's evidence age limit.
 func fresh(ref evidence.Reference, read evidence.Collection, policy Policy) bool {
-	return read.Interval.Contains(*ref.CollectedAt.Value) && !ref.CollectedAt.Value.After(policy.ReferenceTime) &&
-		policy.ReferenceTime.Sub(*ref.CollectedAt.Value) <= policy.MaxEvidenceAge
+	collected := *ref.CollectedAt.Value
+	if !read.Interval.Contains(collected) || collected.After(policy.ReferenceTime) {
+		return false
+	}
+	return policy.ReferenceTime.Sub(collected) <= policy.MaxEvidenceAge
 }
 
 // These are the existing CLI workload scopes. A narrower query can support
@@ -121,7 +130,7 @@ func associatedSets(input ClusterInput, policy Policy, result *evaluation) map[s
 		if association.State != evidence.AssociationConfirmed && association.State != evidence.AssociationForeign {
 			result.insufficient(ReasonAssociation)
 		}
-		sets[set.Metadata.Reference.Identity.UID] = associatedSet{set, association}
+		sets[set.Metadata.Reference.Identity.UID] = associatedSet{value: set, association: association}
 	}
 	return sets
 }
@@ -155,12 +164,13 @@ func workloadReadiness(input ClusterInput, sets map[string]associatedSet, result
 	if confirmed != 0 || result.state != CoverageEvaluated {
 		return
 	}
-	if !knownInteger(input.Observation.DesiredReplicas) || input.Observation.Acknowledgement() != evidence.GenerationCurrent {
+	cluster := input.Observation
+	if !knownInteger(cluster.DesiredReplicas) || cluster.Acknowledgement() != evidence.GenerationCurrent {
 		result.insufficient(ReasonMissingField)
 		return
 	}
-	if *input.Observation.DesiredReplicas.Value > 0 {
-		found := finding(*input.Observation, RuleWorkload, SeverityWarning,
+	if *cluster.DesiredReplicas.Value > 0 {
+		found := finding(*cluster, RuleWorkload, SeverityWarning,
 			"No UID-associated StatefulSet was found in the declared workload scope.", "spec.replicas")
 		found.Subsubject = "statefulset-population"
 		result.add(found)
@@ -171,7 +181,11 @@ func resourceFinding(ref evidence.Reference, rule RuleID, subsubject string, sev
 	fields ...string,
 ) *Finding {
 	found := &Finding{
-		Rule: rule, Subject: ref.Identity, Subsubject: subsubject, Severity: severity, Summary: summary,
+		Rule:       rule,
+		Subject:    ref.Identity,
+		Subsubject: subsubject,
+		Severity:   severity,
+		Summary:    summary,
 		References: []evidence.Reference{},
 	}
 	for _, field := range fields {

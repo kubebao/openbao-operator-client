@@ -2,6 +2,7 @@ package operations
 
 import "github.com/kubebao/openbao-operator-client/evidence"
 
+// maintenancePool records the expected revision and replicas of one workload pool.
 type maintenancePool struct {
 	revision evidence.Text
 	replicas int64
@@ -38,7 +39,8 @@ func maintenanceTopology(cluster evidence.Cluster, result *Assessment) map[strin
 			return nil
 		}
 		pools["read-replica"] = &maintenancePool{
-			revision: evidence.Text{State: evidence.ValueUnknown}, replicas: *cluster.ReadReplicas.Desired.Value,
+			revision: evidence.Text{State: evidence.ValueUnknown},
+			replicas: *cluster.ReadReplicas.Desired.Value,
 		}
 	case evidence.ObjectInvalid:
 		result.add(AssessmentInsufficient, ReasonInvalidField)
@@ -50,6 +52,7 @@ func maintenanceTopology(cluster evidence.Cluster, result *Assessment) map[strin
 	return pools
 }
 
+// maintenanceVoterRevision returns the voter pool revision of a settled blue/green state.
 func maintenanceVoterRevision(blueGreen evidence.BlueGreen, result *Assessment) (evidence.Text, bool) {
 	unknown := evidence.Text{State: evidence.ValueUnknown}
 	switch blueGreen.State {
@@ -62,7 +65,8 @@ func maintenanceVoterRevision(blueGreen evidence.BlueGreen, result *Assessment) 
 		result.add(AssessmentInsufficient, ReasonMissingField)
 		return unknown, false
 	}
-	if blueGreen.Phase.State == evidence.ValueInvalid || blueGreen.BlueRevision.State == evidence.ValueInvalid ||
+	if blueGreen.Phase.State == evidence.ValueInvalid ||
+		blueGreen.BlueRevision.State == evidence.ValueInvalid ||
 		blueGreen.GreenRevision.State == evidence.ValueInvalid {
 		result.add(AssessmentInsufficient, ReasonInvalidField)
 		return unknown, false
@@ -84,10 +88,14 @@ func maintenanceVoterRevision(blueGreen evidence.BlueGreen, result *Assessment) 
 	return blueGreen.BlueRevision, true
 }
 
+// maintenanceSetLabels returns a StatefulSet's pool and revision when its
+// selector and template labels agree.
 func maintenanceSetLabels(set evidence.StatefulSet, result *Assessment) (string, evidence.Text, bool) {
 	unknown := evidence.Text{State: evidence.ValueUnknown}
-	if set.SelectorPool.State == evidence.ValueInvalid || set.TemplatePool.State == evidence.ValueInvalid ||
-		set.SelectorRevision.State == evidence.ValueInvalid || set.TemplateRevision.State == evidence.ValueInvalid {
+	if set.SelectorPool.State == evidence.ValueInvalid ||
+		set.TemplatePool.State == evidence.ValueInvalid ||
+		set.SelectorRevision.State == evidence.ValueInvalid ||
+		set.TemplateRevision.State == evidence.ValueInvalid {
 		result.add(AssessmentInsufficient, ReasonInvalidField)
 		return "", unknown, false
 	}
@@ -102,6 +110,7 @@ func maintenanceSetLabels(set evidence.StatefulSet, result *Assessment) (string,
 	return *set.SelectorPool.Value, set.SelectorRevision, true
 }
 
+// maintenanceSetTopology matches a confirmed StatefulSet to its expected pool.
 func maintenanceSetTopology(set evidence.StatefulSet, pools map[string]*maintenancePool, result *Assessment) {
 	name, revision, known := maintenanceSetLabels(set, result)
 	if !known || pools == nil {
@@ -121,6 +130,7 @@ func maintenanceSetTopology(set evidence.StatefulSet, pools map[string]*maintena
 	}
 }
 
+// maintenancePodTopology reports whether a Pod's labels match its StatefulSet's pool and revision.
 func maintenancePodTopology(pod evidence.Pod, set evidence.StatefulSet, result *Assessment) bool {
 	_, revision, known := maintenanceSetLabels(set, result)
 	if !known {
@@ -130,8 +140,11 @@ func maintenancePodTopology(pod evidence.Pod, set evidence.StatefulSet, result *
 		result.add(AssessmentInsufficient, ReasonInvalidField)
 		return false
 	}
-	if pod.Metadata.Pool.State != evidence.ValueReported ||
-		pod.Metadata.Revision.State == evidence.ValueUnknown && revision.State == evidence.ValueReported {
+	if pod.Metadata.Pool.State != evidence.ValueReported {
+		result.add(AssessmentInsufficient, ReasonMissingField)
+		return false
+	}
+	if pod.Metadata.Revision.State == evidence.ValueUnknown && revision.State == evidence.ValueReported {
 		result.add(AssessmentInsufficient, ReasonMissingField)
 		return false
 	}
@@ -140,8 +153,4 @@ func maintenancePodTopology(pod evidence.Pod, set evidence.StatefulSet, result *
 		return false
 	}
 	return true
-}
-
-func sameControlText(a, b evidence.Text) bool {
-	return a.State == b.State && (a.Value == nil && b.Value == nil || a.Value != nil && b.Value != nil && *a.Value == *b.Value)
 }

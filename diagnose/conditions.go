@@ -21,9 +21,7 @@ func reportedCondition(cluster evidence.Cluster, name string) *evidence.Conditio
 func conditionField(name string) string { return "status.conditions[type=" + name + "]" }
 
 func conditionTime(result *evaluation, cluster evidence.Cluster, condition evidence.Condition) {
-	if condition.LastTransitionAt.State == evidence.ValueInvalid ||
-		condition.LastTransitionAt.State == evidence.ValueReported &&
-			condition.LastTransitionAt.Value.After(*cluster.Reference.CollectedAt.Value) {
+	if inconsistentTime(condition.LastTransitionAt, *cluster.Reference.CollectedAt.Value) {
 		result.insufficient(ReasonTime)
 	}
 }
@@ -50,7 +48,7 @@ func availability(cluster evidence.Cluster) evaluation {
 }
 
 func sealed(cluster evidence.Cluster) evaluation {
-	if cluster.Paused.State != evidence.ValueReported && cluster.Paused.State != evidence.ValueImplied {
+	if !reportedBoolean(cluster.Paused) {
 		return evaluation{state: CoverageInsufficient, reason: ReasonMissingField}
 	}
 	if *cluster.Paused.Value {
@@ -75,26 +73,45 @@ func sealed(cluster evidence.Cluster) evaluation {
 	return result
 }
 
-// RecognizedCondition reports whether KBAO-CONDITION-001 interprets the named condition type. Consumers can use it to
-// explain which reported conditions limited that rule's coverage.
+// RecognizedCondition reports whether RuleCondition interprets the named condition type.
+// Consumers can use it to explain which reported conditions limited that rule's coverage.
 func RecognizedCondition(name string) bool {
 	_, recognized := conditionPolarity(name)
 	return recognized
 }
 
+// conditionPolarity returns the adverse status of a recognized condition type.
 func conditionPolarity(name string) (evidence.ConditionStatus, bool) {
-	if slices.Contains([]string{"Degraded", "SecurityRisk", etcdEncryptionWarning, "NodeSecurityCapabilityMismatch"}, name) {
+	switch name {
+	case "Degraded",
+		"SecurityRisk",
+		etcdEncryptionWarning,
+		"NodeSecurityCapabilityMismatch":
 		return evidence.ConditionTrue, true
-	}
-	if slices.Contains([]string{
-		"TLSReady", "ACMEIntegrationReady", "ACMECacheReady", "GatewayIntegrationReady", "IngressIntegrationReady",
-		"APIServerNetworkReady", "AuditFileStorageReady", "ProductionReady", "UserAccessBootstrap", "CloudUnsealIdentityReady",
-		"BackupConfigurationReady", "StorageConfigured", "ReadReplicaStorageConfigured", "ReadReplicasReady", "ReadServingAvailable",
-		"RaftMembershipReady", "ReadReplicasAutopilotHealthy", "OpenBaoInitialized", "OpenBaoLeader", "PolicyReconciliationReady",
-	}, name) {
+	case "TLSReady",
+		"ACMEIntegrationReady",
+		"ACMECacheReady",
+		"GatewayIntegrationReady",
+		"IngressIntegrationReady",
+		"APIServerNetworkReady",
+		"AuditFileStorageReady",
+		"ProductionReady",
+		"UserAccessBootstrap",
+		"CloudUnsealIdentityReady",
+		"BackupConfigurationReady",
+		"StorageConfigured",
+		"ReadReplicaStorageConfigured",
+		"ReadReplicasReady",
+		"ReadServingAvailable",
+		"RaftMembershipReady",
+		"ReadReplicasAutopilotHealthy",
+		"OpenBaoInitialized",
+		"OpenBaoLeader",
+		"PolicyReconciliationReady":
 		return evidence.ConditionFalse, true
+	default:
+		return "", false
 	}
-	return "", false
 }
 
 const (
@@ -104,25 +121,29 @@ const (
 
 // readReplicaConditions describe the optional read-replica pool. They apply only when the pool is configured.
 var readReplicaConditions = []string{
-	"ReadReplicaStorageConfigured", "ReadReplicasReady", "ReadServingAvailable", "ReadReplicasAutopilotHealthy",
+	"ReadReplicaStorageConfigured",
+	"ReadReplicasReady",
+	"ReadServingAvailable",
+	"ReadReplicasAutopilotHealthy",
 }
 
-// readReplicasConfigured reports whether the spec requests read replicas. The second result is false when the spec does not decide it.
+// readReplicasConfigured reports whether the spec requests read replicas.
+// The second result is false when the spec does not decide it.
 func readReplicasConfigured(cluster evidence.Cluster) (bool, bool) {
 	pool := cluster.ReadReplicas
 	switch {
 	case pool.Configuration == evidence.ObjectAbsent || pool.Configuration == evidence.ObjectNull:
 		return false, true
-	case pool.Configuration == evidence.ObjectReported && pool.Desired.Value != nil &&
-		(pool.Desired.State == evidence.ValueReported || pool.Desired.State == evidence.ValueImplied):
+	case pool.Configuration == evidence.ObjectReported && knownInteger(pool.Desired):
 		return *pool.Desired.Value > 0, true
 	default:
 		return false, false
 	}
 }
 
-// conditionApplies excludes read-replica conditions for a cluster without read replicas. The spec decides; when it is
-// unknown, the operator's structured NoReadReplicasConfigured reason does. A spec that requests replicas always applies.
+// conditionApplies excludes read-replica conditions for a cluster without read replicas.
+// The spec decides; when it is unknown, the operator's structured NoReadReplicasConfigured
+// reason does. A spec that requests replicas always applies.
 func conditionApplies(cluster evidence.Cluster, condition evidence.Condition) bool {
 	if !slices.Contains(readReplicaConditions, condition.Type) {
 		return true

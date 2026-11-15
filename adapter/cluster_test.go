@@ -155,7 +155,11 @@ func TestProjectionBoundaryErrors(t *testing.T) {
 		{"invalid-utf8", bytes.Replace(base, []byte("cluster-1"), []byte{0xff}, 1), adapter.CodeInvalidInput},
 		{"other-group", bytes.Replace(base, []byte("openbao.org/v1alpha1"), []byte("other.org/v1alpha1"), 1), adapter.CodeResourceMismatch},
 		{"other-kind", bytes.Replace(base, []byte("OpenBaoCluster"), []byte("Secret"), 1), adapter.CodeResourceMismatch},
-		{"nesting-limit", []byte(`{"unknown":` + strings.Repeat("[", 70) + `0` + strings.Repeat("]", 70) + `}`), adapter.CodeProjectionLimit},
+		{
+			"nesting-limit",
+			[]byte(`{"unknown":` + strings.Repeat("[", 70) + `0` + strings.Repeat("]", 70) + `}`),
+			adapter.CodeProjectionLimit,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := adapter.ProjectCluster(tc.data, projectionOptions())

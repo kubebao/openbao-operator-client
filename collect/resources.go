@@ -12,37 +12,53 @@ import (
 )
 
 type projection[T any] struct {
-	kind, resource string
-	one            func([]byte, adapter.ProjectionOptions) (T, error)
-	list           func([]byte, adapter.ProjectionOptions) (adapter.Page[T], error)
-	reference      func(T) evidence.Reference
+	kind      string
+	resource  string
+	one       func([]byte, adapter.ProjectionOptions) (T, error)
+	list      func([]byte, adapter.ProjectionOptions) (adapter.Page[T], error)
+	reference func(T) evidence.Reference
 }
 
-// Clusters reads only the requested GET or LIST scope. It performs no discovery.
+// Clusters reads OpenBaoCluster resources in the requested GET or LIST scope. It performs no discovery.
 func (c *Client) Clusters(ctx context.Context, request Request) (Result[evidence.Cluster], error) {
 	return resources(ctx, c, request, projection[evidence.Cluster]{
-		kind: "OpenBaoCluster", resource: "openbaoclusters", one: adapter.ProjectCluster, list: adapter.ProjectClusterList,
+		kind:      "OpenBaoCluster",
+		resource:  "openbaoclusters",
+		one:       adapter.ProjectCluster,
+		list:      adapter.ProjectClusterList,
 		reference: func(value evidence.Cluster) evidence.Reference { return value.Reference },
 	})
 }
 
+// Restores reads OpenBaoRestore resources in the requested GET or LIST scope. It performs no discovery.
 func (c *Client) Restores(ctx context.Context, request Request) (Result[evidence.Restore], error) {
 	return resources(ctx, c, request, projection[evidence.Restore]{
-		kind: "OpenBaoRestore", resource: "openbaorestores", one: adapter.ProjectRestore, list: adapter.ProjectRestoreList,
+		kind:      "OpenBaoRestore",
+		resource:  "openbaorestores",
+		one:       adapter.ProjectRestore,
+		list:      adapter.ProjectRestoreList,
 		reference: func(value evidence.Restore) evidence.Reference { return value.Reference },
 	})
 }
 
+// StatefulSets reads apps/v1 StatefulSets in the requested GET or LIST scope. It performs no discovery.
 func (c *Client) StatefulSets(ctx context.Context, request Request) (Result[evidence.StatefulSet], error) {
 	return resources(ctx, c, request, projection[evidence.StatefulSet]{
-		kind: "StatefulSet", resource: "statefulsets", one: adapter.ProjectStatefulSet, list: adapter.ProjectStatefulSetList,
+		kind:      "StatefulSet",
+		resource:  "statefulsets",
+		one:       adapter.ProjectStatefulSet,
+		list:      adapter.ProjectStatefulSetList,
 		reference: func(value evidence.StatefulSet) evidence.Reference { return value.Metadata.Reference },
 	})
 }
 
+// Pods reads core v1 Pods in the requested GET or LIST scope. It performs no discovery.
 func (c *Client) Pods(ctx context.Context, request Request) (Result[evidence.Pod], error) {
 	return resources(ctx, c, request, projection[evidence.Pod]{
-		kind: "Pod", resource: "pods", one: adapter.ProjectPod, list: adapter.ProjectPodList,
+		kind:      "Pod",
+		resource:  "pods",
+		one:       adapter.ProjectPod,
+		list:      adapter.ProjectPodList,
 		reference: func(value evidence.Pod) evidence.Reference { return value.Metadata.Reference },
 	})
 }
@@ -56,14 +72,11 @@ func projectionOutcome(err error) evidence.CollectionOutcome {
 }
 
 func resources[T any](ctx context.Context, client *Client, request Request, project projection[T]) (result Result[T], err error) {
-	if ctx == nil {
-		return result, evidence.At("context", ErrInvalidRequest)
-	}
 	if request.Scope.Action != evidence.ReadGet && request.Scope.Action != evidence.ReadList {
 		return result, evidence.At("scope.action", ErrInvalidRequest)
 	}
-	if validationErr := client.validate(request, project.kind, project.resource); validationErr != nil {
-		return result, validationErr
+	if err := client.validate(request, project.kind, project.resource); err != nil {
+		return result, err
 	}
 	started := time.Now().UTC()
 	ctx, cancel := context.WithTimeout(ctx, request.Limits.Timeout)
@@ -71,41 +84,17 @@ func resources[T any](ctx context.Context, client *Client, request Request, proj
 	result = Result[T]{
 		Observations: []T{},
 		Collection: evidence.Collection{
-			Scope: request.Scope, Interval: evidence.Interval{StartedAt: started}, Outcome: evidence.CollectionPartial,
+			Scope:    request.Scope,
+			Interval: evidence.Interval{StartedAt: started},
+			Outcome:  evidence.CollectionPartial,
 		},
 	}
 	defer finish(ctx, &result, project)
 	seen, tokens := map[string]bool{}, map[string]bool{}
 	version, next := "", ""
 	for result.Requests < request.Limits.MaxPages {
-		if ctx.Err() != nil {
-			result.Collection.Outcome = contextOutcome(ctx, nil)
-			return result, nil
-		}
-		budget := min(request.Limits.MaxResponseBytes, request.Projection.MaxBytes, request.Limits.MaxBytes-result.Bytes)
-		if budget <= 0 {
-			result.Collection.Outcome = evidence.CollectionSizeLimit
-			return result, nil
-		}
-		result.Requests++
-		raw, readBytes, outcome := client.read(
-			ctx,
-			client.requestURL(request.Scope, request.Limits.PageSize, next),
-			request.Scope.Action,
-			budget,
-		)
-		result.Bytes += readBytes
-		result.Collection.Outcome = outcome
-		if ctx.Err() != nil {
-			result.Collection.Outcome = contextOutcome(ctx, nil)
-			return result, nil
-		}
-		if outcome != evidence.CollectionComplete {
-			return result, nil
-		}
-		page, readErr := projectPage(raw, request, project, time.Now().UTC())
-		if readErr != nil {
-			result.Collection.Outcome = projectionOutcome(readErr)
+		page, ok := readPage(ctx, client, request, project, &result, next)
+		if !ok {
 			return result, nil
 		}
 		if request.Scope.Action == evidence.ReadList && version != "" && page.ResourceVersion != version {
@@ -132,10 +121,51 @@ func resources[T any](ctx context.Context, client *Client, request Request, proj
 			result.Collection.Outcome = evidence.CollectionPaginationLoop
 			return result, nil
 		}
-		tokens[page.Continue], next = true, page.Continue
+		tokens[page.Continue] = true
+		next = page.Continue
 	}
 	result.Collection.Outcome = evidence.CollectionPageLimit
 	return result, nil
+}
+
+// readPage performs one request within the remaining byte budget and projects
+// its body. It records the request, bytes, and outcome in result, and reports
+// false when collection must stop.
+func readPage[T any](
+	ctx context.Context,
+	client *Client,
+	request Request,
+	project projection[T],
+	result *Result[T],
+	next string,
+) (adapter.Page[T], bool) {
+	if ctx.Err() != nil {
+		result.Collection.Outcome = contextOutcome(ctx, nil)
+		return adapter.Page[T]{}, false
+	}
+	budget := min(request.Limits.MaxResponseBytes, request.Projection.MaxBytes, request.Limits.MaxBytes-result.Bytes)
+	if budget <= 0 {
+		result.Collection.Outcome = evidence.CollectionSizeLimit
+		return adapter.Page[T]{}, false
+	}
+	result.Requests++
+	endpoint := client.requestURL(request.Scope, request.Limits.PageSize, next)
+	raw, readBytes, outcome := client.read(ctx, endpoint, request.Scope.Action, budget)
+	result.Bytes += readBytes
+	result.Collection.Outcome = outcome
+	if ctx.Err() != nil {
+		result.Collection.Outcome = contextOutcome(ctx, nil)
+		return adapter.Page[T]{}, false
+	}
+	if outcome != evidence.CollectionComplete {
+		return adapter.Page[T]{}, false
+	}
+	page, err := projectPage(raw, request, project, time.Now().UTC())
+	if err != nil {
+		result.Collection.Outcome = projectionOutcome(err)
+		return adapter.Page[T]{}, false
+	}
+	return page, true
 }
 
 func finish[T any](ctx context.Context, result *Result[T], project projection[T]) {
@@ -158,7 +188,10 @@ func finishCollection(ctx context.Context, collection *evidence.Collection) {
 
 func projectPage[T any](raw []byte, request Request, project projection[T], collected time.Time) (adapter.Page[T], error) {
 	options := adapter.ProjectionOptions{
-		Origin: request.Scope.Origin, Contract: request.Contract, CollectedAt: collected, Limits: request.Projection,
+		Origin:      request.Scope.Origin,
+		Contract:    request.Contract,
+		CollectedAt: collected,
+		Limits:      request.Projection,
 	}
 	if request.Scope.Action == evidence.ReadList {
 		return project.list(raw, options)
@@ -170,8 +203,14 @@ func projectPage[T any](raw []byte, request Request, project projection[T], coll
 	return adapter.Page[T]{Observations: []T{value}}, nil
 }
 
-// Pages are admitted atomically. A bad page cannot discard earlier admitted facts.
-func admit[T any](values []T, request Request, project projection[T], seen map[string]bool, count, retained int,
+// admit checks one page against the scope and limits. Pages are admitted
+// atomically, so a bad page cannot discard earlier admitted facts.
+func admit[T any](
+	values []T,
+	request Request,
+	project projection[T],
+	seen map[string]bool,
+	count, retained int,
 ) (int, evidence.CollectionOutcome) {
 	if len(values) > request.Limits.MaxCandidates-count {
 		return 0, evidence.CollectionSizeLimit
@@ -179,11 +218,8 @@ func admit[T any](values []T, request Request, project projection[T], seen map[s
 	pageUIDs := map[string]bool{}
 	size := 0
 	for _, value := range values {
-		ref := project.reference(value)
-		id, scope := ref.Identity, request.Scope
-		if id.Origin != scope.Origin || id.Group != scope.Group || id.Kind != project.kind ||
-			scope.Namespace != "" && id.Namespace != scope.Namespace || scope.Name != "" && id.Name != scope.Name ||
-			seen[id.UID] || pageUIDs[id.UID] {
+		id := project.reference(value).Identity
+		if !inScope(id, request.Scope, project.kind) || seen[id.UID] || pageUIDs[id.UID] {
 			return 0, evidence.CollectionInvalid
 		}
 		encoded, err := json.Marshal(value)
@@ -200,6 +236,17 @@ func admit[T any](values []T, request Request, project projection[T], seen map[s
 		seen[uid] = true
 	}
 	return size, evidence.CollectionComplete
+}
+
+// inScope reports whether an observed identity lies within the declared scope.
+func inScope(id evidence.Identity, scope evidence.Scope, kind string) bool {
+	if id.Origin != scope.Origin || id.Group != scope.Group || id.Kind != kind {
+		return false
+	}
+	if scope.Namespace != "" && id.Namespace != scope.Namespace {
+		return false
+	}
+	return scope.Name == "" || id.Name == scope.Name
 }
 
 func identityParts(id evidence.Identity) []string {

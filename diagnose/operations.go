@@ -58,8 +58,8 @@ func restoreTest(cluster evidence.Cluster) evaluation {
 		return result
 	case evidence.ObjectReported:
 	}
-	if test.LastOutcome.State != evidence.ValueReported ||
-		(*test.LastOutcome.Value != "Passed" && *test.LastOutcome.Value != "Failed") {
+	outcome := reportedValue(test.LastOutcome)
+	if outcome != "Passed" && outcome != "Failed" {
 		result.insufficient(ReasonMissingField)
 		return result
 	}
@@ -67,7 +67,7 @@ func restoreTest(cluster evidence.Cluster) evaluation {
 		result.insufficient(ReasonMissingField)
 	}
 	optionalTime(&result, cluster, test.FinishedAt)
-	if *test.LastOutcome.Value == "Failed" {
+	if outcome == "Failed" {
 		result.add(finding(cluster, RuleRestoreTest, SeverityWarning,
 			"The operator records a failed restore test; the result covers its snapshot and disposable target only.",
 			"status.backup.restoreTest.active", "status.backup.restoreTest.last.outcome", "status.backup.restoreTest.last.finishedAt"))

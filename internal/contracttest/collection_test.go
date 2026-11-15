@@ -162,8 +162,7 @@ func collectTranscript(t *testing.T, pages []page, limit limits, before, after s
 	if err != nil {
 		return result
 	}
-	one := int64(1)
-	target.Generation = evidence.Integer{State: evidence.ValueReported, Value: &one}
+	target.Generation = evidence.Integer{State: evidence.ValueReported, Value: new(int64(1))}
 	reader, err := clientcollect.NewClient(
 		"https://example.test",
 		&transcriptTransport{pages: pages, after: after, duration: limit.Duration},

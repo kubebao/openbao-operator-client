@@ -8,11 +8,17 @@ import (
 	"unicode/utf8"
 )
 
-const maxPlanJSONBytes = 16 * 1024
+const (
+	// maxPlanJSONBytes bounds a serialized plan.
+	maxPlanJSONBytes = 16 * 1024
+	// maxPlanJSONDepth bounds the nesting of a serialized plan.
+	maxPlanJSONDepth = 32
+)
 
 // UnmarshalJSON rejects missing or null intent, unknown fields, and duplicate
 // keys. A missing enabled field must never become a resume or disable request.
 // Invalid input leaves the destination unchanged and returns no source text.
+// A decoded plan that fails validation returns the validation field path.
 func (p *Plan) UnmarshalJSON(raw []byte) error {
 	if p == nil || len(raw) > maxPlanJSONBytes || !utf8.Valid(raw) {
 		return ErrInvalidPlan
@@ -37,8 +43,8 @@ func (p *Plan) UnmarshalJSON(raw []byte) error {
 	}
 	value := Plan(input.plainPlan)
 	value.Enabled = *input.Enabled
-	if value.Validate() != nil {
-		return ErrInvalidPlan
+	if err := value.Validate(); err != nil {
+		return err
 	}
 	*p = value
 	return nil
@@ -54,7 +60,7 @@ var planJSONFields = map[string][]string{
 }
 
 func consumePlanJSON(decoder *json.Decoder, depth int, path string, fields map[string][]string) error {
-	if depth > 32 {
+	if depth > maxPlanJSONDepth {
 		return ErrInvalidPlan
 	}
 	token, err := decoder.Token()
@@ -70,9 +76,12 @@ func consumePlanJSON(decoder *json.Decoder, depth int, path string, fields map[s
 	}
 	keys := map[string]bool{}
 	for decoder.More() {
-		key, keyErr := decoder.Token()
+		key, err := decoder.Token()
+		if err != nil {
+			return ErrInvalidPlan
+		}
 		name, valid := key.(string)
-		if keyErr != nil || !valid || keys[name] || !slices.Contains(fields[path], name) {
+		if !valid || keys[name] || !slices.Contains(fields[path], name) {
 			return ErrInvalidPlan
 		}
 		keys[name] = true

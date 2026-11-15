@@ -1,3 +1,5 @@
+// Command cluster projects a synthetic OpenBaoCluster and prints its generation
+// acknowledgement and ready replica state without Kubernetes access.
 package main
 
 import (
@@ -15,8 +17,10 @@ func main() {
   "spec":{"replicas":3},"status":{"observedGeneration":4}
 }`)
 	cluster, err := adapter.ProjectCluster(raw, adapter.ProjectionOptions{
-		Origin: "example-origin", Contract: adapter.OpenBaoV1Alpha1,
-		CollectedAt: time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC), Limits: adapter.DefaultProjectionLimits(),
+		Origin:      "example-origin",
+		Contract:    adapter.OpenBaoV1Alpha1,
+		CollectedAt: time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC),
+		Limits:      adapter.DefaultProjectionLimits(),
 	})
 	if err != nil {
 		log.Fatal(err)

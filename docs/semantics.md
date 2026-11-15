@@ -254,8 +254,9 @@ identities. Selection does not prove causality or success.
 `collect.NewClient` takes an API-server endpoint and a caller-configured `http.RoundTripper`. The caller owns TLS,
 authentication, credential renewal, proxies, and rate limits. The transport must honor request contexts and must not
 follow redirects. The client sends GET requests only. It loads no credentials, follows no redirects, retries nothing, and
-never tries another API group. Endpoints with userinfo, query strings, fragments, encoded paths, or traversal segments are
-rejected.
+never tries another API group. Endpoints must use `http` or `https` and name a host. Endpoints with userinfo, query
+strings, fragments, opaque forms, encoded paths, `%` or `\` characters, or traversal segments are rejected.
+`operations.NewClient` applies the same endpoint rules.
 
 ### Requests
 
@@ -347,5 +348,10 @@ do not change read outcomes. Observations from a deleted or replaced target are 
 
 `Validate` methods check normalized values after construction or JSON decoding. Failures return
 `*evidence.ValidationError` with a field path such as
-`clusters[0].pods.observations[3].metadata.reference.resourceVersion`. `errors.Is` still matches sentinel errors such as
-`evidence.ErrInvalidEvidence`. Error text contains field names and indices only, never values.
+`clusters[0].pods.observations[3].metadata.reference.resourceVersion`. Compound values name the first failing field,
+including list indices such as `conditions.values[2].type`; scalar values such as `Text` leave the path to their caller.
+`errors.Is` still matches sentinel errors such as `evidence.ErrInvalidEvidence`. Error text contains field names and
+indices only, never values.
+
+`evidence.ValidText` reports whether a string is approved text: nonempty, bounded, valid UTF-8, and free of control and
+replacement characters. `evidence.MaxNameLength` is the Kubernetes name limit that identity fields use.

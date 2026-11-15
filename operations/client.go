@@ -13,9 +13,18 @@ import (
 
 	"github.com/kubebao/openbao-operator-client/adapter"
 	"github.com/kubebao/openbao-operator-client/evidence"
+	"github.com/kubebao/openbao-operator-client/internal/apiendpoint"
 )
 
+// ErrInvalidRequest reports an invalid client, endpoint, transport, or submit option.
 var ErrInvalidRequest = errors.New("invalid cluster control request")
+
+const (
+	// defaultSubmitTimeout bounds one PATCH, including the response read.
+	defaultSubmitTimeout = 15 * time.Second
+	// defaultMaxResponseBytes bounds one PATCH response body.
+	defaultMaxResponseBytes = 8 * 1024 * 1024
+)
 
 // Client submits one guarded PATCH through a caller-configured transport.
 // The transport must honor context cancellation and must not follow redirects or
@@ -25,20 +34,18 @@ type Client struct {
 	transport http.RoundTripper
 }
 
+// NewClient returns a client for an http or https API server base URL with an
+// optional unescaped path prefix. It rejects a nil transport and endpoints with
+// user information, queries, fragments, escaped paths, or dot segments.
 func NewClient(endpoint string, transport http.RoundTripper) (*Client, error) {
-	base, err := url.Parse(endpoint)
-	if err != nil || transport == nil || base == nil || base.Hostname() == "" || base.Opaque != "" ||
-		(base.Scheme != "https" && base.Scheme != "http") || base.User != nil ||
-		base.RawQuery != "" || base.ForceQuery || base.Fragment != "" || base.RawPath != "" ||
-		strings.ContainsAny(base.Path, "\\%") {
-		return nil, ErrInvalidRequest
+	if transport == nil {
+		return nil, evidence.At("transport", ErrInvalidRequest)
 	}
-	for _, part := range strings.Split(base.Path, "/") {
-		if part == "." || part == ".." {
-			return nil, ErrInvalidRequest
-		}
+	base, err := apiendpoint.Parse(endpoint)
+	if err != nil {
+		return nil, evidence.At("endpoint", ErrInvalidRequest)
 	}
-	return &Client{endpoint: *base, transport: transport}, nil
+	return &Client{endpoint: base, transport: transport}, nil
 }
 
 // SubmitOptions bound a single request, including response projection.
@@ -50,17 +57,24 @@ type SubmitOptions struct {
 	Projection       adapter.ProjectionLimits
 }
 
+// DefaultSubmitOptions returns a 15-second timeout, an 8 MiB response limit,
+// and the default projection limits. DryRun is false.
 func DefaultSubmitOptions() SubmitOptions {
 	return SubmitOptions{
-		Timeout: 15 * time.Second, MaxResponseBytes: 8 * 1024 * 1024, Projection: adapter.DefaultProjectionLimits(),
+		Timeout:          defaultSubmitTimeout,
+		MaxResponseBytes: defaultMaxResponseBytes,
+		Projection:       adapter.DefaultProjectionLimits(),
 	}
 }
 
 func (o SubmitOptions) valid() bool {
-	return o.Timeout > 0 && o.MaxResponseBytes > 0 && o.MaxResponseBytes < math.MaxInt &&
-		o.Projection.MaxBytes > 0 && o.Projection.MaxConditions > 0 && o.Projection.MaxEntries > 0
+	if o.Timeout <= 0 || o.MaxResponseBytes <= 0 || o.MaxResponseBytes >= math.MaxInt {
+		return false
+	}
+	return o.Projection.MaxBytes > 0 && o.Projection.MaxConditions > 0 && o.Projection.MaxEntries > 0
 }
 
+// Outcome classifies the result of one submitted PATCH.
 type Outcome string
 
 const (
@@ -68,14 +82,19 @@ const (
 	OutcomeNotSubmitted Outcome = "not_submitted"
 	// OutcomeAccepted means the API returned the requested value for the bound target.
 	// It does not establish that the operator observed or applied the control.
-	OutcomeAccepted       Outcome = "accepted"
+	OutcomeAccepted Outcome = "accepted"
+	// OutcomeDryRunAccepted means a dry-run PATCH returned the requested value. Nothing was persisted.
 	OutcomeDryRunAccepted Outcome = "dry_run_accepted"
-	OutcomeDenied         Outcome = "denied"
-	OutcomeConflict       Outcome = "conflict"
-	OutcomeNotFound       Outcome = "not_found"
+	// OutcomeDenied means the API server returned HTTP 401 or 403.
+	OutcomeDenied Outcome = "denied"
+	// OutcomeConflict means the API server returned HTTP 409 or 412.
+	OutcomeConflict Outcome = "conflict"
+	// OutcomeNotFound means the API server returned HTTP 404.
+	OutcomeNotFound Outcome = "not_found"
 	// OutcomeInvalid includes validation failures and JSON Patch test failures
 	// reported as HTTP 422. The status code alone cannot distinguish them.
-	OutcomeInvalid     Outcome = "invalid"
+	OutcomeInvalid Outcome = "invalid"
+	// OutcomeRateLimited means the API server returned HTTP 429.
 	OutcomeRateLimited Outcome = "rate_limited"
 	// OutcomeUnknown means the response cannot establish whether the PATCH persisted.
 	// Do not resubmit automatically. Read the bound target and assess its state.
@@ -105,7 +124,7 @@ type Result struct {
 // Input errors are returned as sanitized errors. Transport and server outcomes
 // are returned in Result, including an unknown outcome after ambiguous failures.
 func (c *Client) Submit(ctx context.Context, plan Plan, options SubmitOptions) (result Result, err error) {
-	if c == nil || c.transport == nil || ctx == nil || !options.valid() {
+	if c == nil || c.transport == nil || !options.valid() {
 		return Result{}, ErrInvalidRequest
 	}
 	patch, err := plan.Patch()
@@ -220,18 +239,26 @@ func responseReceipt(raw []byte, plan Plan, limits adapter.ProjectionLimits) (Re
 		Contract:    plan.Contract,
 		Limits:      limits,
 	})
-	if err != nil || cluster.Reference.Identity != plan.Target.Identity ||
-		cluster.Reference.ResourceVersion.State != evidence.ValueReported ||
-		cluster.Generation.State != evidence.ValueReported || *cluster.Generation.Value < *plan.Generation.Value ||
-		cluster.DeletionTimestamp.State != evidence.ValueUnknown {
+	if err != nil || !receiptTarget(cluster, plan.Target) {
+		return Receipt{}, false
+	}
+	if cluster.Generation.State != evidence.ValueReported || *cluster.Generation.Value < *plan.Generation.Value {
 		return Receipt{}, false
 	}
 	value := cluster.Paused
 	if plan.Control == ControlMaintenance {
 		value = cluster.Maintenance.Enabled
 	}
-	if value.State != evidence.ValueReported && value.State != evidence.ValueImplied || *value.Value != plan.Enabled {
+	if !knownBoolean(value) || *value.Value != plan.Enabled {
 		return Receipt{}, false
 	}
 	return Receipt{Reference: cluster.Reference, Generation: cluster.Generation}, true
+}
+
+// receiptTarget reports whether a response identifies the planned target with
+// a reported resource version and no deletion timestamp.
+func receiptTarget(cluster evidence.Cluster, target evidence.Reference) bool {
+	return cluster.Reference.Identity == target.Identity &&
+		cluster.Reference.ResourceVersion.State == evidence.ValueReported &&
+		cluster.DeletionTimestamp.State == evidence.ValueUnknown
 }

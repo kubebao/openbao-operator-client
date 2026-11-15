@@ -10,21 +10,25 @@ func readiness(cluster evidence.Cluster, policy Policy) evaluation {
 	if cluster.Acknowledgement() != evidence.GenerationCurrent {
 		return evaluation{state: CoverageInsufficient, reason: ReasonGeneration}
 	}
-	if !knownInteger(cluster.DesiredReplicas) || !knownInteger(cluster.ReadyReplicas) ||
-		(cluster.Paused.State != evidence.ValueReported && cluster.Paused.State != evidence.ValueImplied) ||
-		cluster.CreatedAt.State != evidence.ValueReported {
+	if !knownInteger(cluster.DesiredReplicas) || !knownInteger(cluster.ReadyReplicas) {
+		return evaluation{state: CoverageInsufficient, reason: ReasonMissingField}
+	}
+	if !reportedBoolean(cluster.Paused) || cluster.CreatedAt.State != evidence.ValueReported {
 		return evaluation{state: CoverageInsufficient, reason: ReasonMissingField}
 	}
 	if cluster.CreatedAt.Value.After(*cluster.Reference.CollectedAt.Value) {
 		return evaluation{state: CoverageInsufficient, reason: ReasonTime}
 	}
 	result := evaluation{state: CoverageEvaluated, reason: ReasonNone}
-	if *cluster.Paused.Value || policy.ReferenceTime.Sub(*cluster.CreatedAt.Value) < policy.StartupGrace ||
-		*cluster.DesiredReplicas.Value == 0 || *cluster.ReadyReplicas.Value >= *cluster.DesiredReplicas.Value {
+	if *cluster.Paused.Value || policy.ReferenceTime.Sub(*cluster.CreatedAt.Value) < policy.StartupGrace {
+		return result
+	}
+	desired, ready := *cluster.DesiredReplicas.Value, *cluster.ReadyReplicas.Value
+	if desired == 0 || ready >= desired {
 		return result
 	}
 	severity := SeverityWarning
-	if *cluster.ReadyReplicas.Value == 0 {
+	if ready == 0 {
 		severity = SeverityCritical
 	}
 	result.add(finding(cluster, RuleReadiness, severity, "The operator reports fewer ready replicas than desired.",

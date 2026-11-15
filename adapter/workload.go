@@ -1,12 +1,15 @@
 package adapter
 
 import (
+	"math"
 	"slices"
 	"strings"
 
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
+// projectOwners projects a bounded owner reference list as a canonical set.
+// An omitted, null, or false controller flag makes no controller claim.
 func projectOwners(root map[string]any, limit int) evidence.Owners {
 	value, state := field(root, "metadata", "ownerReferences")
 	if state != evidence.ValueReported {
@@ -31,8 +34,11 @@ func projectOwners(root map[string]any, limit int) evidence.Owners {
 			controller = flag
 		}
 		values = append(values, evidence.OwnerReference{
-			APIVersion: required(raw, "apiVersion"), Kind: required(raw, "kind"),
-			Name: required(raw, "name"), UID: required(raw, "uid"), Controller: controller,
+			APIVersion: required(raw, "apiVersion"),
+			Kind:       required(raw, "kind"),
+			Name:       required(raw, "name"),
+			UID:        required(raw, "uid"),
+			Controller: controller,
 		})
 	}
 	result, err := evidence.NewOwners(values)
@@ -42,13 +48,15 @@ func projectOwners(root map[string]any, limit int) evidence.Owners {
 	return result
 }
 
+// projectWorkloadMetadata projects approved metadata. Pod labels and the restart
+// annotation are projected only for Pods.
 func projectWorkloadMetadata(root map[string]any, ref evidence.Reference, limit int) evidence.WorkloadMetadata {
 	maintenance := annotation(root, "openbao.org/maintenance")
-	if maintenance.Value != nil && !slices.Contains([]string{"true", "false"}, *maintenance.Value) {
+	if maintenance.Value != nil && *maintenance.Value != "true" && *maintenance.Value != "false" {
 		maintenance = evidence.Text{State: evidence.ValueInvalid}
 	}
-	pool, revision := evidence.Text{State: evidence.ValueUnknown}, evidence.Text{State: evidence.ValueUnknown}
-	restartAt, controllerRevision := evidence.Text{State: evidence.ValueUnknown}, evidence.Text{State: evidence.ValueUnknown}
+	unknown := evidence.Text{State: evidence.ValueUnknown}
+	pool, revision, restartAt, controllerRevision := unknown, unknown, unknown, unknown
 	if ref.Identity.Kind == "Pod" {
 		restartAt = annotation(root, "openbao.org/restart-at")
 		controllerRevision = workloadLabel(root, "controller-revision-hash", "metadata", "labels")
@@ -56,7 +64,8 @@ func projectWorkloadMetadata(root map[string]any, ref evidence.Reference, limit 
 		revision = projectWorkloadRevision(root, "metadata", "labels")
 	}
 	return evidence.WorkloadMetadata{
-		Reference: ref, Owners: projectOwners(root, limit),
+		Reference:          ref,
+		Owners:             projectOwners(root, limit),
 		ClusterOwnerUID:    annotation(root, "openbao.org/owner-uid"),
 		Maintenance:        maintenance,
 		RestartAt:          restartAt,
@@ -67,6 +76,7 @@ func projectWorkloadMetadata(root map[string]any, ref evidence.Reference, limit 
 	}
 }
 
+// workloadLabel projects one label at path. A null or malformed label map is invalid.
 func workloadLabel(root map[string]any, key string, path ...string) evidence.Text {
 	labels, state := objectAt(root, path...)
 	if state == evidence.ObjectInvalid || state == evidence.ObjectNull {
@@ -100,27 +110,29 @@ func ProjectStatefulSet(raw []byte, options ProjectionOptions) (evidence.Statefu
 		return evidence.StatefulSet{}, err
 	}
 	result := evidence.StatefulSet{
-		Metadata: projectWorkloadMetadata(root, ref, options.Limits.MaxEntries), Generation: integer(root, "metadata", "generation"),
-		ObservedGeneration: integer(root, "status", "observedGeneration"), DesiredReplicas: count(root, "spec", "replicas"),
-		ReadyReplicas:     count(root, "status", "readyReplicas"),
-		SelectorPool:      projectWorkloadPool(root, "spec", "selector", "matchLabels"),
-		SelectorRevision:  projectWorkloadRevision(root, "spec", "selector", "matchLabels"),
-		TemplatePool:      projectWorkloadPool(root, "spec", "template", "metadata", "labels"),
-		TemplateRevision:  projectWorkloadRevision(root, "spec", "template", "metadata", "labels"),
-		TemplateRestartAt: text(root, false, "spec", "template", "metadata", "annotations", "openbao.org/restart-at"),
-		UpdateStrategy:    enumText(root, []string{"RollingUpdate", "OnDelete"}, "spec", "updateStrategy", "type"),
-		RollingPartition:  count(root, "spec", "updateStrategy", "rollingUpdate", "partition"),
-		CurrentRevision:   workloadRevision(root, "status", "currentRevision"),
-		UpdateRevision:    workloadRevision(root, "status", "updateRevision"),
-		CurrentReplicas:   count(root, "status", "currentReplicas"),
-		UpdatedReplicas:   count(root, "status", "updatedReplicas"),
-		MinReadySeconds:   count(root, "spec", "minReadySeconds"),
-		AvailableReplicas: count(root, "status", "availableReplicas"),
+		Metadata:           projectWorkloadMetadata(root, ref, options.Limits.MaxEntries),
+		Generation:         integer(root, "metadata", "generation"),
+		ObservedGeneration: integer(root, "status", "observedGeneration"),
+		DesiredReplicas:    count(root, "spec", "replicas"),
+		ReadyReplicas:      count(root, "status", "readyReplicas"),
+		SelectorPool:       projectWorkloadPool(root, "spec", "selector", "matchLabels"),
+		SelectorRevision:   projectWorkloadRevision(root, "spec", "selector", "matchLabels"),
+		TemplatePool:       projectWorkloadPool(root, "spec", "template", "metadata", "labels"),
+		TemplateRevision:   projectWorkloadRevision(root, "spec", "template", "metadata", "labels"),
+		TemplateRestartAt:  text(root, false, "spec", "template", "metadata", "annotations", "openbao.org/restart-at"),
+		UpdateStrategy:     enumText(root, []string{"RollingUpdate", "OnDelete"}, "spec", "updateStrategy", "type"),
+		RollingPartition:   count(root, "spec", "updateStrategy", "rollingUpdate", "partition"),
+		CurrentRevision:    workloadRevision(root, "status", "currentRevision"),
+		UpdateRevision:     workloadRevision(root, "status", "updateRevision"),
+		CurrentReplicas:    count(root, "status", "currentReplicas"),
+		UpdatedReplicas:    count(root, "status", "updatedReplicas"),
+		MinReadySeconds:    count(root, "spec", "minReadySeconds"),
+		AvailableReplicas:  count(root, "status", "availableReplicas"),
 	}
-	if result.ReadyReplicas.State == evidence.ValueUnknown && result.DesiredReplicas.State == evidence.ValueReported &&
+	if result.ReadyReplicas.State == evidence.ValueUnknown &&
+		result.DesiredReplicas.State == evidence.ValueReported &&
 		result.Acknowledgement() == evidence.GenerationCurrent {
-		zero := int64(0)
-		result.ReadyReplicas = evidence.Integer{State: evidence.ValueImplied, Value: &zero}
+		result.ReadyReplicas = evidence.Integer{State: evidence.ValueImplied, Value: new(int64(0))}
 	}
 	if result.Validate() != nil {
 		return evidence.StatefulSet{}, &ProjectionError{Code: CodeInvalidInput}
@@ -128,14 +140,17 @@ func ProjectStatefulSet(raw []byte, options ProjectionOptions) (evidence.Statefu
 	return result, nil
 }
 
+// exitCode projects a signed int32 container termination code.
 func exitCode(root map[string]any) evidence.Integer {
 	value := integer(root, "exitCode")
-	if value.Value != nil && (*value.Value < -2147483648 || *value.Value > 2147483647) {
+	if value.Value != nil && (*value.Value < math.MinInt32 || *value.Value > math.MaxInt32) {
 		return evidence.Integer{State: evidence.ValueInvalid}
 	}
 	return value
 }
 
+// projectContainers projects a bounded container status list sorted by name.
+// Duplicate names or any invalid status invalidate the whole set.
 func projectContainers(root map[string]any, kind evidence.ContainerKind, limit int, path string) evidence.Containers {
 	value, state := field(root, "status", path)
 	if state != evidence.ValueReported {
@@ -161,9 +176,16 @@ func projectContainers(root map[string]any, kind evidence.ContainerKind, limit i
 		waiting, waitingState := childObject(statusState, status, "waiting")
 		terminated, terminatedState := childObject(statusState, status, "terminated")
 		result.Values = append(result.Values, evidence.ContainerStatus{
-			Kind: kind, Name: name, Ready: boolean(raw, "ready"), RestartCount: count(raw, "restartCount"), State: statusState,
-			Waiting: waitingState, WaitingReason: text(waiting, true, "reason"), Terminated: terminatedState,
-			TerminatedReason: text(terminated, true, "reason"), ExitCode: exitCode(terminated),
+			Kind:             kind,
+			Name:             name,
+			Ready:            boolean(raw, "ready"),
+			RestartCount:     count(raw, "restartCount"),
+			State:            statusState,
+			Waiting:          waitingState,
+			WaitingReason:    text(waiting, true, "reason"),
+			Terminated:       terminatedState,
+			TerminatedReason: text(terminated, true, "reason"),
+			ExitCode:         exitCode(terminated),
 		})
 	}
 	slices.SortFunc(result.Values, func(a, b evidence.ContainerStatus) int { return strings.Compare(a.Name, b.Name) })
@@ -181,7 +203,8 @@ func ProjectPod(raw []byte, options ProjectionOptions) (evidence.Pod, error) {
 		return evidence.Pod{}, err
 	}
 	result := evidence.Pod{
-		Metadata: projectWorkloadMetadata(root, ref, options.Limits.MaxEntries), Generation: integer(root, "metadata", "generation"),
+		Metadata:       projectWorkloadMetadata(root, ref, options.Limits.MaxEntries),
+		Generation:     integer(root, "metadata", "generation"),
 		Phase:          enumText(root, []string{"Pending", "Running", "Succeeded", "Failed", "Unknown"}, "status", "phase"),
 		Conditions:     projectConditions(root, options.Limits.MaxConditions, "status", "conditions"),
 		InitContainers: projectContainers(root, evidence.ContainerInit, options.Limits.MaxEntries, "initContainerStatuses"),
@@ -193,6 +216,7 @@ func ProjectPod(raw []byte, options ProjectionOptions) (evidence.Pod, error) {
 	return result, nil
 }
 
+// workloadRevision projects a Kubernetes label value used as a revision.
 func workloadRevision(root map[string]any, path ...string) evidence.Text {
 	value := text(root, false, path...)
 	if evidence.ValidateWorkloadRevision(value) != nil {

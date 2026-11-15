@@ -1,22 +1,34 @@
 package diagnose
 
-import "github.com/kubebao/openbao-operator-client/evidence"
+import (
+	"time"
+
+	"github.com/kubebao/openbao-operator-client/evidence"
+)
 
 func backupPrerequisites(backup evidence.Backup) evaluation {
 	if backup.Configuration == evidence.ObjectAbsent {
 		return evaluation{state: CoverageNotApplicable, reason: ReasonNotConfigured}
 	}
-	failures := backup.ConsecutiveFailures.State
-	if backup.Configuration != evidence.ObjectReported || backup.State != evidence.ObjectReported ||
-		failures != evidence.ValueReported && failures != evidence.ValueImplied {
+	if backup.Configuration != evidence.ObjectReported || backup.State != evidence.ObjectReported {
+		return evaluation{state: CoverageInsufficient, reason: ReasonMissingField}
+	}
+	if !knownInteger(backup.ConsecutiveFailures) {
 		return evaluation{state: CoverageInsufficient, reason: ReasonMissingField}
 	}
 	return evaluation{state: CoverageEvaluated, reason: ReasonNone}
 }
 
+// inconsistentTime reports an invalid timestamp or one later than the read that observed it.
+func inconsistentTime(value evidence.Timestamp, read time.Time) bool {
+	if value.State == evidence.ValueInvalid {
+		return true
+	}
+	return value.State == evidence.ValueReported && value.Value.After(read)
+}
+
 func optionalTime(result *evaluation, cluster evidence.Cluster, value evidence.Timestamp) {
-	if value.State == evidence.ValueInvalid ||
-		value.State == evidence.ValueReported && value.Value.After(*cluster.Reference.CollectedAt.Value) {
+	if inconsistentTime(value, *cluster.Reference.CollectedAt.Value) {
 		result.insufficient(ReasonTime)
 	}
 }

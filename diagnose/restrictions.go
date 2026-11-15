@@ -60,8 +60,9 @@ func restrictions(cluster evidence.Cluster) evaluation {
 func controllerErrors(cluster evidence.Cluster) evaluation {
 	result := evaluation{state: CoverageEvaluated, reason: ReasonNone}
 	for _, entry := range []struct {
-		value         evidence.ControllerError
-		domain, field string
+		value  evidence.ControllerError
+		domain string
+		field  string
 	}{
 		{cluster.WorkloadError, "workload", "status.workload.lastError"},
 		{cluster.AdminOpsError, "adminOps", "status.adminOps.lastError"},
@@ -78,8 +79,7 @@ func controllerErrors(cluster evidence.Cluster) evaluation {
 			result.insufficient(ReasonMissingField)
 			continue
 		}
-		if entry.value.At.State == evidence.ValueInvalid ||
-			entry.value.At.State == evidence.ValueReported && entry.value.At.Value.After(*cluster.Reference.CollectedAt.Value) {
+		if inconsistentTime(entry.value.At, *cluster.Reference.CollectedAt.Value) {
 			result.insufficient(ReasonTime)
 		}
 		value := finding(

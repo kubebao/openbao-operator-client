@@ -8,6 +8,5 @@ import (
 )
 
 func main() {
-	generation, observed := int64(3), int64(2)
-	fmt.Println(evidence.CompareGeneration(&generation, &observed))
+	fmt.Println(evidence.CompareGeneration(new(int64(3)), new(int64(2))))
 }

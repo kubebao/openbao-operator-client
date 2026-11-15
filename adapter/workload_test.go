@@ -199,8 +199,7 @@ func TestControllerChainChecksBothUIDLevels(t *testing.T) {
 	if parent.State != evidence.AssociationConfirmed || child.State != evidence.AssociationConfirmed || child.Target.UID != "set-1" {
 		t.Fatal("valid cluster/StatefulSet/Pod chain was not confirmed")
 	}
-	wrong := "set-1"
-	pod.Metadata.ClusterOwnerUID = evidence.Text{State: evidence.ValueReported, Value: &wrong}
+	pod.Metadata.ClusterOwnerUID = evidence.Text{State: evidence.ValueReported, Value: new("set-1")}
 	child, err = adapter.AssociatePod(pod, set, parent)
 	if err != nil {
 		t.Fatal(err)

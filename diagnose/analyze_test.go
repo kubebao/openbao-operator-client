@@ -161,8 +161,7 @@ func TestReadinessRequiresCurrentAcknowledgementAndKnownFields(t *testing.T) {
 			c.ReadyReplicas = evidence.Integer{State: evidence.ValueUnknown}
 		}, diagnose.CoverageInsufficient, ""},
 		{"paused", func(c *evidence.Cluster) {
-			value := true
-			c.Paused = evidence.Boolean{State: evidence.ValueReported, Value: &value}
+			c.Paused = evidence.Boolean{State: evidence.ValueReported, Value: new(true)}
 		}, diagnose.CoverageEvaluated, ""},
 		{"startup", func(c *evidence.Cluster) {
 			c.CreatedAt = timestamp(c.Reference.CollectedAt.Value.Add(-30 * time.Second))

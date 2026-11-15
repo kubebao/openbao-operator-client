@@ -1,12 +1,13 @@
 package diagnose
 
 import (
-	"fmt"
 	"slices"
 
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
+// Report contains the canonical policy, findings, and coverage of one analysis.
+// Empty findings do not establish complete evidence or a healthy cluster.
 type Report struct {
 	Policy   Policy     `json:"policy"`
 	Findings []Finding  `json:"findings"`
@@ -27,28 +28,17 @@ func Analyze(capture Capture, policy Policy) (Report, error) {
 	if err := policy.validate(); err != nil {
 		return result, evidence.At("policy", err)
 	}
-	count := len(capture.Clusters)
-	for _, input := range capture.Clusters {
-		if input.StatefulSets != nil {
-			count += len(input.StatefulSets.Observations)
-		}
-		if input.Pods != nil {
-			count += len(input.Pods.Observations)
-		}
-		if input.Restores != nil {
-			count += len(input.Restores.Observations)
-		}
-	}
-	if count > policy.MaxSubjects {
+	if capture.subjects() > policy.MaxSubjects {
 		return result, invalidCapture("clusters", nil)
 	}
 	seen := map[evidence.Identity]bool{}
 	for index, input := range capture.Clusters {
+		path := indexPath("clusters", index)
 		if err := input.validate(policy); err != nil {
-			return result, evidence.At(fmt.Sprintf("clusters[%d]", index), err)
+			return result, evidence.At(path, err)
 		}
 		if seen[input.Subject] {
-			return result, evidence.At(fmt.Sprintf("clusters[%d].subject", index), ErrDuplicateSubject)
+			return result, evidence.At(path+".subject", ErrDuplicateSubject)
 		}
 		seen[input.Subject] = true
 	}
@@ -69,9 +59,29 @@ func Analyze(capture Capture, policy Policy) (Report, error) {
 	}
 	result.Findings = findings
 	slices.SortFunc(result.Coverage, func(a, b Coverage) int {
-		return slices.Compare((Finding{Rule: a.Rule, Subject: a.Subject}).parts(), (Finding{Rule: b.Rule, Subject: b.Subject}).parts())
+		return slices.Compare(
+			Finding{Rule: a.Rule, Subject: a.Subject}.parts(),
+			Finding{Rule: b.Rule, Subject: b.Subject}.parts(),
+		)
 	})
 	return result, nil
+}
+
+// subjects counts the clusters and related observations that one analysis evaluates.
+func (c Capture) subjects() int {
+	count := len(c.Clusters)
+	for _, input := range c.Clusters {
+		if input.StatefulSets != nil {
+			count += len(input.StatefulSets.Observations)
+		}
+		if input.Pods != nil {
+			count += len(input.Pods.Observations)
+		}
+		if input.Restores != nil {
+			count += len(input.Restores.Observations)
+		}
+	}
+	return count
 }
 
 func canonicalPolicy(policy Policy) Policy {
@@ -99,10 +109,12 @@ func evaluate(input ClusterInput, rule RuleID, policy Policy) (Coverage, []Findi
 		return evaluateRestores(input, policy, coverage)
 	}
 	if input.Collection.Outcome == evidence.CollectionNotRequested {
-		coverage.State, coverage.Reason = CoverageNotRequested, ReasonNotRequested
+		coverage.State = CoverageNotRequested
+		coverage.Reason = ReasonNotRequested
 		return coverage, nil
 	}
-	coverage.State, coverage.Reason = CoverageInsufficient, ReasonMissingObservation
+	coverage.State = CoverageInsufficient
+	coverage.Reason = ReasonMissingObservation
 	if input.Collection.Outcome == evidence.CollectionDeleted || input.Collection.Outcome == evidence.CollectionReplaced {
 		coverage.Reason = ReasonVerification
 		return coverage, nil
@@ -123,38 +135,51 @@ func evaluate(input ClusterInput, rule RuleID, policy Policy) (Coverage, []Findi
 		coverage.Reason = ReasonVerification
 		return coverage, nil
 	}
-	var value evaluation
-	switch rule {
-	case RuleReadiness:
-		value = readiness(*input.Observation, policy)
-	case RuleBackupAge:
-		value = backupAge(*input.Observation, policy)
-	case RuleBackupFailed:
-		value = backupFailures(*input.Observation)
-	case RuleBackupAbsent:
-		value = backupAbsent(*input.Observation)
-	case RuleUpgrade:
-		value = upgradeFailure(*input.Observation)
-	case RuleRestoreTest:
-		value = restoreTest(*input.Observation)
-	case RuleAvailability:
-		value = availability(*input.Observation)
-	case RuleSealed:
-		value = sealed(*input.Observation)
-	case RuleCondition:
-		value = conditions(*input.Observation)
-	case RuleController:
-		value = controllerErrors(*input.Observation)
-	case RuleGeneration:
-		value = generation(*input.Observation)
-	case RuleRestriction:
-		value = restrictions(*input.Observation)
-	}
+	value := evaluateCluster(*input.Observation, rule, policy)
 	if input.Collection.Outcome != evidence.CollectionComplete {
 		value.insufficient(ReasonScopeIncomplete)
 	}
-	coverage.State, coverage.Reason, coverage.Reasons = value.state, value.reason, value.coverageReasons()
-	return coverage, value.findings
+	return value.apply(coverage)
+}
+
+// evaluateCluster applies one rule that reads only the cluster observation.
+func evaluateCluster(cluster evidence.Cluster, rule RuleID, policy Policy) evaluation {
+	switch rule {
+	case RuleReadiness:
+		return readiness(cluster, policy)
+	case RuleBackupAge:
+		return backupAge(cluster, policy)
+	case RuleBackupFailed:
+		return backupFailures(cluster)
+	case RuleBackupAbsent:
+		return backupAbsent(cluster)
+	case RuleUpgrade:
+		return upgradeFailure(cluster)
+	case RuleRestoreTest:
+		return restoreTest(cluster)
+	case RuleAvailability:
+		return availability(cluster)
+	case RuleSealed:
+		return sealed(cluster)
+	case RuleCondition:
+		return conditions(cluster)
+	case RuleController:
+		return controllerErrors(cluster)
+	case RuleGeneration:
+		return generation(cluster)
+	case RuleRestriction:
+		return restrictions(cluster)
+	default:
+		return evaluation{}
+	}
+}
+
+// apply records the evaluation's state and reasons on coverage and returns its findings.
+func (e evaluation) apply(coverage Coverage) (Coverage, []Finding) {
+	coverage.State = e.state
+	coverage.Reason = e.reason
+	coverage.Reasons = e.coverageReasons()
+	return coverage, e.findings
 }
 
 func (e *evaluation) add(value *Finding) { e.findings = append(e.findings, *value) }
@@ -166,7 +191,8 @@ func (e *evaluation) insufficient(reason CoverageReason) {
 	if !slices.Contains(e.reasons, reason) {
 		e.reasons = append(e.reasons, reason)
 	}
-	e.state, e.reason = CoverageInsufficient, reason
+	e.state = CoverageInsufficient
+	e.reason = reason
 }
 
 func (e evaluation) coverageReasons() []CoverageReason {

@@ -11,6 +11,8 @@ import (
 
 var snapshotDigest = regexp.MustCompile(`^sha256:[a-f0-9]{64}$`)
 
+// objectAt returns the object at path and its presence state. A missing final
+// key is absent; a missing ancestor is unknown.
 func objectAt(raw map[string]any, path ...string) (map[string]any, evidence.ObjectState) {
 	var cursor any = raw
 	for i, key := range path {
@@ -46,6 +48,7 @@ func annotation(root map[string]any, key string) evidence.Text {
 	return text(fields, false, key)
 }
 
+// childObject returns a nested object, which is unknown unless its parent was reported.
 func childObject(parent evidence.ObjectState, raw map[string]any, path ...string) (map[string]any, evidence.ObjectState) {
 	if parent != evidence.ObjectReported {
 		return nil, evidence.ObjectUnknown
@@ -53,6 +56,7 @@ func childObject(parent evidence.ObjectState, raw map[string]any, path ...string
 	return objectAt(raw, path...)
 }
 
+// enumText projects an identifier restricted to allowed values.
 func enumText(raw map[string]any, allowed []string, path ...string) evidence.Text {
 	value := text(raw, true, path...)
 	if value.Value != nil && !slices.Contains(allowed, *value.Value) {
@@ -61,6 +65,7 @@ func enumText(raw map[string]any, allowed []string, path ...string) evidence.Tex
 	return value
 }
 
+// digest projects a sha256 snapshot digest.
 func digest(raw map[string]any, path ...string) evidence.Text {
 	value := text(raw, false, path...)
 	if value.Value != nil && !snapshotDigest.MatchString(*value.Value) {
@@ -69,6 +74,7 @@ func digest(raw map[string]any, path ...string) evidence.Text {
 	return value
 }
 
+// sizeBytes projects a nonnegative byte count.
 func sizeBytes(raw map[string]any, path ...string) evidence.Integer {
 	value := integer(raw, path...)
 	if value.Value != nil && *value.Value < 0 {
@@ -77,6 +83,7 @@ func sizeBytes(raw map[string]any, path ...string) evidence.Integer {
 	return value
 }
 
+// ordinals projects a bounded, unique set of int32 ordinals in ascending order.
 func ordinals(raw map[string]any, limit int, path ...string) evidence.Ordinals {
 	value, state := field(raw, path...)
 	if state != evidence.ValueReported {
@@ -105,18 +112,27 @@ func ordinals(raw map[string]any, limit int, path ...string) evidence.Ordinals {
 }
 
 func projectControllerError(raw map[string]any, state evidence.ObjectState) evidence.ControllerError {
-	return evidence.ControllerError{State: state, Reason: text(raw, true, "reason"), At: timestamp(raw, "at")}
+	return evidence.ControllerError{
+		State:  state,
+		Reason: text(raw, true, "reason"),
+		At:     timestamp(raw, "at"),
+	}
 }
 
 func projectRestoreTest(raw map[string]any, state evidence.ObjectState, limit int) evidence.RestoreTest {
 	_, active := childObject(state, raw, "active")
 	last, lastState := childObject(state, raw, "last")
 	return evidence.RestoreTest{
-		State: state, Active: active, Last: lastState,
-		LastOutcome: enumText(last, []string{"Passed", "Failed"}, "outcome"), LastReason: text(last, true, "reason"),
-		LastSuccessAt: timestamp(raw, "lastSuccessTime"), FinishedAt: timestamp(last, "finishedAt"),
-		SnapshotKey: snapshotKey(last, "key"), SnapshotDigest: digest(last, "digest"),
-		Conditions: projectConditions(raw, limit, "conditions"),
+		State:          state,
+		Active:         active,
+		Last:           lastState,
+		LastOutcome:    enumText(last, []string{"Passed", "Failed"}, "outcome"),
+		LastReason:     text(last, true, "reason"),
+		LastSuccessAt:  timestamp(raw, "lastSuccessTime"),
+		FinishedAt:     timestamp(last, "finishedAt"),
+		SnapshotKey:    snapshotKey(last, "key"),
+		SnapshotDigest: digest(last, "digest"),
+		Conditions:     projectConditions(raw, limit, "conditions"),
 	}
 }
 
@@ -125,12 +141,9 @@ func projectBackup(root map[string]any, limit int) evidence.Backup {
 	raw, state := objectAt(root, "status", "backup")
 	test, testState := childObject(state, raw, "restoreTest")
 	return evidence.Backup{
-		Configuration: configuration,
-		State:         state,
-		LastSuccessAt: timestamp(
-			raw,
-			"lastBackupTime",
-		),
+		Configuration:       configuration,
+		State:               state,
+		LastSuccessAt:       timestamp(raw, "lastBackupTime"),
 		LastAttemptAt:       timestamp(raw, "lastAttemptTime"),
 		NextScheduledAt:     timestamp(raw, "nextScheduledBackup"),
 		ConsecutiveFailures: count(raw, "consecutiveFailures"),
@@ -147,14 +160,11 @@ func projectUpgrade(root map[string]any, limit int) evidence.Upgrade {
 	raw, state := objectAt(root, "status", "upgrade")
 	failure, failureState := childObject(state, raw, "failure")
 	return evidence.Upgrade{
-		State:         state,
-		ExecutionID:   text(raw, true, "executionID"),
-		TargetVersion: version(raw, "targetVersion"),
-		FromVersion:   version(raw, "fromVersion"),
-		StartedAt: timestamp(
-			raw,
-			"startedAt",
-		),
+		State:            state,
+		ExecutionID:      text(raw, true, "executionID"),
+		TargetVersion:    version(raw, "targetVersion"),
+		FromVersion:      version(raw, "fromVersion"),
+		StartedAt:        timestamp(raw, "startedAt"),
 		CurrentPartition: count(raw, "currentPartition"),
 		CompletedPods:    ordinals(raw, limit, "completedPods"),
 		Failure:          projectControllerError(failure, failureState),
@@ -163,14 +173,28 @@ func projectUpgrade(root map[string]any, limit int) evidence.Upgrade {
 
 func projectBlueGreen(root map[string]any) evidence.BlueGreen {
 	raw, state := objectAt(root, "status", "blueGreen")
+	phases := []string{
+		"Idle",
+		"DeployingGreen",
+		"JoiningMesh",
+		"Syncing",
+		"Promoting",
+		"DemotingBlue",
+		"Cleanup",
+		"RestoringReadReplicas",
+		"RollingBack",
+		"RollbackCleanup",
+	}
 	return evidence.BlueGreen{
-		State: state, Phase: enumText(raw, []string{
-			"Idle", "DeployingGreen", "JoiningMesh", "Syncing", "Promoting", "DemotingBlue", "Cleanup",
-			"RestoringReadReplicas", "RollingBack", "RollbackCleanup",
-		}, "phase"),
-		OperationID: text(raw, true, "operationID"), GreenVersion: version(raw, "greenVersion"), StartedAt: timestamp(raw, "startTime"),
-		BlueRevision: projectBlueGreenRevision(raw, "blueRevision"), GreenRevision: projectBlueGreenRevision(raw, "greenRevision"),
-		JobFailureCount: count(raw, "jobFailureCount"), LastFailedJob: text(raw, true, "lastJobFailure"),
+		State:           state,
+		Phase:           enumText(raw, phases, "phase"),
+		OperationID:     text(raw, true, "operationID"),
+		BlueRevision:    projectBlueGreenRevision(raw, "blueRevision"),
+		GreenRevision:   projectBlueGreenRevision(raw, "greenRevision"),
+		GreenVersion:    version(raw, "greenVersion"),
+		StartedAt:       timestamp(raw, "startTime"),
+		JobFailureCount: count(raw, "jobFailureCount"),
+		LastFailedJob:   text(raw, true, "lastJobFailure"),
 	}
 }
 
@@ -185,21 +209,20 @@ func projectBlueGreenRevision(raw map[string]any, field string) evidence.Text {
 func projectOperationLock(root map[string]any) evidence.OperationLock {
 	raw, state := objectAt(root, "status", "operationLock")
 	return evidence.OperationLock{
-		State: state, Operation: enumText(raw, []string{"Upgrade", "Backup", "Restore"}, "operation"), Holder: text(raw, true, "holder"),
-		AcquiredAt: timestamp(raw, "acquiredAt"), RenewedAt: timestamp(raw, "renewedAt"),
+		State:      state,
+		Operation:  enumText(raw, []string{"Upgrade", "Backup", "Restore"}, "operation"),
+		Holder:     text(raw, true, "holder"),
+		AcquiredAt: timestamp(raw, "acquiredAt"),
+		RenewedAt:  timestamp(raw, "renewedAt"),
 	}
 }
 
 func projectBreakGlass(root map[string]any) evidence.BreakGlass {
 	raw, state := objectAt(root, "status", "breakGlass")
 	return evidence.BreakGlass{
-		State:  state,
-		Active: boolean(raw, "active"),
-		Reason: enumText(
-			raw,
-			[]string{"RollbackConsensusRepairFailed", "RollbackCleanupPeerRemovalFailed"},
-			"reason",
-		),
+		State:     state,
+		Active:    boolean(raw, "active"),
+		Reason:    enumText(raw, []string{"RollbackConsensusRepairFailed", "RollbackCleanupPeerRemovalFailed"}, "reason"),
 		EnteredAt: timestamp(raw, "enteredAt"),
 	}
 }
@@ -213,8 +236,10 @@ func projectOperationalFields(root map[string]any, result *evidence.Cluster, lim
 	readSpec, readConfiguration := objectAt(root, "spec", "readReplicas")
 	readStatus, readState := objectAt(root, "status", "readReplicas")
 	result.ReadReplicas = evidence.ReplicaCounts{
-		Configuration: readConfiguration, State: readState,
-		Desired: count(readSpec, "replicas"), Ready: count(readStatus, "readyReplicas"),
+		Configuration: readConfiguration,
+		State:         readState,
+		Desired:       count(readSpec, "replicas"),
+		Ready:         count(readStatus, "readyReplicas"),
 	}
 	maintenance, maintenanceState := objectAt(root, "spec", "maintenance")
 	result.Maintenance = evidence.Maintenance{State: maintenanceState, Enabled: boolean(maintenance, "enabled")}
