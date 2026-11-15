@@ -77,13 +77,13 @@ func TestNativeProjectionPreservesApprovedFacts(t *testing.T) {
 func TestNativeContractDoesNotFallbackAcrossGroups(t *testing.T) {
 	t.Parallel()
 	_, err := adapter.ProjectCluster(clusterFixture(t), nativeOptions())
-	assertProjectionError(t, err, adapter.ResourceMismatch)
+	assertProjectionError(t, err, adapter.CodeResourceMismatch)
 	_, err = adapter.ProjectCluster(nativeDocument(clusterFixture(t)), projectionOptions())
-	assertProjectionError(t, err, adapter.ResourceMismatch)
+	assertProjectionError(t, err, adapter.CodeResourceMismatch)
 	_, err = adapter.ProjectRestore(restoreFixture(t), nativeOptions())
-	assertProjectionError(t, err, adapter.ResourceMismatch)
+	assertProjectionError(t, err, adapter.CodeResourceMismatch)
 	_, err = adapter.ProjectRestore(nativeDocument(restoreFixture(t)), projectionOptions())
-	assertProjectionError(t, err, adapter.ResourceMismatch)
+	assertProjectionError(t, err, adapter.CodeResourceMismatch)
 
 	options := nativeOptions()
 	options.Contract = adapter.KubeBaoV1Alpha1Unqualified
@@ -102,7 +102,7 @@ func TestNativeDiscoveryIsContractBound(t *testing.T) {
 		t.Fatalf("native discovery = %+v, %v", discovery, err)
 	}
 	_, err = adapter.ProjectDiscovery(raw, "openbaoclusters", projectionOptions())
-	assertProjectionError(t, err, adapter.ResourceMismatch)
+	assertProjectionError(t, err, adapter.CodeResourceMismatch)
 }
 
 func TestNativeRestoreAssociationPreservesGroupBoundary(t *testing.T) {

@@ -9,6 +9,7 @@ import (
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
+// VerificationResult contains one target verification and the cost of its read.
 type VerificationResult struct {
 	Verification  evidence.TargetVerification `json:"verification"`
 	Requests      int                         `json:"requests"`
@@ -21,7 +22,10 @@ func (c *Client) validateTarget(target evidence.Cluster, request Request) error 
 		return evidence.At("target", errors.Join(ErrInvalidRequest, err))
 	}
 	info, err := adapter.Describe(request.Contract)
-	if err != nil || info.APIGroup != target.Reference.Identity.Group || info.APIVersion != target.Reference.APIVersion {
+	if err != nil {
+		return evidence.At("contract", ErrInvalidRequest)
+	}
+	if info.APIGroup != target.Reference.Identity.Group || info.APIVersion != target.Reference.APIVersion {
 		return evidence.At("contract", ErrInvalidRequest)
 	}
 	if target.Reference.CollectedAt.Value.After(time.Now()) {
@@ -52,16 +56,19 @@ func (c *Client) validateTarget(target evidence.Cluster, request Request) error 
 
 func uncollectedVerification(target evidence.Cluster, request Request) evidence.TargetVerification {
 	return evidence.TargetVerification{
-		Before: target.Reference, BeforeGeneration: target.Generation, AfterGeneration: evidence.Integer{State: evidence.ValueUnknown},
-		Read: evidence.Collection{Scope: request.Scope, Outcome: evidence.CollectionNotCollected}, State: evidence.VerificationInsufficient,
+		Before:           target.Reference,
+		BeforeGeneration: target.Generation,
+		AfterGeneration:  evidence.Integer{State: evidence.ValueUnknown},
+		Read: evidence.Collection{
+			Scope:   request.Scope,
+			Outcome: evidence.CollectionNotCollected,
+		},
+		State: evidence.VerificationInsufficient,
 	}
 }
 
 // VerifyTarget performs exactly one pinned named GET. It never rediscovers a group.
 func (c *Client) VerifyTarget(ctx context.Context, target evidence.Cluster, request Request) (VerificationResult, error) {
-	if ctx == nil {
-		return VerificationResult{}, evidence.At("context", ErrInvalidRequest)
-	}
 	if err := c.validateTarget(target, request); err != nil {
 		return VerificationResult{}, err
 	}
@@ -74,6 +81,9 @@ func (c *Client) VerifyTarget(ctx context.Context, target evidence.Cluster, requ
 		return VerificationResult{}, evidence.At("verification", errors.Join(ErrInvalidRequest, err))
 	}
 	return VerificationResult{
-		Verification: value, Requests: read.Requests, Bytes: read.Bytes, RetainedBytes: read.RetainedBytes,
+		Verification:  value,
+		Requests:      read.Requests,
+		Bytes:         read.Bytes,
+		RetainedBytes: read.RetainedBytes,
 	}, nil
 }

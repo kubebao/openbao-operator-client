@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/kubebao/openbao-operator-client/adapter"
@@ -34,15 +35,15 @@ func main() {
 		},
 	)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	plan, err := operations.PrepareRestart(cluster, adapter.KubeBaoV1Alpha1, "2026-11-14T12:00:01Z")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	patch, err := plan.Patch()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	fmt.Println(string(patch))
 }

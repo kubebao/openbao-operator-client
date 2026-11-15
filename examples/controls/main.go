@@ -1,7 +1,9 @@
+// Command controls prints a guarded synthetic maintenance patch without network access.
 package main
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/kubebao/openbao-operator-client/adapter"
@@ -14,19 +16,21 @@ func main() {
   "metadata":{"namespace":"team","name":"bao","uid":"cluster-1","resourceVersion":"10","generation":4},
   "spec":{"replicas":3,"paused":false},"status":{"observedGeneration":4}
 }`), adapter.ProjectionOptions{
-		Origin: "example-origin", Contract: adapter.OpenBaoV1Alpha1,
-		CollectedAt: time.Date(2026, time.November, 11, 12, 0, 0, 0, time.UTC), Limits: adapter.DefaultProjectionLimits(),
+		Origin:      "example-origin",
+		Contract:    adapter.OpenBaoV1Alpha1,
+		CollectedAt: time.Date(2026, time.November, 11, 12, 0, 0, 0, time.UTC),
+		Limits:      adapter.DefaultProjectionLimits(),
 	})
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	plan, err := operations.PrepareMaintenance(cluster, adapter.OpenBaoV1Alpha1, true)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	preview, err := plan.Patch()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	fmt.Println(string(preview))
 }

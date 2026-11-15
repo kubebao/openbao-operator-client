@@ -1,10 +1,6 @@
 package diagnose
 
-import (
-	"fmt"
-
-	"github.com/kubebao/openbao-operator-client/evidence"
-)
+import "github.com/kubebao/openbao-operator-client/evidence"
 
 func (c ClusterInput) validateRelatedInputs(p Policy) error {
 	if c.StatefulSets != nil {
@@ -33,7 +29,11 @@ func (c ClusterInput) validateRelatedInputs(p Policy) error {
 	return nil
 }
 
-func validateResourceInput[T any](cluster ClusterInput, input ResourceInput[T], p Policy, group, version, resource string,
+func validateResourceInput[T any](
+	cluster ClusterInput,
+	input ResourceInput[T],
+	p Policy,
+	group, version, resource string,
 	describe func(T) (evidence.Reference, error),
 ) error {
 	read := input.Collection
@@ -57,13 +57,14 @@ func validateResourceInput[T any](cluster ClusterInput, input ResourceInput[T], 
 	if err := validateResourceTiming(cluster, read, p); err != nil {
 		return err
 	}
-	seenUID, seenName := map[string]bool{}, map[string]bool{}
+	seenUID := map[string]bool{}
+	seenName := map[string]bool{}
 	apiVersion := version
 	if group != "" {
 		apiVersion = group + "/" + version
 	}
 	for index, value := range input.Observations {
-		path := fmt.Sprintf("observations[%d]", index)
+		path := indexPath("observations", index)
 		ref, err := describe(value)
 		if err != nil {
 			return invalidCapture(path, err)
@@ -72,8 +73,11 @@ func validateResourceInput[T any](cluster ClusterInput, input ResourceInput[T], 
 			return invalidCapture(path+".reference.apiVersion", nil)
 		}
 		id := ref.Identity
-		if id.Origin != read.Scope.Origin || id.Namespace != read.Scope.Namespace || id.Group != group {
+		if id.Origin != read.Scope.Origin || id.Namespace != read.Scope.Namespace {
 			return invalidCapture(path+".reference.identity", nil)
+		}
+		if id.Group != group {
+			return invalidCapture(path+".reference.identity.group", nil)
 		}
 		if seenUID[id.UID] || seenName[id.Name] {
 			return invalidCapture(path+".reference.identity", nil)
@@ -81,7 +85,8 @@ func validateResourceInput[T any](cluster ClusterInput, input ResourceInput[T], 
 		if read.Outcome == evidence.CollectionComplete && !read.Interval.Contains(*ref.CollectedAt.Value) {
 			return invalidCapture(path+".reference.collectedAt", nil)
 		}
-		seenUID[id.UID], seenName[id.Name] = true, true
+		seenUID[id.UID] = true
+		seenName[id.Name] = true
 	}
 	return nil
 }
@@ -115,8 +120,11 @@ func validateResourceTiming(cluster ClusterInput, read evidence.Collection, p Po
 	if cluster.Observation != nil && cluster.Observation.Reference.CollectedAt.Value.After(read.Interval.StartedAt) {
 		return invalidCapture("collection.interval.startedAt", nil)
 	}
-	if cluster.Verification != nil && !cluster.Verification.Read.Interval.StartedAt.IsZero() &&
-		read.Interval.CompletedAt.After(cluster.Verification.Read.Interval.StartedAt) {
+	if cluster.Verification == nil {
+		return nil
+	}
+	verified := cluster.Verification.Read.Interval.StartedAt
+	if !verified.IsZero() && read.Interval.CompletedAt.After(verified) {
 		return invalidCapture("collection.interval.completedAt", nil)
 	}
 	return nil

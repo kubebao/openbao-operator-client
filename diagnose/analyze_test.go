@@ -103,7 +103,7 @@ func TestAnalysisReplayAndInputOrderAreDeterministic(t *testing.T) {
 	if err != nil || !bytes.Equal(first, second) {
 		t.Fatal("serialized replay changed report order or metadata")
 	}
-	if report.Findings[0].Severity != diagnose.Critical {
+	if report.Findings[0].Severity != diagnose.SeverityCritical {
 		t.Fatal("severity did not determine finding order")
 	}
 }
@@ -118,12 +118,12 @@ func TestIncompleteCoverageCanRetainSupportedFindings(t *testing.T) {
 	}
 	for _, entry := range report.Coverage {
 		if entry.Rule == diagnose.RuleWorkload || entry.Rule == diagnose.RulePod || entry.Rule == diagnose.RuleRestore {
-			if entry.State != diagnose.NotRequested {
+			if entry.State != diagnose.CoverageNotRequested {
 				t.Fatal("unrequested workload scope lost its coverage state")
 			}
 			continue
 		}
-		if entry.State != diagnose.Insufficient || entry.Reason != diagnose.ReasonScopeIncomplete {
+		if entry.State != diagnose.CoverageInsufficient || entry.Reason != diagnose.ReasonScopeIncomplete {
 			t.Fatal("denied scope became evaluated")
 		}
 	}
@@ -139,7 +139,7 @@ func TestIncompleteCoverageCanRetainSupportedFindings(t *testing.T) {
 	i.Observation = nil
 	i.Collection.Outcome = evidence.CollectionDenied
 	report, err = diagnose.Analyze(capture(i), policy(t))
-	if err != nil || len(report.Findings) != 0 || report.Coverage[0].State != diagnose.Insufficient {
+	if err != nil || len(report.Findings) != 0 || report.Coverage[0].State != diagnose.CoverageInsufficient {
 		t.Fatal("missing observation became a healthy result")
 	}
 }
@@ -152,24 +152,23 @@ func TestReadinessRequiresCurrentAcknowledgementAndKnownFields(t *testing.T) {
 		state    diagnose.CoverageState
 		severity diagnose.Severity
 	}{
-		{"zero", func(*evidence.Cluster) {}, diagnose.Evaluated, diagnose.Critical},
-		{"partial", func(c *evidence.Cluster) { c.ReadyReplicas = integer(1) }, diagnose.Evaluated, diagnose.Warning},
-		{"ready", func(c *evidence.Cluster) { c.ReadyReplicas = integer(3) }, diagnose.Evaluated, ""},
-		{"stale", func(c *evidence.Cluster) { c.ObservedGeneration = integer(3) }, diagnose.Insufficient, ""},
-		{"future", func(c *evidence.Cluster) { c.ObservedGeneration = integer(5) }, diagnose.Insufficient, ""},
+		{"zero", func(*evidence.Cluster) {}, diagnose.CoverageEvaluated, diagnose.SeverityCritical},
+		{"partial", func(c *evidence.Cluster) { c.ReadyReplicas = integer(1) }, diagnose.CoverageEvaluated, diagnose.SeverityWarning},
+		{"ready", func(c *evidence.Cluster) { c.ReadyReplicas = integer(3) }, diagnose.CoverageEvaluated, ""},
+		{"stale", func(c *evidence.Cluster) { c.ObservedGeneration = integer(3) }, diagnose.CoverageInsufficient, ""},
+		{"future", func(c *evidence.Cluster) { c.ObservedGeneration = integer(5) }, diagnose.CoverageInsufficient, ""},
 		{"unknown", func(c *evidence.Cluster) {
 			c.ReadyReplicas = evidence.Integer{State: evidence.ValueUnknown}
-		}, diagnose.Insufficient, ""},
+		}, diagnose.CoverageInsufficient, ""},
 		{"paused", func(c *evidence.Cluster) {
-			value := true
-			c.Paused = evidence.Boolean{State: evidence.ValueReported, Value: &value}
-		}, diagnose.Evaluated, ""},
+			c.Paused = evidence.Boolean{State: evidence.ValueReported, Value: new(true)}
+		}, diagnose.CoverageEvaluated, ""},
 		{"startup", func(c *evidence.Cluster) {
 			c.CreatedAt = timestamp(c.Reference.CollectedAt.Value.Add(-30 * time.Second))
-		}, diagnose.Evaluated, ""},
+		}, diagnose.CoverageEvaluated, ""},
 		{"grace-equality", func(c *evidence.Cluster) {
 			c.CreatedAt = timestamp(c.Reference.CollectedAt.Value.Add(-time.Minute))
-		}, diagnose.Evaluated, diagnose.Critical},
+		}, diagnose.CoverageEvaluated, diagnose.SeverityCritical},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			i, p := input(t), policy(t)
@@ -203,19 +202,19 @@ func TestBackupAgeHasStrictThresholdAndPreservesPrecedence(t *testing.T) {
 		state    diagnose.CoverageState
 		findings int
 	}{
-		{"overdue", func(*evidence.Cluster) {}, diagnose.Evaluated, 1},
+		{"overdue", func(*evidence.Cluster) {}, diagnose.CoverageEvaluated, 1},
 		{"equal", func(c *evidence.Cluster) {
 			c.Backup.LastSuccessAt = timestamp(c.Reference.CollectedAt.Value.Add(-24 * time.Hour))
-		}, diagnose.Evaluated, 0},
+		}, diagnose.CoverageEvaluated, 0},
 		{"future", func(c *evidence.Cluster) {
 			c.Backup.LastSuccessAt = timestamp(c.Reference.CollectedAt.Value.Add(time.Second))
-		}, diagnose.Insufficient, 0},
+		}, diagnose.CoverageInsufficient, 0},
 		{"missing-counter", func(c *evidence.Cluster) {
 			c.Backup.ConsecutiveFailures = evidence.Integer{State: evidence.ValueUnknown}
-		}, diagnose.Insufficient, 0},
-		{"failure-precedence", func(c *evidence.Cluster) { c.Backup.ConsecutiveFailures = integer(1) }, diagnose.Evaluated, 0},
-		{"unconfigured", func(c *evidence.Cluster) { c.Backup.Configuration = evidence.ObjectAbsent }, diagnose.NotApplicable, 0},
-		{"unknown-config", func(c *evidence.Cluster) { c.Backup.Configuration = evidence.ObjectUnknown }, diagnose.Insufficient, 0},
+		}, diagnose.CoverageInsufficient, 0},
+		{"failure-precedence", func(c *evidence.Cluster) { c.Backup.ConsecutiveFailures = integer(1) }, diagnose.CoverageEvaluated, 0},
+		{"unconfigured", func(c *evidence.Cluster) { c.Backup.Configuration = evidence.ObjectAbsent }, diagnose.CoverageNotApplicable, 0},
+		{"unknown-config", func(c *evidence.Cluster) { c.Backup.Configuration = evidence.ObjectUnknown }, diagnose.CoverageInsufficient, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			i, p := input(t), policy(t)

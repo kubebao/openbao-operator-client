@@ -41,44 +41,53 @@ func ProjectCluster(raw []byte, options ProjectionOptions) (evidence.Cluster, er
 	projectOperationalFields(object, &result, options.Limits)
 	runtime, state := objectAt(object, "spec", "runtime")
 	result.Runtime = evidence.Runtime{State: state, RestartAt: text(runtime, false, "restartAt")}
-	result.UpgradeStrategy = enumText(object, []string{"RollingUpdate", "BlueGreen"}, "spec", "upgrade", "strategy")
-	result.AcceptedUpgradeStrategy = enumText(object, []string{"RollingUpdate", "BlueGreen"}, "status", "acceptedUpgradeStrategy")
+	strategies := []string{"RollingUpdate", "BlueGreen"}
+	result.UpgradeStrategy = enumText(object, strategies, "spec", "upgrade", "strategy")
+	result.AcceptedUpgradeStrategy = enumText(object, strategies, "status", "acceptedUpgradeStrategy")
 	if inspectedOperatorContract(options.Contract) {
 		inferOmissions(object, &result)
 	} else {
 		result.RestoreOrigin = evidence.Text{State: evidence.ValueUnknown}
 	}
 	if result.Validate() != nil {
-		return evidence.Cluster{}, &ProjectionError{Code: InvalidInput}
+		return evidence.Cluster{}, &ProjectionError{Code: CodeInvalidInput}
 	}
 	return result, nil
 }
 
+// inferOmissions applies the pinned operator omission rules to unknown fields.
 func inferOmissions(object map[string]any, result *evidence.Cluster) {
-	if result.ReadyReplicas.State == evidence.ValueUnknown && result.DesiredReplicas.State == evidence.ValueReported &&
+	if result.ReadyReplicas.State == evidence.ValueUnknown &&
+		result.DesiredReplicas.State == evidence.ValueReported &&
 		result.Acknowledgement() == evidence.GenerationCurrent {
-		zero := int64(0)
-		result.ReadyReplicas = evidence.Integer{State: evidence.ValueImplied, Value: &zero}
+		result.ReadyReplicas = evidence.Integer{State: evidence.ValueImplied, Value: new(int64(0))}
 	}
-	// The operator resets consecutiveFailures to an omitted zero in the same status update that records
-	// lastBackupTime, and records lastAttemptTime when an attempt starts. A success at or after the last attempt
-	// therefore means the latest attempt succeeded and no consecutive failures exist.
-	if backup := &result.Backup; backup.State == evidence.ObjectReported && backup.ConsecutiveFailures.State == evidence.ValueUnknown &&
-		backup.LastSuccessAt.State == evidence.ValueReported && backup.LastAttemptAt.State == evidence.ValueReported &&
-		!backup.LastSuccessAt.Value.Before(*backup.LastAttemptAt.Value) {
-		zero := int64(0)
-		backup.ConsecutiveFailures = evidence.Integer{State: evidence.ValueImplied, Value: &zero}
+	if backupSucceededLast(result.Backup) {
+		result.Backup.ConsecutiveFailures = evidence.Integer{State: evidence.ValueImplied, Value: new(int64(0))}
 	}
 	if result.Paused.State == evidence.ValueUnknown {
 		if spec, state := field(object, "spec"); state == evidence.ValueReported {
 			if _, ok := spec.(map[string]any); ok {
-				no := false
-				result.Paused = evidence.Boolean{State: evidence.ValueImplied, Value: &no}
+				result.Paused = evidence.Boolean{State: evidence.ValueImplied, Value: new(false)}
 			}
 		}
 	}
 }
 
+// backupSucceededLast reports whether an omitted failure count implies zero.
+// The operator resets consecutiveFailures to an omitted zero in the same status update that records
+// lastBackupTime, and records lastAttemptTime when an attempt starts. A success at or after the last attempt
+// therefore means the latest attempt succeeded and no consecutive failures exist.
+func backupSucceededLast(backup evidence.Backup) bool {
+	return backup.State == evidence.ObjectReported &&
+		backup.ConsecutiveFailures.State == evidence.ValueUnknown &&
+		backup.LastSuccessAt.State == evidence.ValueReported &&
+		backup.LastAttemptAt.State == evidence.ValueReported &&
+		!backup.LastSuccessAt.Value.Before(*backup.LastAttemptAt.Value)
+}
+
+// projectConditions projects a bounded condition list sorted by type. Any malformed
+// entry, duplicate type, or unknown status invalidates the whole set.
 func projectConditions(object map[string]any, limit int, path ...string) evidence.Conditions {
 	value, state := field(object, path...)
 	if state != evidence.ValueReported {
@@ -96,8 +105,13 @@ func projectConditions(object map[string]any, limit int, path ...string) evidenc
 			return evidence.Conditions{State: evidence.ValueInvalid}
 		}
 		name, ok := fields["type"].(string)
+		if !ok || !identifier.MatchString(name) || seen[name] {
+			return evidence.Conditions{State: evidence.ValueInvalid}
+		}
 		status, _ := fields["status"].(string)
-		if !ok || !identifier.MatchString(name) || seen[name] || !slices.Contains([]string{"True", "False", "Unknown"}, status) {
+		switch evidence.ConditionStatus(status) {
+		case evidence.ConditionTrue, evidence.ConditionFalse, evidence.ConditionUnknown:
+		default:
 			return evidence.Conditions{State: evidence.ValueInvalid}
 		}
 		seen[name] = true
@@ -106,8 +120,11 @@ func projectConditions(object map[string]any, limit int, path ...string) evidenc
 			return evidence.Conditions{State: evidence.ValueInvalid}
 		}
 		result.Values = append(result.Values, evidence.Condition{
-			Type: name, Status: evidence.ConditionStatus(status), Reason: text(fields, true, "reason"),
-			ObservedGeneration: observed, LastTransitionAt: timestamp(fields, "lastTransitionTime"),
+			Type:               name,
+			Status:             evidence.ConditionStatus(status),
+			Reason:             text(fields, true, "reason"),
+			ObservedGeneration: observed,
+			LastTransitionAt:   timestamp(fields, "lastTransitionTime"),
 		})
 	}
 	slices.SortFunc(result.Values, func(a, b evidence.Condition) int { return strings.Compare(a.Type, b.Type) })

@@ -72,7 +72,8 @@ func TestDisposableRetentionReportsApplicationWithoutCompletingRestore(t *testin
 				t.Fatal(err)
 			}
 			report, coverage := runRestore(t, i, p)
-			if coverage.State != diagnose.Evaluated || len(report.Findings) != 1 || report.Findings[0].Severity != diagnose.Info ||
+			if coverage.State != diagnose.CoverageEvaluated || len(report.Findings) != 1 ||
+				report.Findings[0].Severity != diagnose.SeverityInfo ||
 				!strings.Contains(report.Findings[0].Summary, "operator reports snapshot application") ||
 				!strings.Contains(report.Findings[0].Summary, "cleanup is pending") {
 				t.Fatal("confirmed disposable retention did not report its bounded waiting state")
@@ -86,7 +87,7 @@ func TestDisposableRetentionReportsApplicationWithoutCompletingRestore(t *testin
 			p.ReferenceTime = i.Restores.Observations[0].Target.AppliedAt.Value.Add(time.Hour)
 			p.MaxEvidenceAge = time.Hour
 			expired, _ := runRestore(t, i, p)
-			if len(expired.Findings) != 1 || expired.Findings[0].Severity != diagnose.Error {
+			if len(expired.Findings) != 1 || expired.Findings[0].Severity != diagnose.SeverityError {
 				t.Fatal("offline reference time extended an expired cleanup retention window")
 			}
 		})
@@ -101,7 +102,7 @@ func TestDisposableRetentionRejectsContradictoryStages(t *testing.T) {
 			t.Run(i.Subject.Group+"/"+stage, func(t *testing.T) {
 				i.Restores.Observations[0].Execution.Stage = text(stage)
 				report, _ := runRestore(t, i, p)
-				if len(report.Findings) != 1 || report.Findings[0].Severity != diagnose.Error {
+				if len(report.Findings) != 1 || report.Findings[0].Severity != diagnose.SeverityError {
 					t.Fatal("contradictory execution stage hid the held Unknown concern")
 				}
 			})
@@ -117,11 +118,11 @@ func TestFailedTerminalReceiptRemainsAdverseAfterReportedCompletion(t *testing.T
 			r := &i.Restores.Observations[0]
 			r.Phase, r.Execution.Stage = text("Completed"), text("FollowThroughComplete")
 			r.Execution.TerminalResult = text("Failed")
-			want := diagnose.Error
+			want := diagnose.SeverityError
 			if !held {
 				i.Observation.RestoreHold = evidence.Text{State: evidence.ValueUnknown}
 				p.ReportHistoricalRestores = true
-				want = diagnose.Warning
+				want = diagnose.SeverityWarning
 			}
 			report, _ := runRestore(t, i, p)
 			if len(report.Findings) != 1 || report.Findings[0].Severity != want {
@@ -200,7 +201,7 @@ func TestDisposableRetentionNeverHidesIncompleteOrConflictingReceipts(t *testing
 			t.Run(i.Subject.Group+"/"+tc.name, func(t *testing.T) {
 				tc.change(&i)
 				report, _ := runRestore(t, i, p)
-				if len(report.Findings) != 1 || report.Findings[0].Severity != diagnose.Error {
+				if len(report.Findings) != 1 || report.Findings[0].Severity != diagnose.SeverityError {
 					t.Fatal("incomplete, failed, or contradictory retention facts hid a held Unknown concern")
 				}
 			})
@@ -222,7 +223,7 @@ func TestDisposableRetentionStillRequiresUniqueHoldAndCurrentUID(t *testing.T) {
 		r.Target.UID, r.Execution.TargetUID = evidence.Text{State: evidence.ValueUnknown}, evidence.Text{State: evidence.ValueUnknown}
 		i.Observation.RestoreOrigin = evidence.Text{State: evidence.ValueUnknown}
 		report, coverage := runRestore(t, i, p)
-		if len(report.Findings) != 0 || coverage.State != diagnose.Insufficient {
+		if len(report.Findings) != 0 || coverage.State != diagnose.CoverageInsufficient {
 			t.Fatal("retention fields or a hold supplied missing target UID confirmation")
 		}
 		i, p = retentionInput(t, native)
@@ -232,7 +233,7 @@ func TestDisposableRetentionStillRequiresUniqueHoldAndCurrentUID(t *testing.T) {
 		i.Restores.Collection.Items = 2
 		i.Observation.RestoreHold = text(*other.Execution.OperationID.Value)
 		report, coverage = runRestore(t, i, p)
-		if len(report.Findings) != 0 || coverage.State != diagnose.Insufficient {
+		if len(report.Findings) != 0 || coverage.State != diagnose.CoverageInsufficient {
 			t.Fatal("ambiguous operation hold selected a cleanup retention request")
 		}
 	}

@@ -74,10 +74,10 @@ func TestDiscoveryAbsenceAndMalformedVerbsStayDistinct(t *testing.T) {
 	}
 	duplicate := `{"name":"openbaoclusters"},{"name":"openbaoclusters"}`
 	_, err := adapter.ProjectDiscovery(discoveryDocument(duplicate), "openbaoclusters", projectionOptions())
-	assertProjectionError(t, err, adapter.InvalidInput)
+	assertProjectionError(t, err, adapter.CodeInvalidInput)
 	wrong := []byte(strings.Replace(string(discoveryDocument("")), "openbao.org/v1alpha1", "other.example/v1", 1))
 	_, err = adapter.ProjectDiscovery(wrong, "openbaoclusters", projectionOptions())
-	assertProjectionError(t, err, adapter.ResourceMismatch)
+	assertProjectionError(t, err, adapter.CodeResourceMismatch)
 }
 
 func FuzzProjectDiscovery(f *testing.F) {

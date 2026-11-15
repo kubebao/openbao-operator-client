@@ -3,38 +3,38 @@ package diagnose
 import "github.com/kubebao/openbao-operator-client/evidence"
 
 func upgradeFailure(cluster evidence.Cluster) evaluation {
-	result := evaluation{state: Evaluated, reason: ReasonNone}
+	result := evaluation{state: CoverageEvaluated, reason: ReasonNone}
 	switch cluster.Upgrade.State {
 	case evidence.ObjectAbsent, evidence.ObjectNull:
 		return result
 	case evidence.ObjectUnknown, evidence.ObjectInvalid:
-		return evaluation{state: Insufficient, reason: ReasonMissingField}
+		return evaluation{state: CoverageInsufficient, reason: ReasonMissingField}
 	case evidence.ObjectReported:
 	}
 	switch cluster.Upgrade.Failure.State {
 	case evidence.ObjectAbsent, evidence.ObjectNull:
 		return result
 	case evidence.ObjectUnknown, evidence.ObjectInvalid:
-		return evaluation{state: Insufficient, reason: ReasonMissingField}
+		return evaluation{state: CoverageInsufficient, reason: ReasonMissingField}
 	case evidence.ObjectReported:
 	}
 	if cluster.Upgrade.Failure.Reason.State != evidence.ValueReported {
-		return evaluation{state: Insufficient, reason: ReasonMissingField}
+		return evaluation{state: CoverageInsufficient, reason: ReasonMissingField}
 	}
 	optionalTime(&result, cluster, cluster.Upgrade.Failure.At)
-	result.add(finding(cluster, RuleUpgrade, Warning,
+	result.add(finding(cluster, RuleUpgrade, SeverityWarning,
 		"The operator records a rolling-upgrade failure; this does not establish an active failure.", "status.upgrade.failure"))
 	return result
 }
 
 func restoreTest(cluster evidence.Cluster) evaluation {
-	result := evaluation{state: Evaluated, reason: ReasonNone}
+	result := evaluation{state: CoverageEvaluated, reason: ReasonNone}
 	test := cluster.Backup.RestoreTest
 	switch test.State {
 	case evidence.ObjectAbsent, evidence.ObjectNull:
 		return result
 	case evidence.ObjectUnknown, evidence.ObjectInvalid:
-		return evaluation{state: Insufficient, reason: ReasonMissingField}
+		return evaluation{state: CoverageInsufficient, reason: ReasonMissingField}
 	case evidence.ObjectReported:
 	}
 	if restoreTestBlocked(&result, cluster, test.Conditions) {
@@ -58,8 +58,8 @@ func restoreTest(cluster evidence.Cluster) evaluation {
 		return result
 	case evidence.ObjectReported:
 	}
-	if test.LastOutcome.State != evidence.ValueReported ||
-		(*test.LastOutcome.Value != "Passed" && *test.LastOutcome.Value != "Failed") {
+	outcome := reportedValue(test.LastOutcome)
+	if outcome != "Passed" && outcome != "Failed" {
 		result.insufficient(ReasonMissingField)
 		return result
 	}
@@ -67,8 +67,8 @@ func restoreTest(cluster evidence.Cluster) evaluation {
 		result.insufficient(ReasonMissingField)
 	}
 	optionalTime(&result, cluster, test.FinishedAt)
-	if *test.LastOutcome.Value == "Failed" {
-		result.add(finding(cluster, RuleRestoreTest, Warning,
+	if outcome == "Failed" {
+		result.add(finding(cluster, RuleRestoreTest, SeverityWarning,
 			"The operator records a failed restore test; the result covers its snapshot and disposable target only.",
 			"status.backup.restoreTest.active", "status.backup.restoreTest.last.outcome", "status.backup.restoreTest.last.finishedAt"))
 	}
@@ -95,7 +95,7 @@ func restoreTestBlocked(result *evaluation, cluster evidence.Cluster, conditions
 			return false
 		}
 		if condition.Status == evidence.ConditionFalse && *condition.Reason.Value != "Failed" {
-			result.add(finding(cluster, RuleRestoreTest, Warning,
+			result.add(finding(cluster, RuleRestoreTest, SeverityWarning,
 				"The operator reports a restore-test condition requiring attention for the current generation.",
 				"metadata.generation", "status.backup.restoreTest.conditions[type=Passed]"))
 			return true

@@ -75,8 +75,7 @@ func assertBlueGreenReplay(t *testing.T, cluster evidence.Cluster) {
 	if err := json.Unmarshal(raw, &replay); err != nil || replay.Validate() != nil {
 		t.Fatal("valid revision evidence did not survive replay")
 	}
-	bad := "invalid/revision"
-	cluster.BlueGreen.BlueRevision = evidence.Text{State: evidence.ValueReported, Value: &bad}
+	cluster.BlueGreen.BlueRevision = evidence.Text{State: evidence.ValueReported, Value: new("invalid/revision")}
 	if cluster.Validate() == nil {
 		t.Fatal("replay validation accepted an invalid revision")
 	}

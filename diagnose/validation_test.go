@@ -48,7 +48,7 @@ func TestCoverageRetainsIndependentInsufficiencyCauses(t *testing.T) {
 	_, coverage := runWorkloadRule(t, i, diagnose.RulePod)
 	want := []diagnose.CoverageReason{diagnose.ReasonAssociation, diagnose.ReasonGeneration, diagnose.ReasonScopeIncomplete}
 	slices.Sort(want)
-	if coverage.State != diagnose.Insufficient || !slices.Equal(coverage.Reasons, want) {
+	if coverage.State != diagnose.CoverageInsufficient || !slices.Equal(coverage.Reasons, want) {
 		t.Fatalf("independent insufficiency causes were lost: %+v", coverage)
 	}
 }

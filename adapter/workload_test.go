@@ -199,8 +199,7 @@ func TestControllerChainChecksBothUIDLevels(t *testing.T) {
 	if parent.State != evidence.AssociationConfirmed || child.State != evidence.AssociationConfirmed || child.Target.UID != "set-1" {
 		t.Fatal("valid cluster/StatefulSet/Pod chain was not confirmed")
 	}
-	wrong := "set-1"
-	pod.Metadata.ClusterOwnerUID = evidence.Text{State: evidence.ValueReported, Value: &wrong}
+	pod.Metadata.ClusterOwnerUID = evidence.Text{State: evidence.ValueReported, Value: new("set-1")}
 	child, err = adapter.AssociatePod(pod, set, parent)
 	if err != nil {
 		t.Fatal(err)
@@ -320,11 +319,11 @@ func TestWorkloadFieldBounds(t *testing.T) {
 func TestContractRestrictsKinds(t *testing.T) {
 	t.Parallel()
 	_, err := adapter.ProjectPod(workloadFixture(t, "pod"), workloadOptions(adapter.KubernetesAppsV1))
-	assertProjectionError(t, err, adapter.UnsupportedContract)
+	assertProjectionError(t, err, adapter.CodeUnsupportedContract)
 	_, err = adapter.ProjectStatefulSet(workloadFixture(t, "statefulset"), projectionOptions())
-	assertProjectionError(t, err, adapter.UnsupportedContract)
+	assertProjectionError(t, err, adapter.CodeUnsupportedContract)
 	_, err = adapter.ProjectCluster(clusterFixture(t), workloadOptions(adapter.KubernetesCoreV1))
-	assertProjectionError(t, err, adapter.UnsupportedContract)
+	assertProjectionError(t, err, adapter.CodeUnsupportedContract)
 	info, err := adapter.Describe(adapter.KubernetesCoreV1)
 	if err != nil {
 		t.Fatal(err)

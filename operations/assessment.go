@@ -3,47 +3,100 @@ package operations
 import (
 	"errors"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/kubebao/openbao-operator-client/collect"
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
+// ErrInvalidAssessment reports invalid assessment input: a plan, observation, policy, or related read.
 var ErrInvalidAssessment = errors.New("invalid control assessment")
 
+const (
+	// defaultMaxEvidenceAge bounds the age of supplied evidence at the reference time.
+	defaultMaxEvidenceAge = 5 * time.Minute
+	// defaultMaxCandidates bounds the related StatefulSets and Pods in one assessment.
+	defaultMaxCandidates = 5000
+)
+
+// AssessmentState summarizes an assessment. States are ordered by severity:
+// observed, pending, blocked, insufficient.
 type AssessmentState string
 
 const (
-	AssessmentObserved     AssessmentState = "observed"
-	AssessmentPending      AssessmentState = "pending"
-	AssessmentBlocked      AssessmentState = "blocked"
+	// AssessmentObserved means the supplied evidence shows the requested state.
+	AssessmentObserved AssessmentState = "observed"
+	// AssessmentPending means the evidence does not yet show the requested state.
+	AssessmentPending AssessmentState = "pending"
+	// AssessmentBlocked means the evidence shows a state that prevents the request from taking effect.
+	AssessmentBlocked AssessmentState = "blocked"
+	// AssessmentInsufficient means the evidence cannot establish the state.
 	AssessmentInsufficient AssessmentState = "insufficient"
 )
 
+// rank orders assessment states by severity.
+func (s AssessmentState) rank() int {
+	switch s {
+	case AssessmentObserved:
+		return 0
+	case AssessmentPending:
+		return 1
+	case AssessmentBlocked:
+		return 2
+	case AssessmentInsufficient:
+		return 3
+	default:
+		return 0
+	}
+}
+
+// AssessmentReason explains an assessment state.
 type AssessmentReason string
 
 const (
-	ReasonTargetChanged       AssessmentReason = "target_changed"
-	ReasonTargetDeleting      AssessmentReason = "target_deleting"
-	ReasonStaleEvidence       AssessmentReason = "stale_evidence"
-	ReasonInconsistentTime    AssessmentReason = "inconsistent_time"
-	ReasonMissingField        AssessmentReason = "missing_field"
-	ReasonInvalidField        AssessmentReason = "invalid_field"
-	ReasonGeneration          AssessmentReason = "generation_unconfirmed"
-	ReasonNotConfigured       AssessmentReason = "not_configured"
-	ReasonPauseCondition      AssessmentReason = "pause_condition_unconfirmed"
-	ReasonPaused              AssessmentReason = "paused"
-	ReasonReadNotRequested    AssessmentReason = "read_not_requested"
-	ReasonReadIncomplete      AssessmentReason = "read_incomplete"
-	ReasonScopeRestricted     AssessmentReason = "scope_restricted"
-	ReasonTargetUnverified    AssessmentReason = "target_unverified"
-	ReasonAssociation         AssessmentReason = "association_unconfirmed"
-	ReasonAnnotationPending   AssessmentReason = "annotation_pending"
-	ReasonWorkloadMissing     AssessmentReason = "workload_missing"
-	ReasonWorkloadDeleting    AssessmentReason = "workload_deleting"
+	// ReasonTargetChanged means the observation identifies another resource or API version than the plan.
+	ReasonTargetChanged AssessmentReason = "target_changed"
+	// ReasonTargetDeleting means the target has a deletion timestamp.
+	ReasonTargetDeleting AssessmentReason = "target_deleting"
+	// ReasonStaleEvidence means evidence exceeds the policy's maximum age.
+	ReasonStaleEvidence AssessmentReason = "stale_evidence"
+	// ReasonInconsistentTime means timestamps contradict the read order or reference time.
+	ReasonInconsistentTime AssessmentReason = "inconsistent_time"
+	// ReasonMissingField means a required field was not reported.
+	ReasonMissingField AssessmentReason = "missing_field"
+	// ReasonInvalidField means a required field was reported with an invalid value.
+	ReasonInvalidField AssessmentReason = "invalid_field"
+	// ReasonGeneration means a producer has not acknowledged the current generation.
+	ReasonGeneration AssessmentReason = "generation_unconfirmed"
+	// ReasonNotConfigured means the observed spec does not contain the planned value.
+	ReasonNotConfigured AssessmentReason = "not_configured"
+	// ReasonPauseCondition means the Available condition does not confirm the planned pause state.
+	ReasonPauseCondition AssessmentReason = "pause_condition_unconfirmed"
+	// ReasonPaused means a paused cluster cannot propagate maintenance to its workloads.
+	ReasonPaused AssessmentReason = "paused"
+	// ReasonReadNotRequested means a required related read was not supplied.
+	ReasonReadNotRequested AssessmentReason = "read_not_requested"
+	// ReasonReadIncomplete means a related read did not complete.
+	ReasonReadIncomplete AssessmentReason = "read_incomplete"
+	// ReasonScopeRestricted means a related read used a narrower selector than the cluster's workloads.
+	ReasonScopeRestricted AssessmentReason = "scope_restricted"
+	// ReasonTargetUnverified means the final target verification does not confirm the observed revision.
+	ReasonTargetUnverified AssessmentReason = "target_unverified"
+	// ReasonAssociation means a workload's association with the cluster is unconfirmed.
+	ReasonAssociation AssessmentReason = "association_unconfirmed"
+	// ReasonAnnotationPending means a workload does not yet carry the planned maintenance annotation.
+	ReasonAnnotationPending AssessmentReason = "annotation_pending"
+	// ReasonWorkloadMissing means an expected workload or Pod was not observed.
+	ReasonWorkloadMissing AssessmentReason = "workload_missing"
+	// ReasonWorkloadDeleting means a workload has a deletion timestamp.
+	ReasonWorkloadDeleting AssessmentReason = "workload_deleting"
+	// ReasonTopologyUnconfirmed means an active blue/green transition prevents a topology comparison.
 	ReasonTopologyUnconfirmed AssessmentReason = "topology_unconfirmed"
-	ReasonTopologyConflict    AssessmentReason = "topology_conflict"
-	ReasonTopologyAmbiguous   AssessmentReason = "topology_ambiguous"
+	// ReasonTopologyConflict means workload pool or revision labels contradict the cluster topology.
+	ReasonTopologyConflict AssessmentReason = "topology_conflict"
+	// ReasonTopologyAmbiguous means several workloads claim the same pool.
+	ReasonTopologyAmbiguous AssessmentReason = "topology_ambiguous"
 )
 
 // AssessmentPolicy supplies evaluation time and bounds. Assessment reads no clock.
@@ -53,8 +106,29 @@ type AssessmentPolicy struct {
 	MaxCandidates  int           `json:"maxCandidates"`
 }
 
+// DefaultAssessmentPolicy returns a policy at reference with a five-minute
+// evidence age limit and at most 5000 related candidates.
 func DefaultAssessmentPolicy(reference time.Time) AssessmentPolicy {
-	return AssessmentPolicy{ReferenceTime: reference, MaxEvidenceAge: 5 * time.Minute, MaxCandidates: 5000}
+	return AssessmentPolicy{
+		ReferenceTime:  reference,
+		MaxEvidenceAge: defaultMaxEvidenceAge,
+		MaxCandidates:  defaultMaxCandidates,
+	}
+}
+
+// validate checks a valid reference time and positive bounds.
+func (p AssessmentPolicy) validate() error {
+	at := p.ReferenceTime
+	if at.IsZero() || at.Year() < 1 || at.Year() > 9999 {
+		return invalidAssessment("policy.referenceTime", nil)
+	}
+	if p.MaxEvidenceAge <= 0 {
+		return invalidAssessment("policy.maxEvidenceAge", nil)
+	}
+	if p.MaxCandidates <= 0 {
+		return invalidAssessment("policy.maxCandidates", nil)
+	}
+	return nil
 }
 
 // Assessment describes the requested state in supplied evidence. Observed does
@@ -73,15 +147,18 @@ type Assessment struct {
 
 func newAssessment() Assessment {
 	return Assessment{
-		State: AssessmentObserved, Configured: evidence.Boolean{State: evidence.ValueUnknown},
-		OperatorObserved: evidence.Boolean{State: evidence.ValueUnknown}, Reasons: []AssessmentReason{},
-		StatefulSetRead: evidence.CollectionNotRequested, PodRead: evidence.CollectionNotRequested,
+		State:            AssessmentObserved,
+		Configured:       evidence.Boolean{State: evidence.ValueUnknown},
+		OperatorObserved: evidence.Boolean{State: evidence.ValueUnknown},
+		Reasons:          []AssessmentReason{},
+		StatefulSetRead:  evidence.CollectionNotRequested,
+		PodRead:          evidence.CollectionNotRequested,
 	}
 }
 
+// add records a reason and raises the state to the more severe of the two.
 func (a *Assessment) add(state AssessmentState, reason AssessmentReason) {
-	rank := map[AssessmentState]int{AssessmentObserved: 0, AssessmentPending: 1, AssessmentBlocked: 2, AssessmentInsufficient: 3}
-	if rank[state] > rank[a.State] {
+	if state.rank() > a.State.rank() {
 		a.State = state
 	}
 	a.Reasons = append(a.Reasons, reason)
@@ -89,43 +166,55 @@ func (a *Assessment) add(state AssessmentState, reason AssessmentReason) {
 	a.Reasons = slices.Compact(a.Reasons)
 }
 
+// invalidAssessment attributes ErrInvalidAssessment, and an optional cause, to a field path.
+func invalidAssessment(path string, cause error) error {
+	return evidence.At(path, errors.Join(ErrInvalidAssessment, cause))
+}
+
 func reportedBoolean(value bool) evidence.Boolean {
 	return evidence.Boolean{State: evidence.ValueReported, Value: &value}
 }
 
 func assessmentHeader(plan Plan, observed evidence.Cluster, policy AssessmentPolicy, control Control) (Assessment, error) {
-	if plan.Validate() != nil || plan.Control != control {
-		return Assessment{}, ErrInvalidAssessment
+	if err := plan.Validate(); err != nil {
+		return Assessment{}, invalidAssessment("plan", err)
+	}
+	if plan.Control != control {
+		return Assessment{}, invalidAssessment("plan.control", nil)
 	}
 	return assessmentTarget(plan.Target, plan.Generation, observed, policy)
 }
 
+// assessmentTarget compares a later observation with the planned target and generation.
 func assessmentTarget(
 	target evidence.Reference,
 	generation evidence.Integer,
 	observed evidence.Cluster,
 	policy AssessmentPolicy,
 ) (Assessment, error) {
+	if err := observed.Validate(); err != nil {
+		return Assessment{}, invalidAssessment("observed", err)
+	}
+	if err := policy.validate(); err != nil {
+		return Assessment{}, err
+	}
 	result := newAssessment()
 	at := policy.ReferenceTime
-	if observed.Validate() != nil || (evidence.Timestamp{State: evidence.ValueReported, Value: &at}).Validate() != nil ||
-		policy.MaxEvidenceAge <= 0 || policy.MaxCandidates <= 0 {
-		return Assessment{}, ErrInvalidAssessment
-	}
-	if observed.Reference.Identity != target.Identity ||
-		observed.Reference.APIVersion != target.APIVersion {
+	ref := observed.Reference
+	if ref.Identity != target.Identity || ref.APIVersion != target.APIVersion {
 		result.add(AssessmentInsufficient, ReasonTargetChanged)
 		return result, nil
 	}
-	if !observed.Reference.CollectedAt.Value.After(*target.CollectedAt.Value) || observed.Reference.CollectedAt.Value.After(at) {
+	collectedAt := *ref.CollectedAt.Value
+	if !collectedAt.After(*target.CollectedAt.Value) || collectedAt.After(at) {
 		result.add(AssessmentInsufficient, ReasonInconsistentTime)
 	}
-	if at.Sub(*observed.Reference.CollectedAt.Value) > policy.MaxEvidenceAge {
+	if at.Sub(collectedAt) > policy.MaxEvidenceAge {
 		result.add(AssessmentInsufficient, ReasonStaleEvidence)
 	}
 	switch observed.DeletionTimestamp.State {
 	case evidence.ValueReported:
-		if observed.DeletionTimestamp.Value.After(*observed.Reference.CollectedAt.Value) {
+		if observed.DeletionTimestamp.Value.After(collectedAt) {
 			result.add(AssessmentInsufficient, ReasonInconsistentTime)
 		} else {
 			result.add(AssessmentBlocked, ReasonTargetDeleting)
@@ -133,16 +222,19 @@ func assessmentTarget(
 	case evidence.ValueInvalid:
 		result.add(AssessmentInsufficient, ReasonMissingField)
 	}
-	if observed.Reference.ResourceVersion.State != evidence.ValueReported {
+	if ref.ResourceVersion.State != evidence.ValueReported {
 		result.add(AssessmentInsufficient, ReasonMissingField)
 	}
-	if observed.Generation.State != evidence.ValueReported || *observed.Generation.Value < *generation.Value ||
+	if observed.Generation.State != evidence.ValueReported ||
+		*observed.Generation.Value < *generation.Value ||
 		observed.Acknowledgement() != evidence.GenerationCurrent {
 		result.add(AssessmentInsufficient, ReasonGeneration)
 	}
 	return result, nil
 }
 
+// canAssessConfiguration reports whether only an unacknowledged generation, if
+// anything, limits the target comparison.
 func canAssessConfiguration(result Assessment) bool {
 	if result.State == AssessmentBlocked {
 		return false
@@ -156,7 +248,7 @@ func canAssessConfiguration(result Assessment) bool {
 }
 
 func configureAssessment(result *Assessment, actual evidence.Boolean, enabled bool) {
-	if actual.State != evidence.ValueReported && actual.State != evidence.ValueImplied {
+	if !knownBoolean(actual) {
 		result.add(AssessmentInsufficient, ReasonMissingField)
 		return
 	}
@@ -185,33 +277,45 @@ func AssessPause(plan Plan, observed evidence.Cluster, policy AssessmentPolicy) 
 		result.add(AssessmentInsufficient, ReasonMissingField)
 		return result, nil
 	}
-	for _, condition := range observed.Conditions.Values {
-		if condition.Type != "Available" {
-			continue
-		}
-		if condition.Acknowledgement(observed.Generation) != evidence.GenerationCurrent ||
-			condition.Reason.State != evidence.ValueReported {
-			result.add(AssessmentInsufficient, ReasonPauseCondition)
-			return result, nil
-		}
-		if condition.LastTransitionAt.State == evidence.ValueInvalid || condition.LastTransitionAt.State == evidence.ValueReported &&
-			condition.LastTransitionAt.Value.After(*observed.Reference.CollectedAt.Value) {
-			result.add(AssessmentInsufficient, ReasonInconsistentTime)
-			return result, nil
-		}
-		paused := *condition.Reason.Value == "Paused"
-		matches := paused && condition.Status == evidence.ConditionUnknown
-		if !plan.Enabled {
-			matches = !paused && condition.Status != evidence.ConditionUnknown
-		}
-		result.OperatorObserved = reportedBoolean(matches)
-		if !matches {
-			result.add(AssessmentPending, ReasonPauseCondition)
-		}
+	index := slices.IndexFunc(observed.Conditions.Values, func(condition evidence.Condition) bool {
+		return condition.Type == "Available"
+	})
+	if index < 0 {
+		result.add(AssessmentInsufficient, ReasonMissingField)
 		return result, nil
 	}
-	result.add(AssessmentInsufficient, ReasonMissingField)
+	condition := observed.Conditions.Values[index]
+	if condition.Acknowledgement(observed.Generation) != evidence.GenerationCurrent ||
+		condition.Reason.State != evidence.ValueReported {
+		result.add(AssessmentInsufficient, ReasonPauseCondition)
+		return result, nil
+	}
+	if transitionAfter(condition, *observed.Reference.CollectedAt.Value) {
+		result.add(AssessmentInsufficient, ReasonInconsistentTime)
+		return result, nil
+	}
+	paused := *condition.Reason.Value == "Paused"
+	matches := paused && condition.Status == evidence.ConditionUnknown
+	if !plan.Enabled {
+		matches = !paused && condition.Status != evidence.ConditionUnknown
+	}
+	result.OperatorObserved = reportedBoolean(matches)
+	if !matches {
+		result.add(AssessmentPending, ReasonPauseCondition)
+	}
 	return result, nil
+}
+
+// transitionAfter reports an invalid transition time or one after the read time.
+func transitionAfter(condition evidence.Condition, collectedAt time.Time) bool {
+	switch condition.LastTransitionAt.State {
+	case evidence.ValueInvalid:
+		return true
+	case evidence.ValueReported:
+		return condition.LastTransitionAt.Value.After(collectedAt)
+	default:
+		return false
+	}
 }
 
 // AssessMaintenance checks actual annotations on every confirmed workload in
@@ -228,13 +332,13 @@ func AssessMaintenance(plan Plan, observed evidence.Cluster, related collect.Rel
 	result, err := assessmentHeader(plan, observed, policy, ControlMaintenance)
 	if related.StatefulSets != nil {
 		if !related.StatefulSets.Collection.Outcome.Valid() {
-			return Assessment{}, ErrInvalidAssessment
+			return Assessment{}, invalidAssessment("related.statefulSets.collection.outcome", nil)
 		}
 		result.StatefulSetRead = related.StatefulSets.Collection.Outcome
 	}
 	if related.Pods != nil {
 		if !related.Pods.Collection.Outcome.Valid() {
-			return Assessment{}, ErrInvalidAssessment
+			return Assessment{}, invalidAssessment("related.pods.collection.outcome", nil)
 		}
 		result.PodRead = related.Pods.Collection.Outcome
 	}
@@ -245,7 +349,7 @@ func AssessMaintenance(plan Plan, observed evidence.Cluster, related collect.Rel
 	if result.State != AssessmentObserved {
 		return result, nil
 	}
-	if observed.Paused.State != evidence.ValueReported && observed.Paused.State != evidence.ValueImplied {
+	if !knownBoolean(observed.Paused) {
 		result.add(AssessmentInsufficient, ReasonMissingField)
 		return result, nil
 	}
@@ -253,7 +357,7 @@ func AssessMaintenance(plan Plan, observed evidence.Cluster, related collect.Rel
 		result.add(AssessmentBlocked, ReasonPaused)
 		return result, nil
 	}
-	if !maintenanceVerification(observed, related.Verification, policy) {
+	if !targetVerified(observed, related.Verification, policy) {
 		result.add(AssessmentInsufficient, ReasonTargetUnverified)
 		return result, nil
 	}
@@ -261,15 +365,19 @@ func AssessMaintenance(plan Plan, observed evidence.Cluster, related collect.Rel
 		result.add(AssessmentInsufficient, ReasonReadNotRequested)
 		return result, nil
 	}
-	if len(related.StatefulSets.Observations) > policy.MaxCandidates ||
-		len(related.Pods.Observations) > policy.MaxCandidates-len(related.StatefulSets.Observations) {
-		return Assessment{}, ErrInvalidAssessment
+	enabled := trueValue(observed.Maintenance.Enabled)
+	checks := workloadChecks{
+		set: func(set evidence.StatefulSet) {
+			maintenanceAnnotation(set.Metadata, enabled, &result)
+			if set.DesiredReplicas.State != evidence.ValueReported || set.Acknowledgement() != evidence.GenerationCurrent {
+				result.add(AssessmentInsufficient, ReasonGeneration)
+			}
+		},
+		pod: func(pod evidence.Pod, _ evidence.StatefulSet) {
+			maintenanceAnnotation(pod.Metadata, enabled, &result)
+		},
 	}
-	sets, err := maintenanceSets(observed, related, policy, &result)
-	if err != nil {
-		return Assessment{}, err
-	}
-	if err := maintenancePods(observed, related, sets, policy, &result); err != nil {
+	if err := assessWorkloads(observed, related, policy, &result, checks); err != nil {
 		return Assessment{}, err
 	}
 	switch result.State {
@@ -281,78 +389,54 @@ func AssessMaintenance(plan Plan, observed evidence.Cluster, related collect.Rel
 	return result, nil
 }
 
-func maintenanceVerification(cluster evidence.Cluster, verification evidence.TargetVerification, policy AssessmentPolicy) bool {
-	return verification.Validate() == nil && verification.State == evidence.VerificationVerified &&
-		sameControlReference(verification.Before, cluster.Reference) &&
-		sameControlInteger(verification.BeforeGeneration, cluster.Generation) && verification.After != nil &&
-		verification.After.ResourceVersion.State == evidence.ValueReported &&
-		*verification.After.ResourceVersion.Value == *cluster.Reference.ResourceVersion.Value &&
-		!verification.Read.Interval.CompletedAt.After(policy.ReferenceTime) &&
-		policy.ReferenceTime.Sub(*verification.After.CollectedAt.Value) <= policy.MaxEvidenceAge
+// targetVerified reports whether a valid final verification confirms the
+// observed cluster's reference, generation, and resource version within policy.
+func targetVerified(cluster evidence.Cluster, verification evidence.TargetVerification, policy AssessmentPolicy) bool {
+	if verification.Validate() != nil || verification.State != evidence.VerificationVerified {
+		return false
+	}
+	if !sameControlReference(verification.Before, cluster.Reference) ||
+		!sameControlInteger(verification.BeforeGeneration, cluster.Generation) {
+		return false
+	}
+	after := verification.After
+	if after == nil || after.ResourceVersion.State != evidence.ValueReported ||
+		*after.ResourceVersion.Value != *cluster.Reference.ResourceVersion.Value {
+		return false
+	}
+	return !verification.Read.Interval.CompletedAt.After(policy.ReferenceTime) &&
+		policy.ReferenceTime.Sub(*after.CollectedAt.Value) <= policy.MaxEvidenceAge
+}
+
+// equalPointers reports whether two optional values are both absent or both present and equal.
+func equalPointers[T comparable](a, b *T) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
 }
 
 func sameControlInteger(a, b evidence.Integer) bool {
-	return a.State == b.State && (a.Value == nil && b.Value == nil || a.Value != nil && b.Value != nil && *a.Value == *b.Value)
+	return a.State == b.State && equalPointers(a.Value, b.Value)
+}
+
+func sameControlText(a, b evidence.Text) bool {
+	return a.State == b.State && equalPointers(a.Value, b.Value)
 }
 
 func sameControlReference(a, b evidence.Reference) bool {
-	return a.Identity == b.Identity && a.APIVersion == b.APIVersion && a.Field == b.Field &&
-		a.ResourceVersion.State == b.ResourceVersion.State &&
-		(a.ResourceVersion.Value == nil && b.ResourceVersion.Value == nil ||
-			a.ResourceVersion.Value != nil && b.ResourceVersion.Value != nil && *a.ResourceVersion.Value == *b.ResourceVersion.Value) &&
-		a.CollectedAt.State == b.CollectedAt.State && a.CollectedAt.Value != nil && b.CollectedAt.Value != nil &&
-		a.CollectedAt.Value.Equal(*b.CollectedAt.Value)
+	if a.Identity != b.Identity || a.APIVersion != b.APIVersion || a.Field != b.Field {
+		return false
+	}
+	if !sameControlText(a.ResourceVersion, b.ResourceVersion) || a.CollectedAt.State != b.CollectedAt.State {
+		return false
+	}
+	return a.CollectedAt.Value != nil && b.CollectedAt.Value != nil && a.CollectedAt.Value.Equal(*b.CollectedAt.Value)
 }
 
-type maintenanceSet struct {
-	value       evidence.StatefulSet
-	association evidence.Association
-	pods        int64
-}
+func trueValue(value evidence.Boolean) bool { return value.Value != nil && *value.Value }
 
-func maintenanceScope(cluster evidence.Cluster, read evidence.Collection, count int, verification evidence.TargetVerification,
-	result *Assessment,
-) error {
-	if read.Validate() != nil || read.Scope.Action != evidence.ReadList || read.Scope.Origin != cluster.Reference.Identity.Origin ||
-		read.Scope.Namespace != cluster.Reference.Identity.Namespace || read.Items < count {
-		return ErrInvalidAssessment
-	}
-	if read.Outcome == evidence.CollectionComplete && read.Items != count {
-		return ErrInvalidAssessment
-	}
-	if read.Outcome != evidence.CollectionComplete {
-		result.add(AssessmentInsufficient, ReasonReadIncomplete)
-	}
-	if read.Scope.Selector != "" && read.Scope.Selector != "openbao.org/cluster="+cluster.Reference.Identity.Name {
-		result.add(AssessmentInsufficient, ReasonScopeRestricted)
-	}
-	if !read.Interval.StartedAt.IsZero() && (cluster.Reference.CollectedAt.Value.After(read.Interval.StartedAt) ||
-		read.Interval.CompletedAt.After(verification.Read.Interval.StartedAt)) {
-		result.add(AssessmentInsufficient, ReasonInconsistentTime)
-	}
-	return nil
-}
-
-func maintenanceReference(ref evidence.Reference, read evidence.Collection,
-	policy AssessmentPolicy, result *Assessment,
-) error {
-	version := read.Scope.Version
-	if read.Scope.Group != "" {
-		version = read.Scope.Group + "/" + version
-	}
-	if ref.APIVersion != version || ref.Identity.Origin != read.Scope.Origin || ref.Identity.Namespace != read.Scope.Namespace ||
-		ref.Identity.Group != read.Scope.Group {
-		return ErrInvalidAssessment
-	}
-	if !read.Interval.Contains(*ref.CollectedAt.Value) || ref.CollectedAt.Value.After(policy.ReferenceTime) {
-		result.add(AssessmentInsufficient, ReasonInconsistentTime)
-	}
-	if policy.ReferenceTime.Sub(*ref.CollectedAt.Value) > policy.MaxEvidenceAge {
-		result.add(AssessmentInsufficient, ReasonStaleEvidence)
-	}
-	return nil
-}
-
+// maintenanceAnnotation compares a workload's maintenance annotation with the planned value.
 func maintenanceAnnotation(metadata evidence.WorkloadMetadata, enabled bool, result *Assessment) {
 	if metadata.DeletionTimestamp.State == evidence.ValueInvalid || metadata.Maintenance.State == evidence.ValueInvalid {
 		result.add(AssessmentInsufficient, ReasonMissingField)
@@ -374,45 +458,156 @@ func maintenanceAnnotation(metadata evidence.WorkloadMetadata, enabled bool, res
 	}
 }
 
-func maintenanceSets(cluster evidence.Cluster, related collect.RelatedResult, policy AssessmentPolicy,
+// workloadChecks applies control-specific checks to UID-confirmed workloads.
+// Topology, association, and Pod counting are shared by every control.
+type workloadChecks struct {
+	set func(evidence.StatefulSet)
+	pod func(evidence.Pod, evidence.StatefulSet)
+}
+
+type relatedSet struct {
+	value       evidence.StatefulSet
+	association evidence.Association
+	pods        int64
+}
+
+// assessWorkloads checks the related StatefulSet and Pod reads for one cluster.
+func assessWorkloads(
+	cluster evidence.Cluster,
+	related collect.RelatedResult,
+	policy AssessmentPolicy,
 	result *Assessment,
-) (map[string]*maintenanceSet, error) {
+	checks workloadChecks,
+) error {
+	sets, pods := len(related.StatefulSets.Observations), len(related.Pods.Observations)
+	if sets > policy.MaxCandidates {
+		return invalidAssessment("related.statefulSets.observations", nil)
+	}
+	if pods > policy.MaxCandidates-sets {
+		return invalidAssessment("related.pods.observations", nil)
+	}
+	confirmed, err := assessStatefulSets(cluster, related, policy, result, checks.set)
+	if err != nil {
+		return err
+	}
+	return assessPods(cluster, related, confirmed, policy, result, checks.pod)
+}
+
+func observationPath(read string, index int) string {
+	return read + ".observations[" + strconv.Itoa(index) + "]"
+}
+
+// checkRelatedRead checks a related LIST's declared scope and item count, and
+// records an incomplete, restricted, or misordered read.
+func checkRelatedRead(
+	path string,
+	cluster evidence.Cluster,
+	read evidence.Collection,
+	count int,
+	verification evidence.TargetVerification,
+	result *Assessment,
+) error {
+	if err := read.Validate(); err != nil {
+		return invalidAssessment(path+".collection", err)
+	}
+	id := cluster.Reference.Identity
+	if read.Scope.Action != evidence.ReadList || read.Scope.Origin != id.Origin || read.Scope.Namespace != id.Namespace {
+		return invalidAssessment(path+".collection.scope", nil)
+	}
+	if read.Items < count || read.Outcome == evidence.CollectionComplete && read.Items != count {
+		return invalidAssessment(path+".collection.items", nil)
+	}
+	if read.Outcome != evidence.CollectionComplete {
+		result.add(AssessmentInsufficient, ReasonReadIncomplete)
+	}
+	if read.Scope.Selector != "" && read.Scope.Selector != "openbao.org/cluster="+id.Name {
+		result.add(AssessmentInsufficient, ReasonScopeRestricted)
+	}
+	started := read.Interval.StartedAt
+	if !started.IsZero() && (cluster.Reference.CollectedAt.Value.After(started) ||
+		read.Interval.CompletedAt.After(verification.Read.Interval.StartedAt)) {
+		result.add(AssessmentInsufficient, ReasonInconsistentTime)
+	}
+	return nil
+}
+
+// checkRelatedReference checks that a related observation belongs to its read
+// scope, and records a misordered or stale read time.
+func checkRelatedReference(
+	path string,
+	ref evidence.Reference,
+	read evidence.Collection,
+	policy AssessmentPolicy,
+	result *Assessment,
+) error {
+	version := read.Scope.Version
+	if read.Scope.Group != "" {
+		version = read.Scope.Group + "/" + version
+	}
+	if ref.APIVersion != version {
+		return invalidAssessment(path+".apiVersion", nil)
+	}
+	if ref.Identity.Origin != read.Scope.Origin ||
+		ref.Identity.Namespace != read.Scope.Namespace ||
+		ref.Identity.Group != read.Scope.Group {
+		return invalidAssessment(path+".identity", nil)
+	}
+	collectedAt := *ref.CollectedAt.Value
+	if !read.Interval.Contains(collectedAt) || collectedAt.After(policy.ReferenceTime) {
+		result.add(AssessmentInsufficient, ReasonInconsistentTime)
+	}
+	if policy.ReferenceTime.Sub(collectedAt) > policy.MaxEvidenceAge {
+		result.add(AssessmentInsufficient, ReasonStaleEvidence)
+	}
+	return nil
+}
+
+// assessStatefulSets associates every related StatefulSet with the cluster and
+// checks confirmed sets against the topology and control-specific checks.
+func assessStatefulSets(
+	cluster evidence.Cluster,
+	related collect.RelatedResult,
+	policy AssessmentPolicy,
+	result *Assessment,
+	check func(evidence.StatefulSet),
+) (map[string]*relatedSet, error) {
+	const path = "related.statefulSets"
 	read := related.StatefulSets.Collection
 	values := related.StatefulSets.Observations
-	if read.Scope.Group != "apps" || read.Scope.Version != "v1" || read.Scope.Resource != "statefulsets" ||
-		values == nil && read.Outcome == evidence.CollectionComplete {
-		return nil, ErrInvalidAssessment
+	if read.Scope.Group != "apps" || read.Scope.Version != "v1" || read.Scope.Resource != "statefulsets" {
+		return nil, invalidAssessment(path+".collection.scope", nil)
 	}
-	if err := maintenanceScope(cluster, read, len(values), related.Verification, result); err != nil {
+	if values == nil && read.Outcome == evidence.CollectionComplete {
+		return nil, invalidAssessment(path+".observations", nil)
+	}
+	if err := checkRelatedRead(path, cluster, read, len(values), related.Verification, result); err != nil {
 		return nil, err
 	}
-	sets := map[string]*maintenanceSet{}
+	sets := map[string]*relatedSet{}
 	names := map[string]bool{}
 	topology := maintenanceTopology(cluster, result)
-	for _, set := range values {
-		if set.Validate() != nil {
-			return nil, ErrInvalidAssessment
+	for index, set := range values {
+		itemPath := observationPath(path, index)
+		if err := set.Validate(); err != nil {
+			return nil, invalidAssessment(itemPath, err)
 		}
 		ref := set.Metadata.Reference
 		if sets[ref.Identity.UID] != nil || names[ref.Identity.Name] {
-			return nil, ErrInvalidAssessment
+			return nil, invalidAssessment(itemPath+".metadata.reference.identity", nil)
 		}
 		names[ref.Identity.Name] = true
-		if err := maintenanceReference(ref, read, policy, result); err != nil {
+		if err := checkRelatedReference(itemPath+".metadata.reference", ref, read, policy, result); err != nil {
 			return nil, err
 		}
 		association, err := evidence.AssociateStatefulSet(set, cluster.Reference.Identity)
 		if err != nil {
-			return nil, ErrInvalidAssessment
+			return nil, invalidAssessment(itemPath, err)
 		}
-		sets[ref.Identity.UID] = &maintenanceSet{value: set, association: association}
+		sets[ref.Identity.UID] = &relatedSet{value: set, association: association}
 		switch association.State {
 		case evidence.AssociationConfirmed:
-			maintenanceAnnotation(set.Metadata, trueValue(cluster.Maintenance.Enabled), result)
-			if set.DesiredReplicas.State != evidence.ValueReported || set.Acknowledgement() != evidence.GenerationCurrent {
-				result.add(AssessmentInsufficient, ReasonGeneration)
-			}
 			maintenanceSetTopology(set, topology, result)
+			check(set)
 		case evidence.AssociationForeign:
 		default:
 			result.add(AssessmentInsufficient, ReasonAssociation)
@@ -426,61 +621,84 @@ func maintenanceSets(cluster evidence.Cluster, related collect.RelatedResult, po
 	return sets, nil
 }
 
-func trueValue(value evidence.Boolean) bool { return value.Value != nil && *value.Value }
-
-func maintenancePods(cluster evidence.Cluster, related collect.RelatedResult, sets map[string]*maintenanceSet,
-	policy AssessmentPolicy, result *Assessment,
+// assessPods associates every related Pod through its controlling StatefulSet,
+// counts confirmed Pods per set, and applies control-specific checks.
+func assessPods(
+	cluster evidence.Cluster,
+	related collect.RelatedResult,
+	sets map[string]*relatedSet,
+	policy AssessmentPolicy,
+	result *Assessment,
+	check func(evidence.Pod, evidence.StatefulSet),
 ) error {
-	read, values := related.Pods.Collection, related.Pods.Observations
-	if read.Scope.Group != "" || read.Scope.Version != "v1" || read.Scope.Resource != "pods" ||
-		values == nil && read.Outcome == evidence.CollectionComplete {
-		return ErrInvalidAssessment
+	const path = "related.pods"
+	read := related.Pods.Collection
+	values := related.Pods.Observations
+	if read.Scope.Group != "" || read.Scope.Version != "v1" || read.Scope.Resource != "pods" {
+		return invalidAssessment(path+".collection.scope", nil)
 	}
-	if err := maintenanceScope(cluster, read, len(values), related.Verification, result); err != nil {
+	if values == nil && read.Outcome == evidence.CollectionComplete {
+		return invalidAssessment(path+".observations", nil)
+	}
+	if err := checkRelatedRead(path, cluster, read, len(values), related.Verification, result); err != nil {
 		return err
 	}
-	uids, names := map[string]bool{}, map[string]bool{}
-	for _, pod := range values {
-		if pod.Validate() != nil {
-			return ErrInvalidAssessment
+	uids := map[string]bool{}
+	names := map[string]bool{}
+	for index, pod := range values {
+		itemPath := observationPath(path, index)
+		if err := pod.Validate(); err != nil {
+			return invalidAssessment(itemPath, err)
 		}
 		ref := pod.Metadata.Reference
 		if uids[ref.Identity.UID] || names[ref.Identity.Name] {
-			return ErrInvalidAssessment
+			return invalidAssessment(itemPath+".metadata.reference.identity", nil)
 		}
-		uids[ref.Identity.UID], names[ref.Identity.Name] = true, true
-		if err := maintenanceReference(ref, read, policy, result); err != nil {
+		uids[ref.Identity.UID] = true
+		names[ref.Identity.Name] = true
+		if err := checkRelatedReference(itemPath+".metadata.reference", ref, read, policy, result); err != nil {
 			return err
 		}
-		if err := maintenancePod(pod, sets, trueValue(cluster.Maintenance.Enabled), result); err != nil {
+		if err := assessPod(itemPath, pod, sets, result, check); err != nil {
 			return err
 		}
 	}
 	for _, set := range sets {
-		if set.association.State == evidence.AssociationConfirmed && set.value.DesiredReplicas.State == evidence.ValueReported &&
-			set.pods != *set.value.DesiredReplicas.Value {
+		desired := set.value.DesiredReplicas
+		if set.association.State == evidence.AssociationConfirmed &&
+			desired.State == evidence.ValueReported &&
+			set.pods != *desired.Value {
 			result.add(AssessmentPending, ReasonWorkloadMissing)
 		}
 	}
 	return nil
 }
 
-func maintenancePod(pod evidence.Pod, sets map[string]*maintenanceSet, enabled bool, result *Assessment) error {
+// assessPod checks one Pod against the first related StatefulSet that controls it.
+// A Pod without such a controller must prove that another kind controls it.
+func assessPod(
+	path string,
+	pod evidence.Pod,
+	sets map[string]*relatedSet,
+	result *Assessment,
+	check func(evidence.Pod, evidence.StatefulSet),
+) error {
 	for _, owner := range pod.Metadata.Owners.Values {
-		if !owner.Controller || sets[owner.UID] == nil {
+		set := sets[owner.UID]
+		if !owner.Controller || set == nil {
 			continue
 		}
-		set := sets[owner.UID]
 		association, err := evidence.AssociatePod(pod, set.value, set.association)
 		if err != nil {
-			return ErrInvalidAssessment
+			return invalidAssessment(path, err)
 		}
 		switch association.State {
 		case evidence.AssociationConfirmed:
-			maintenanceAnnotation(pod.Metadata, enabled, result)
-			if maintenancePodTopology(pod, set.value, result) && pod.Metadata.DeletionTimestamp.State == evidence.ValueUnknown {
+			counted := maintenancePodTopology(pod, set.value, result)
+			if counted && pod.Metadata.DeletionTimestamp.State == evidence.ValueUnknown {
 				set.pods++
 			}
+			check(pod, set.value)
 		case evidence.AssociationForeign:
 		default:
 			result.add(AssessmentInsufficient, ReasonAssociation)
@@ -489,7 +707,7 @@ func maintenancePod(pod evidence.Pod, sets map[string]*maintenanceSet, enabled b
 	}
 	excluded, err := evidence.PodHasNonStatefulSetController(pod)
 	if err != nil {
-		return ErrInvalidAssessment
+		return invalidAssessment(path, err)
 	}
 	if !excluded {
 		result.add(AssessmentInsufficient, ReasonAssociation)

@@ -10,11 +10,16 @@ import (
 )
 
 var (
-	ErrUnknownRule      = errors.New("unknown rule")
-	ErrUnavailableRule  = errors.New("rule is not implemented")
+	// ErrUnknownRule reports a policy rule that is not a defined RuleID.
+	ErrUnknownRule = errors.New("unknown rule")
+	// ErrUnavailableRule reports a policy rule that is defined but not supported.
+	ErrUnavailableRule = errors.New("rule is not implemented")
+	// ErrDuplicateSubject reports two cluster inputs with the same subject.
 	ErrDuplicateSubject = errors.New("duplicate subject")
-	ErrInvalidCapture   = errors.New("invalid normalized capture")
-	ErrInvalidPolicy    = errors.New("invalid evaluation policy")
+	// ErrInvalidCapture reports a capture that fails validation.
+	ErrInvalidCapture = errors.New("invalid normalized capture")
+	// ErrInvalidPolicy reports a policy that fails validation.
+	ErrInvalidPolicy = errors.New("invalid evaluation policy")
 )
 
 // SupportedRules describes executable rules, separately from the canonical ID inventory.
@@ -63,40 +68,70 @@ type Capture struct {
 	Clusters []ClusterInput `json:"clusters"`
 }
 
+// Policy selects rules and supplies the reference time and bounds of an analysis.
+// Analyze reads no clock; ReferenceTime is the only time it compares against.
 type Policy struct {
-	Rules                    []RuleID      `json:"rules"`
-	ReportHistoricalRestores bool          `json:"reportHistoricalRestores"`
-	ReferenceTime            time.Time     `json:"referenceTime"`
-	MaxBackupAge             time.Duration `json:"maxBackupAge"`
-	StartupGrace             time.Duration `json:"startupGrace"`
-	MaxEvidenceAge           time.Duration `json:"maxEvidenceAge"`
-	MaxSubjects              int           `json:"maxSubjects"`
+	// Rules selects the supported rules to evaluate. Each rule appears at most once.
+	Rules []RuleID `json:"rules"`
+	// ReportHistoricalRestores reports recorded restore outcomes that require
+	// investigation when no matching restore hold binds them.
+	ReportHistoricalRestores bool `json:"reportHistoricalRestores"`
+	// ReferenceTime is the instant against which ages and freshness are measured.
+	ReferenceTime time.Time `json:"referenceTime"`
+	// MaxBackupAge is the largest accepted age of the last successful backup.
+	MaxBackupAge time.Duration `json:"maxBackupAge"`
+	// StartupGrace delays readiness findings after cluster creation.
+	StartupGrace time.Duration `json:"startupGrace"`
+	// MaxEvidenceAge is the largest accepted age of an observation's read.
+	MaxEvidenceAge time.Duration `json:"maxEvidenceAge"`
+	// MaxSubjects bounds the clusters and related observations in one capture.
+	MaxSubjects int `json:"maxSubjects"`
 }
 
+// DefaultPolicy selects every supported rule at the given reference time. It allows
+// backups up to 24 hours old, a one-minute startup grace, evidence up to five
+// minutes old, and 5000 subjects, and it reports historical restores.
 func DefaultPolicy(reference time.Time) Policy {
 	return Policy{
-		Rules:         SupportedRules(),
-		ReferenceTime: reference.UTC(), MaxBackupAge: 24 * time.Hour, StartupGrace: time.Minute,
-		MaxEvidenceAge: 5 * time.Minute, MaxSubjects: 5000,
+		Rules:                    SupportedRules(),
 		ReportHistoricalRestores: true,
+		ReferenceTime:            reference.UTC(),
+		MaxBackupAge:             24 * time.Hour,
+		StartupGrace:             time.Minute,
+		MaxEvidenceAge:           5 * time.Minute,
+		MaxSubjects:              5000,
 	}
 }
 
 func (p Policy) validate() error {
-	if p.ReferenceTime.IsZero() || p.ReferenceTime.Year() < 1 || p.ReferenceTime.Year() > 9999 ||
-		p.MaxBackupAge <= 0 || p.StartupGrace < 0 || p.MaxEvidenceAge <= 0 || p.MaxSubjects <= 0 {
-		return ErrInvalidPolicy
+	if p.ReferenceTime.IsZero() || p.ReferenceTime.Year() < 1 || p.ReferenceTime.Year() > 9999 {
+		return evidence.At("referenceTime", ErrInvalidPolicy)
 	}
-	seen := map[RuleID]bool{}
-	for _, rule := range p.Rules {
-		if !rule.Valid() {
-			return ErrUnknownRule
+	for _, field := range []struct {
+		name  string
+		valid bool
+	}{
+		{"maxBackupAge", p.MaxBackupAge > 0},
+		{"startupGrace", p.StartupGrace >= 0},
+		{"maxEvidenceAge", p.MaxEvidenceAge > 0},
+		{"maxSubjects", p.MaxSubjects > 0},
+	} {
+		if !field.valid {
+			return evidence.At(field.name, ErrInvalidPolicy)
 		}
-		if !slices.Contains(SupportedRules(), rule) {
-			return ErrUnavailableRule
+	}
+	supported := SupportedRules()
+	seen := map[RuleID]bool{}
+	for i, rule := range p.Rules {
+		path := indexPath("rules", i)
+		if !rule.Valid() {
+			return evidence.At(path, ErrUnknownRule)
+		}
+		if !slices.Contains(supported, rule) {
+			return evidence.At(path, ErrUnavailableRule)
 		}
 		if seen[rule] {
-			return ErrInvalidPolicy
+			return evidence.At(path, ErrInvalidPolicy)
 		}
 		seen[rule] = true
 	}
@@ -134,9 +169,20 @@ func (c ClusterInput) validate(p Policy) error {
 
 func (c ClusterInput) validateScope() error {
 	scope := c.Collection.Scope
-	if (c.Subject.Group != "openbao.org" && c.Subject.Group != "kubebao.org") || scope.Version != "v1alpha1" ||
-		scope.Origin != c.Subject.Origin || scope.Group != c.Subject.Group || scope.Resource != "openbaoclusters" {
-		return invalidCapture("collection.scope", nil)
+	if c.Subject.Group != "openbao.org" && c.Subject.Group != "kubebao.org" {
+		return invalidCapture("subject.group", nil)
+	}
+	if scope.Origin != c.Subject.Origin {
+		return invalidCapture("collection.scope.origin", nil)
+	}
+	if scope.Group != c.Subject.Group {
+		return invalidCapture("collection.scope.group", nil)
+	}
+	if scope.Version != "v1alpha1" {
+		return invalidCapture("collection.scope.version", nil)
+	}
+	if scope.Resource != "openbaoclusters" {
+		return invalidCapture("collection.scope.resource", nil)
 	}
 	if scope.Action != evidence.ReadGet && scope.Action != evidence.ReadList {
 		return invalidCapture("collection.scope.action", nil)
@@ -204,5 +250,11 @@ func (c ClusterInput) validateVerification(p Policy) error {
 }
 
 func equalInteger(a, b evidence.Integer) bool {
-	return a.State == b.State && (a.Value == nil && b.Value == nil || a.Value != nil && b.Value != nil && *a.Value == *b.Value)
+	if a.State != b.State {
+		return false
+	}
+	if a.Value == nil || b.Value == nil {
+		return a.Value == nil && b.Value == nil
+	}
+	return *a.Value == *b.Value
 }

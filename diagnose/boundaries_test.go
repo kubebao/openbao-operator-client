@@ -63,8 +63,7 @@ func TestCurrentFindingsRequireFreshEvidenceAndMatchingVerification(t *testing.T
 		t.Fatal("changed target became current findings")
 	}
 	v = verification(t, i)
-	version := "different"
-	v.Before.ResourceVersion = evidence.Text{State: evidence.ValueReported, Value: &version}
+	v.Before.ResourceVersion = evidence.Text{State: evidence.ValueReported, Value: new("different")}
 	if _, err := diagnose.Analyze(capture(i), p); !errors.Is(err, diagnose.ErrInvalidCapture) {
 		t.Fatal("verification from another read was borrowed")
 	}
@@ -82,7 +81,7 @@ func TestFindingIdentityAndReferencesRemainIndependent(t *testing.T) {
 		t.Fatal(err)
 	}
 	changed := finding
-	changed.Severity, changed.Summary = diagnose.Info, "Different library-authored text"
+	changed.Severity, changed.Summary = diagnose.SeverityInfo, "Different library-authored text"
 	again, err := changed.Key()
 	if err != nil || key != again {
 		t.Fatal("presentation changed finding identity")
@@ -132,10 +131,10 @@ func TestCoverageDistinguishesDiscoveryGetAndListAbsence(t *testing.T) {
 			read.Scope.Name = ""
 		}
 		got := diagnose.ResolveCoverage(diagnose.CoverageInput{
-			Selected: true, Requested: true, Applicability: diagnose.Applies,
+			Selected: true, Requested: true, Applicability: diagnose.ApplicabilityApplies,
 			Collection: read, EvidenceValid: true,
 		})
-		if got.State != diagnose.Evaluated || got.AbsenceConfirmed != (action == evidence.ReadList) {
+		if got.State != diagnose.CoverageEvaluated || got.AbsenceConfirmed != (action == evidence.ReadList) {
 			t.Fatal("non-list scope proved absence")
 		}
 	}

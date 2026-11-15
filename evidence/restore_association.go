@@ -4,8 +4,11 @@ package evidence
 // A hold's operation ID and request age never prove target ownership. All supplied
 // identity fields are checked before choosing a confirmation basis.
 func AssociateRestore(target Cluster, request Restore) (Association, error) {
-	if target.Validate() != nil || request.Validate() != nil {
-		return Association{}, ErrInvalidEvidence
+	if err := target.Validate(); err != nil {
+		return Association{}, At("target", err)
+	}
+	if err := request.Validate(); err != nil {
+		return Association{}, At("request", err)
 	}
 	owner, subject := target.Reference.Identity, request.Reference.Identity
 	result := Association{Subject: subject, Target: owner, State: AssociationUnconfirmed}
@@ -31,7 +34,9 @@ func AssociateRestore(target Cluster, request Restore) (Association, error) {
 	execution := textValue(request.Execution.TargetUID)
 	origin := textValue(target.RestoreOrigin)
 	matched := bound == owner.UID || execution == owner.UID || origin == subject.UID
-	conflict := name != "" && name != owner.Name || bound != "" && bound != owner.UID || execution != "" && execution != owner.UID
+	conflict := name != "" && name != owner.Name ||
+		bound != "" && bound != owner.UID ||
+		execution != "" && execution != owner.UID
 	if conflict {
 		result.State = AssociationForeign
 		if matched {

@@ -109,8 +109,10 @@ func TestPrepareRejectsUnsafeEvidence(t *testing.T) {
 		{"missing-version", func(c *evidence.Cluster) { c.Reference.ResourceVersion = evidence.Text{State: evidence.ValueUnknown} }},
 		{"missing-generation", func(c *evidence.Cluster) { c.Generation = evidence.Integer{State: evidence.ValueUnknown} }},
 		{"deleting", func(c *evidence.Cluster) {
-			at := c.Reference.CollectedAt.Value.Add(time.Hour)
-			c.DeletionTimestamp = evidence.Timestamp{State: evidence.ValueReported, Value: &at}
+			c.DeletionTimestamp = evidence.Timestamp{
+				State: evidence.ValueReported,
+				Value: new(c.Reference.CollectedAt.Value.Add(time.Hour)),
+			}
 		}},
 		{"invalid-deletion", func(c *evidence.Cluster) { c.DeletionTimestamp = evidence.Timestamp{State: evidence.ValueInvalid} }},
 		{"missing-deletion-state", func(c *evidence.Cluster) { c.DeletionTimestamp = evidence.Timestamp{} }},

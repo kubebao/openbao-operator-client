@@ -20,37 +20,37 @@ func TestBackupPrecedenceRequiresObservedFields(t *testing.T) {
 		want   diagnose.RuleID
 		state  diagnose.CoverageState
 	}{
-		{"overdue", func(_ *evidence.Backup) {}, diagnose.RuleBackupAge, diagnose.Evaluated},
+		{"overdue", func(_ *evidence.Backup) {}, diagnose.RuleBackupAge, diagnose.CoverageEvaluated},
 		{
 			"failure-before-age", func(b *evidence.Backup) { b.ConsecutiveFailures = integer(2) },
-			diagnose.RuleBackupFailed, diagnose.Evaluated,
+			diagnose.RuleBackupFailed, diagnose.CoverageEvaluated,
 		},
 		{"failure-before-missing-success", func(b *evidence.Backup) {
 			b.ConsecutiveFailures = integer(1)
 			b.LastSuccessAt = evidence.Timestamp{State: evidence.ValueUnknown}
-		}, diagnose.RuleBackupFailed, diagnose.Evaluated},
+		}, diagnose.RuleBackupFailed, diagnose.CoverageEvaluated},
 		{"no-recorded-success", func(b *evidence.Backup) {
 			b.LastSuccessAt = evidence.Timestamp{State: evidence.ValueUnknown}
-		}, diagnose.RuleBackupAbsent, diagnose.Evaluated},
+		}, diagnose.RuleBackupAbsent, diagnose.CoverageEvaluated},
 		{"missing-count", func(b *evidence.Backup) {
 			b.ConsecutiveFailures = evidence.Integer{State: evidence.ValueUnknown}
-		}, "", diagnose.Insufficient},
+		}, "", diagnose.CoverageInsufficient},
 		{"invalid-count", func(b *evidence.Backup) {
 			b.ConsecutiveFailures = evidence.Integer{State: evidence.ValueInvalid}
-		}, "", diagnose.Insufficient},
+		}, "", diagnose.CoverageInsufficient},
 		{"missing-count-and-success", func(b *evidence.Backup) {
 			b.ConsecutiveFailures = evidence.Integer{State: evidence.ValueUnknown}
 			b.LastSuccessAt = evidence.Timestamp{State: evidence.ValueUnknown}
-		}, "", diagnose.Insufficient},
-		{"unconfigured", func(b *evidence.Backup) { b.Configuration = evidence.ObjectAbsent }, "", diagnose.NotApplicable},
-		{"unknown-configuration", func(b *evidence.Backup) { b.Configuration = evidence.ObjectUnknown }, "", diagnose.Insufficient},
-		{"null-configuration", func(b *evidence.Backup) { b.Configuration = evidence.ObjectNull }, "", diagnose.Insufficient},
+		}, "", diagnose.CoverageInsufficient},
+		{"unconfigured", func(b *evidence.Backup) { b.Configuration = evidence.ObjectAbsent }, "", diagnose.CoverageNotApplicable},
+		{"unknown-configuration", func(b *evidence.Backup) { b.Configuration = evidence.ObjectUnknown }, "", diagnose.CoverageInsufficient},
+		{"null-configuration", func(b *evidence.Backup) { b.Configuration = evidence.ObjectNull }, "", diagnose.CoverageInsufficient},
 		{"unreported-status", func(b *evidence.Backup) {
 			b.State = evidence.ObjectAbsent
 			b.LastSuccessAt = evidence.Timestamp{State: evidence.ValueUnknown}
 			b.ConsecutiveFailures = evidence.Integer{State: evidence.ValueUnknown}
 			b.RestoreTest.State = evidence.ObjectUnknown
-		}, "", diagnose.Insufficient},
+		}, "", diagnose.CoverageInsufficient},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			i := input(t)
@@ -65,7 +65,8 @@ func TestBackupPrecedenceRequiresObservedFields(t *testing.T) {
 				if len(report.Findings) != 0 {
 					t.Fatal("unknown or invalid evidence became a backup finding")
 				}
-			} else if len(report.Findings) != 1 || report.Findings[0].Rule != tc.want || report.Findings[0].Severity != diagnose.Warning {
+			} else if len(report.Findings) != 1 || report.Findings[0].Rule != tc.want ||
+				report.Findings[0].Severity != diagnose.SeverityWarning {
 				t.Fatal("backup precedence or severity changed")
 			}
 			for _, rule := range []diagnose.RuleID{diagnose.RuleBackupFailed, diagnose.RuleBackupAbsent, diagnose.RuleBackupAge} {
@@ -87,7 +88,7 @@ func TestBackupFailureTimeAndRuleSelectionRemainSeparate(t *testing.T) {
 	i.Observation.Backup.ConsecutiveFailures = integer(1)
 	i.Observation.Backup.LastFailureAt = timestamp(policy(t).ReferenceTime.Add(time.Second))
 	report, coverage := runRule(t, i, diagnose.RuleBackupFailed)
-	if coverage.State != diagnose.Insufficient || coverage.Reason != diagnose.ReasonTime || len(report.Findings) != 1 {
+	if coverage.State != diagnose.CoverageInsufficient || coverage.Reason != diagnose.ReasonTime || len(report.Findings) != 1 {
 		t.Fatal("inconsistent failure time erased the independently reported counter")
 	}
 	for _, rule := range []diagnose.RuleID{diagnose.RuleBackupAbsent, diagnose.RuleBackupAge} {
@@ -100,12 +101,12 @@ func TestBackupFailureTimeAndRuleSelectionRemainSeparate(t *testing.T) {
 	i.Observation.Backup.LastSuccessAt = timestamp(policy(t).ReferenceTime.Add(time.Second))
 	for _, rule := range []diagnose.RuleID{diagnose.RuleBackupAbsent, diagnose.RuleBackupAge} {
 		report, coverage = runRule(t, i, rule)
-		if len(report.Findings) != 0 || coverage.State != diagnose.Insufficient || coverage.Reason != diagnose.ReasonTime {
+		if len(report.Findings) != 0 || coverage.State != diagnose.CoverageInsufficient || coverage.Reason != diagnose.ReasonTime {
 			t.Fatal("future success became missing or overdue")
 		}
 		i.Observation.Backup.LastSuccessAt = evidence.Timestamp{State: evidence.ValueInvalid}
 		report, coverage = runRule(t, i, rule)
-		if len(report.Findings) != 0 || coverage.State != diagnose.Insufficient {
+		if len(report.Findings) != 0 || coverage.State != diagnose.CoverageInsufficient {
 			t.Fatal("invalid success became missing or overdue")
 		}
 		i.Observation.Backup.LastSuccessAt = timestamp(policy(t).ReferenceTime.Add(time.Second))
@@ -130,26 +131,26 @@ func TestUpgradeFailurePreservesRecordedFacts(t *testing.T) {
 		state    diagnose.CoverageState
 		findings int
 	}{
-		{"recorded-without-time", func(_ *evidence.Upgrade) {}, diagnose.Evaluated, 1},
+		{"recorded-without-time", func(_ *evidence.Upgrade) {}, diagnose.CoverageEvaluated, 1},
 		{
 			"missing-reason", func(u *evidence.Upgrade) { u.Failure.Reason = evidence.Text{State: evidence.ValueUnknown} },
-			diagnose.Insufficient, 0,
+			diagnose.CoverageInsufficient, 0,
 		},
 		{
 			"invalid-reason", func(u *evidence.Upgrade) { u.Failure.Reason = evidence.Text{State: evidence.ValueInvalid} },
-			diagnose.Insufficient, 0,
+			diagnose.CoverageInsufficient, 0,
 		},
 		{
 			"future-time", func(u *evidence.Upgrade) { u.Failure.At = timestamp(policy(t).ReferenceTime.Add(time.Second)) },
-			diagnose.Insufficient, 1,
+			diagnose.CoverageInsufficient, 1,
 		},
 		{
 			"invalid-time", func(u *evidence.Upgrade) { u.Failure.At = evidence.Timestamp{State: evidence.ValueInvalid} },
-			diagnose.Insufficient, 1,
+			diagnose.CoverageInsufficient, 1,
 		},
 		{"no-failure-record", func(u *evidence.Upgrade) {
 			u.Failure.State, u.Failure.Reason = evidence.ObjectAbsent, evidence.Text{State: evidence.ValueUnknown}
-		}, diagnose.Evaluated, 0},
+		}, diagnose.CoverageEvaluated, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			i := upgrade(t)
@@ -158,7 +159,7 @@ func TestUpgradeFailurePreservesRecordedFacts(t *testing.T) {
 			if coverage.State != tc.state || len(report.Findings) != tc.findings {
 				t.Fatal("recorded upgrade failure or coverage changed")
 			}
-			if len(report.Findings) > 0 && report.Findings[0].Severity != diagnose.Warning {
+			if len(report.Findings) > 0 && report.Findings[0].Severity != diagnose.SeverityWarning {
 				t.Fatal("upgrade failure severity changed")
 			}
 		})
@@ -168,7 +169,7 @@ func TestUpgradeFailurePreservesRecordedFacts(t *testing.T) {
 	i.Observation.BlueGreen.JobFailureCount = integer(3)
 	i.Observation.BlueGreen.Phase = text("RollingBack")
 	report, coverage := runRule(t, i, diagnose.RuleUpgrade)
-	if len(report.Findings) != 0 || coverage.State != diagnose.Evaluated {
+	if len(report.Findings) != 0 || coverage.State != diagnose.CoverageEvaluated {
 		t.Fatal("blue/green observations became a rolling-upgrade failure")
 	}
 }
@@ -194,50 +195,50 @@ func TestRestoreTestSeparatesActiveLastAndCondition(t *testing.T) {
 		state    diagnose.CoverageState
 		findings int
 	}{
-		{"failed-result", func(_ *evidence.RestoreTest) {}, diagnose.Evaluated, 1},
+		{"failed-result", func(_ *evidence.RestoreTest) {}, diagnose.CoverageEvaluated, 1},
 		{"passed-result", func(r *evidence.RestoreTest) {
 			r.LastOutcome = text("Passed")
 			r.Conditions.Values[0].Status = evidence.ConditionTrue
-		}, diagnose.Evaluated, 0},
+		}, diagnose.CoverageEvaluated, 0},
 		{"active-suppresses-old-result", func(r *evidence.RestoreTest) {
 			r.Active = evidence.ObjectReported
 			r.Conditions.Values[0].Status = evidence.ConditionUnknown
 			r.Conditions.Values[0].Reason = text("Running")
-		}, diagnose.Insufficient, 0},
+		}, diagnose.CoverageInsufficient, 0},
 		{"blocked-before-active", func(r *evidence.RestoreTest) {
 			r.Active = evidence.ObjectReported
 			r.Conditions.Values[0].Reason = text("BLOCK_REASON_CANARY")
-		}, diagnose.Evaluated, 1},
-		{"unknown-active", func(r *evidence.RestoreTest) { r.Active = evidence.ObjectUnknown }, diagnose.Insufficient, 0},
-		{"invalid-active", func(r *evidence.RestoreTest) { r.Active = evidence.ObjectInvalid }, diagnose.Insufficient, 0},
+		}, diagnose.CoverageEvaluated, 1},
+		{"unknown-active", func(r *evidence.RestoreTest) { r.Active = evidence.ObjectUnknown }, diagnose.CoverageInsufficient, 0},
+		{"invalid-active", func(r *evidence.RestoreTest) { r.Active = evidence.ObjectInvalid }, diagnose.CoverageInsufficient, 0},
 		{"missing-condition-keeps-recorded-failure", func(r *evidence.RestoreTest) {
 			r.Conditions = evidence.Conditions{State: evidence.ValueUnknown}
-		}, diagnose.Insufficient, 1},
+		}, diagnose.CoverageInsufficient, 1},
 		{"stale-condition-keeps-recorded-failure", func(r *evidence.RestoreTest) {
 			r.Conditions.Values[0].ObservedGeneration = integer(3)
 			r.Conditions.Values[0].Reason = text("BLOCK_REASON_CANARY")
-		}, diagnose.Insufficient, 1},
+		}, diagnose.CoverageInsufficient, 1},
 		{"missing-result-time", func(r *evidence.RestoreTest) {
 			r.FinishedAt = evidence.Timestamp{State: evidence.ValueUnknown}
-		}, diagnose.Insufficient, 1},
+		}, diagnose.CoverageInsufficient, 1},
 		{"future-result-time", func(r *evidence.RestoreTest) {
 			r.FinishedAt = timestamp(policy(t).ReferenceTime.Add(time.Second))
-		}, diagnose.Insufficient, 1},
+		}, diagnose.CoverageInsufficient, 1},
 		{"invalid-result-time", func(r *evidence.RestoreTest) {
 			r.FinishedAt = evidence.Timestamp{State: evidence.ValueInvalid}
-		}, diagnose.Insufficient, 1},
+		}, diagnose.CoverageInsufficient, 1},
 		{"blocked-future-transition", func(r *evidence.RestoreTest) {
 			r.Conditions.Values[0].Reason = text("Blocked")
 			r.Conditions.Values[0].LastTransitionAt = timestamp(policy(t).ReferenceTime.Add(time.Second))
-		}, diagnose.Insufficient, 1},
+		}, diagnose.CoverageInsufficient, 1},
 		{"missing-block-reason-keeps-result", func(r *evidence.RestoreTest) {
 			r.Conditions.Values[0].Reason = evidence.Text{State: evidence.ValueUnknown}
-		}, diagnose.Insufficient, 1},
+		}, diagnose.CoverageInsufficient, 1},
 		{
 			"invalid-outcome", func(r *evidence.RestoreTest) { r.LastOutcome = evidence.Text{State: evidence.ValueInvalid} },
-			diagnose.Insufficient, 0,
+			diagnose.CoverageInsufficient, 0,
 		},
-		{"unknown-enum", func(r *evidence.RestoreTest) { r.LastOutcome = text("FutureOutcome") }, diagnose.Insufficient, 0},
+		{"unknown-enum", func(r *evidence.RestoreTest) { r.LastOutcome = text("FutureOutcome") }, diagnose.CoverageInsufficient, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			i := restoreTestInput(t)
@@ -246,7 +247,7 @@ func TestRestoreTestSeparatesActiveLastAndCondition(t *testing.T) {
 			if coverage.State != tc.state || len(report.Findings) != tc.findings {
 				t.Fatal("restore-test precedence or evidence coverage changed")
 			}
-			if len(report.Findings) > 0 && report.Findings[0].Severity != diagnose.Warning {
+			if len(report.Findings) > 0 && report.Findings[0].Severity != diagnose.SeverityWarning {
 				t.Fatal("restore-test severity changed")
 			}
 		})
@@ -261,7 +262,7 @@ func TestRestoreTestConditionRequiresOwnCurrentGeneration(t *testing.T) {
 		check := &i.Observation.Backup.RestoreTest.Conditions.Values[0]
 		check.Reason, check.ObservedGeneration = text("Blocked"), integer(ack)
 		report, coverage := runRule(t, i, diagnose.RuleRestoreTest)
-		if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 {
+		if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 {
 			t.Fatal("noncurrent restore-test condition became a finding")
 		}
 	}
@@ -269,7 +270,7 @@ func TestRestoreTestConditionRequiresOwnCurrentGeneration(t *testing.T) {
 	i.Observation.ObservedGeneration = integer(3)
 	i.Observation.Backup.RestoreTest.Conditions.Values[0].Reason = text("Blocked")
 	report, coverage := runRule(t, i, diagnose.RuleRestoreTest)
-	if coverage.State != diagnose.Evaluated || len(report.Findings) != 1 {
+	if coverage.State != diagnose.CoverageEvaluated || len(report.Findings) != 1 {
 		t.Fatal("resource acknowledgement replaced the restore-test condition acknowledgement")
 	}
 }
@@ -324,13 +325,13 @@ func TestOperationalFindingsRespectCollectionBoundaries(t *testing.T) {
 			}
 			i.Collection.Outcome = evidence.CollectionPartial
 			report, coverage := runRule(t, i, rule)
-			if coverage.State != diagnose.Insufficient || len(report.Findings) != 1 {
+			if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 1 {
 				t.Fatal("partial collection erased independent operational facts")
 			}
 			for _, outcome := range []evidence.CollectionOutcome{evidence.CollectionDeleted, evidence.CollectionReplaced} {
 				i.Collection.Outcome = outcome
 				report, coverage = runRule(t, i, rule)
-				if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 {
+				if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 {
 					t.Fatal("operational finding crossed deletion or replacement")
 				}
 			}
@@ -349,9 +350,8 @@ func TestOperationalFindingsRespectCollectionBoundaries(t *testing.T) {
 func TestImpliedZeroFailureCountCompletesBackupRules(t *testing.T) {
 	t.Parallel()
 	i := input(t)
-	zero := int64(0)
 	backup := &i.Observation.Backup
-	backup.ConsecutiveFailures = evidence.Integer{State: evidence.ValueImplied, Value: &zero}
+	backup.ConsecutiveFailures = evidence.Integer{State: evidence.ValueImplied, Value: new(int64(0))}
 	backup.LastAttemptAt = backup.LastSuccessAt
 	if i.Observation.Validate() != nil {
 		t.Fatal("a corroborated implied zero failure count is invalid")
@@ -363,7 +363,7 @@ func TestImpliedZeroFailureCountCompletesBackupRules(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, c := range report.Coverage {
-		if slices.Contains(p.Rules, c.Rule) && c.State != diagnose.Evaluated {
+		if slices.Contains(p.Rules, c.Rule) && c.State != diagnose.CoverageEvaluated {
 			t.Fatalf("%s coverage = %s, want evaluated", c.Rule, c.State)
 		}
 	}

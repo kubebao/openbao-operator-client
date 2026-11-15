@@ -14,15 +14,20 @@ type Identity struct {
 	UID       string `json:"uid"`
 }
 
+// Validate checks that every identity field except the group is approved text.
 func (id Identity) Validate() error {
 	for _, field := range []struct{ name, value string }{
-		{"origin", id.Origin}, {"kind", id.Kind}, {"namespace", id.Namespace}, {"name", id.Name}, {"uid", id.UID},
+		{"origin", id.Origin},
+		{"kind", id.Kind},
+		{"namespace", id.Namespace},
+		{"name", id.Name},
+		{"uid", id.UID},
 	} {
-		if !validText(field.value, 253, false) {
+		if !ValidText(field.value, MaxNameLength) {
 			return At(field.name, ErrInvalidEvidence)
 		}
 	}
-	if !validText(id.Group, 253, true) {
+	if !validOptionalText(id.Group, MaxNameLength) {
 		return At("group", ErrInvalidEvidence)
 	}
 	return nil
@@ -38,18 +43,23 @@ type Reference struct {
 	Field           string    `json:"field,omitempty"`
 }
 
+// Validate checks the identity, a reported collection time, and an API version
+// whose group matches the identity.
 func (r Reference) Validate() error {
-	if err := checkFields(fieldCheck{"identity", r.Identity.Validate()}, fieldCheck{"resourceVersion", r.ResourceVersion.Validate()},
-		fieldCheck{"collectedAt", r.CollectedAt.Validate()}); err != nil {
+	if err := checkFields(
+		fieldCheck{"identity", r.Identity.Validate()},
+		fieldCheck{"resourceVersion", r.ResourceVersion.Validate()},
+		fieldCheck{"collectedAt", r.CollectedAt.Validate()},
+	); err != nil {
 		return err
 	}
-	if !validText(r.APIVersion, 253, false) {
+	if !ValidText(r.APIVersion, MaxNameLength) {
 		return At("apiVersion", ErrInvalidEvidence)
 	}
 	if r.CollectedAt.State != ValueReported {
 		return At("collectedAt", ErrInvalidEvidence)
 	}
-	if !validText(r.Field, 512, true) {
+	if !validOptionalText(r.Field, maxFieldLength) {
 		return At("field", ErrInvalidEvidence)
 	}
 	group, version, qualified := strings.Cut(r.APIVersion, "/")

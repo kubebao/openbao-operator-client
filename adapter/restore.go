@@ -2,6 +2,9 @@ package adapter
 
 import "github.com/kubebao/openbao-operator-client/evidence"
 
+// maxCleanupAfterSeconds bounds a restore's requested cleanup delay to one day.
+const maxCleanupAfterSeconds = 24 * 60 * 60
+
 // ProjectRestore projects reported OpenBaoRestore facts without interpreting request
 // age, proving ownership, or inferring submission/application/restart success.
 // The selected contracts do not define an OpenBaoRecovery API.
@@ -15,15 +18,10 @@ func ProjectRestore(raw []byte, options ProjectionOptions) (evidence.Restore, er
 	_, claimState := objectAt(object, "status", "submissionClaim")
 	restart, restartState := objectAt(object, "status", "restart")
 	result := evidence.Restore{
-		Reference:  ref,
-		Generation: integer(object, "metadata", "generation"),
-		CreatedAt:  timestamp(object, "metadata", "creationTimestamp"),
-		TargetName: text(
-			object,
-			true,
-			"spec",
-			"cluster",
-		),
+		Reference:           ref,
+		Generation:          integer(object, "metadata", "generation"),
+		CreatedAt:           timestamp(object, "metadata", "creationTimestamp"),
+		TargetName:          text(object, true, "spec", "cluster"),
 		TargetLifecycle:     enumText(object, []string{"Retain", "Disposable"}, "spec", "targetLifecycle"),
 		CleanupAfterSeconds: restoreCleanupSeconds(object),
 		Phase: enumText(
@@ -36,8 +34,10 @@ func ProjectRestore(raw []byte, options ProjectionOptions) (evidence.Restore, er
 		CompletedAt:              timestamp(object, "status", "completionTime"),
 		AdministratorDisposition: enumText(object, []string{"Resume", "Abandon"}, "status", "administratorDisposition"),
 		Target: evidence.RestoreTarget{
-			State: targetState, UID: text(target, true, "uid"), AppliedAt: timestamp(target, "appliedAt"),
-			Cleanup: enumText(target, []string{"Pending", "Complete", "Failed"}, "cleanup"),
+			State:     targetState,
+			UID:       text(target, true, "uid"),
+			AppliedAt: timestamp(target, "appliedAt"),
+			Cleanup:   enumText(target, []string{"Pending", "Complete", "Failed"}, "cleanup"),
 		},
 		Execution: evidence.RestoreExecution{
 			State:       executionState,
@@ -60,14 +60,15 @@ func ProjectRestore(raw []byte, options ProjectionOptions) (evidence.Restore, er
 		result.Execution.TargetUID = evidence.Text{State: evidence.ValueUnknown}
 	}
 	if result.Validate() != nil {
-		return evidence.Restore{}, &ProjectionError{Code: InvalidInput}
+		return evidence.Restore{}, &ProjectionError{Code: CodeInvalidInput}
 	}
 	return result, nil
 }
 
+// restoreCleanupSeconds projects a cleanup delay of zero to one day.
 func restoreCleanupSeconds(object map[string]any) evidence.Integer {
 	result := integer(object, "spec", "cleanupAfterSeconds")
-	if result.Value != nil && (*result.Value < 0 || *result.Value > 86400) {
+	if result.Value != nil && (*result.Value < 0 || *result.Value > maxCleanupAfterSeconds) {
 		return evidence.Integer{State: evidence.ValueInvalid}
 	}
 	return result

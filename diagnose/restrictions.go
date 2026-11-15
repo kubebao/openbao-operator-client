@@ -19,20 +19,20 @@ func restriction(result *evaluation, cluster evidence.Cluster, value evidence.Bo
 }
 
 func restrictions(cluster evidence.Cluster) evaluation {
-	result := evaluation{state: Evaluated, reason: ReasonNone}
+	result := evaluation{state: CoverageEvaluated, reason: ReasonNone}
 	restriction(&result, cluster, cluster.Paused, "spec.paused",
-		"Reconciliation is requested paused; existing work can continue.", Info)
+		"Reconciliation is requested paused; existing work can continue.", SeverityInfo)
 	switch cluster.Maintenance.State {
 	case evidence.ObjectReported:
 		restriction(&result, cluster, cluster.Maintenance.Enabled, "spec.maintenance.enabled",
-			"Maintenance is requested; workload annotation propagation is not verified.", Info)
+			"Maintenance is requested; workload annotation propagation is not verified.", SeverityInfo)
 	case evidence.ObjectAbsent, evidence.ObjectNull:
 	case evidence.ObjectUnknown, evidence.ObjectInvalid:
 		result.insufficient(ReasonMissingField)
 	}
 	switch cluster.RestoreHold.State {
 	case evidence.ValueReported:
-		value := finding(cluster, RuleRestriction, Info, "A reported restore hold restricts ordinary management.",
+		value := finding(cluster, RuleRestriction, SeverityInfo, "A reported restore hold restricts ordinary management.",
 			"metadata.annotations[openbao.org/restore-hold]")
 		value.Subsubject = "metadata.annotations[openbao.org/restore-hold]"
 		result.add(value)
@@ -48,7 +48,7 @@ func restrictions(cluster evidence.Cluster) evaluation {
 			cluster.BreakGlass.Active,
 			"status.breakGlass.active",
 			"Break-glass restrictions are reported active.",
-			Warning,
+			SeverityWarning,
 		)
 	case evidence.ObjectAbsent, evidence.ObjectNull:
 	case evidence.ObjectUnknown, evidence.ObjectInvalid:
@@ -58,10 +58,11 @@ func restrictions(cluster evidence.Cluster) evaluation {
 }
 
 func controllerErrors(cluster evidence.Cluster) evaluation {
-	result := evaluation{state: Evaluated, reason: ReasonNone}
+	result := evaluation{state: CoverageEvaluated, reason: ReasonNone}
 	for _, entry := range []struct {
-		value         evidence.ControllerError
-		domain, field string
+		value  evidence.ControllerError
+		domain string
+		field  string
 	}{
 		{cluster.WorkloadError, "workload", "status.workload.lastError"},
 		{cluster.AdminOpsError, "adminOps", "status.adminOps.lastError"},
@@ -78,14 +79,13 @@ func controllerErrors(cluster evidence.Cluster) evaluation {
 			result.insufficient(ReasonMissingField)
 			continue
 		}
-		if entry.value.At.State == evidence.ValueInvalid ||
-			entry.value.At.State == evidence.ValueReported && entry.value.At.Value.After(*cluster.Reference.CollectedAt.Value) {
+		if inconsistentTime(entry.value.At, *cluster.Reference.CollectedAt.Value) {
 			result.insufficient(ReasonTime)
 		}
 		value := finding(
 			cluster,
 			RuleController,
-			Warning,
+			SeverityWarning,
 			"The operator records a controller error; this does not establish an active failure.",
 			entry.field,
 		)

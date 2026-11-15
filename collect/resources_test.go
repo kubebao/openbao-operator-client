@@ -22,10 +22,17 @@ import (
 func request() collect.Request {
 	return collect.Request{
 		Scope: evidence.Scope{
-			Origin: "origin-1", Group: "openbao.org", Version: "v1alpha1", Resource: "openbaoclusters",
-			Namespace: "team", Action: evidence.ReadList, Selector: "app.kubernetes.io/managed-by=openbao-operator",
+			Origin:    "origin-1",
+			Group:     "openbao.org",
+			Version:   "v1alpha1",
+			Resource:  "openbaoclusters",
+			Namespace: "team",
+			Action:    evidence.ReadList,
+			Selector:  "app.kubernetes.io/managed-by=openbao-operator",
 		},
-		Contract: adapter.OpenBaoV1Alpha1, Limits: collect.DefaultLimits(), Projection: adapter.DefaultProjectionLimits(),
+		Contract:   adapter.OpenBaoV1Alpha1,
+		Limits:     collect.DefaultLimits(),
+		Projection: adapter.DefaultProjectionLimits(),
 	}
 }
 
@@ -437,9 +444,16 @@ func TestApprovedResourcePathsAndExplicitAllNamespaces(t *testing.T) {
 func TestEndpointValidationDoesNotExposeCredentials(t *testing.T) {
 	t.Parallel()
 	for _, endpoint := range []string{
-		"https://user:SECRET_CANARY@example.test", "https://example.test?token=SECRET_CANARY",
-		"https://example.test#SECRET_CANARY", "file:///SECRET_CANARY", "https://example.test/../other",
+		"https://user:SECRET_CANARY@example.test",
+		"https://example.test?token=SECRET_CANARY",
+		"https://example.test#SECRET_CANARY",
+		"file:///SECRET_CANARY",
+		"https://example.test/../other",
 		"https://example.test/%2e%2e/other",
+		"https:SECRET_CANARY",
+		"https://:6443/SECRET_CANARY",
+		`https://example.test/SECRET_CANARY\other`,
+		"https://example.test/SECRET_CANARY%25",
 	} {
 		_, err := collect.NewClient(endpoint, http.DefaultTransport)
 		if !errors.Is(err, collect.ErrInvalidRequest) || strings.Contains(err.Error(), "CANARY") {

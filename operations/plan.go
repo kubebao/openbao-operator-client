@@ -10,12 +10,19 @@ import (
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
+// ErrInvalidPlan reports a plan that fails validation or cannot be prepared from the supplied evidence.
 var ErrInvalidPlan = errors.New("invalid cluster control plan")
 
+// maxNamespaceLength is the Kubernetes DNS label limit for namespaces.
+const maxNamespaceLength = 63
+
+// Control identifies the cluster field that a plan changes.
 type Control string
 
 const (
-	ControlPause       Control = "pause"
+	// ControlPause changes spec.paused.
+	ControlPause Control = "pause"
+	// ControlMaintenance changes spec.maintenance.enabled.
 	ControlMaintenance Control = "maintenance"
 )
 
@@ -43,18 +50,24 @@ func PrepareMaintenance(cluster evidence.Cluster, contract adapter.Contract, ena
 }
 
 func prepare(cluster evidence.Cluster, contract adapter.Contract, control Control, enabled bool) (Plan, error) {
-	if cluster.Validate() != nil || cluster.DeletionTimestamp.State != evidence.ValueUnknown {
-		return Plan{}, ErrInvalidPlan
+	if err := cluster.Validate(); err != nil {
+		return Plan{}, invalidPlan("cluster", err)
 	}
-	if control == ControlPause && cluster.Paused.State != evidence.ValueReported && cluster.Paused.State != evidence.ValueImplied {
-		return Plan{}, ErrInvalidPlan
+	if cluster.DeletionTimestamp.State != evidence.ValueUnknown {
+		return Plan{}, invalidPlan("cluster.deletionTimestamp", nil)
+	}
+	if control == ControlPause && !knownBoolean(cluster.Paused) {
+		return Plan{}, invalidPlan("cluster.paused", nil)
 	}
 	if control == ControlMaintenance && cluster.Maintenance.Enabled.State == evidence.ValueInvalid {
-		return Plan{}, ErrInvalidPlan
+		return Plan{}, invalidPlan("cluster.maintenance.enabled", nil)
 	}
 	plan := Plan{
-		Contract: contract, Target: copyReference(cluster.Reference),
-		Generation: copyInteger(cluster.Generation), Control: control, Enabled: enabled,
+		Contract:         contract,
+		Target:           copyReference(cluster.Reference),
+		Generation:       copyInteger(cluster.Generation),
+		Control:          control,
+		Enabled:          enabled,
 		MaintenanceState: evidence.ObjectUnknown,
 	}
 	if control == ControlMaintenance {
@@ -66,13 +79,23 @@ func prepare(cluster evidence.Cluster, contract adapter.Contract, control Contro
 	return plan, nil
 }
 
+// invalidPlan attributes ErrInvalidPlan, and an optional cause, to a field path.
+func invalidPlan(path string, cause error) error {
+	return evidence.At(path, errors.Join(ErrInvalidPlan, cause))
+}
+
+// knownBoolean reports whether value retains a reported or implied value.
+func knownBoolean(value evidence.Boolean) bool {
+	return value.State == evidence.ValueReported || value.State == evidence.ValueImplied
+}
+
 var dnsLabel = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
 
 func validResourceName(value string) bool {
-	if value == "" || len(value) > 253 {
+	if value == "" || len(value) > evidence.MaxNameLength {
 		return false
 	}
-	for _, label := range strings.Split(value, ".") {
+	for label := range strings.SplitSeq(value, ".") {
 		if !dnsLabel.MatchString(label) {
 			return false
 		}
@@ -83,42 +106,67 @@ func validResourceName(value string) bool {
 // Validate checks the fixed control surface and every optimistic-concurrency precondition.
 // A valid plan can still be rejected by RBAC, admission, or a concurrent resource change.
 func (p Plan) Validate() error {
-	if validateControlTarget(p.Contract, p.Target, p.Generation) != nil {
-		return ErrInvalidPlan
+	if err := validateControlTarget(p.Contract, p.Target, p.Generation); err != nil {
+		return err
 	}
 	switch p.Control {
 	case ControlPause:
 		if p.MaintenanceState != evidence.ObjectUnknown {
-			return ErrInvalidPlan
+			return invalidPlan("maintenanceState", nil)
 		}
 	case ControlMaintenance:
 		switch p.MaintenanceState {
 		case evidence.ObjectAbsent, evidence.ObjectNull, evidence.ObjectReported:
 		default:
-			return ErrInvalidPlan
+			return invalidPlan("maintenanceState", nil)
 		}
 	default:
-		return ErrInvalidPlan
+		return invalidPlan("control", nil)
 	}
 	return nil
 }
 
-func validateControlTarget(selected adapter.Contract, target evidence.Reference, generation evidence.Integer) error {
-	contract := selected
+// validateControlTarget checks a supported contract, an exact OpenBaoCluster
+// reference, a bounded reported resource version, and a positive generation.
+func validateControlTarget(contract adapter.Contract, target evidence.Reference, generation evidence.Integer) error {
+	if contract != adapter.OpenBaoV1Alpha1 && contract != adapter.KubeBaoV1Alpha1 {
+		return invalidPlan("contract", nil)
+	}
 	info, err := adapter.Describe(contract)
-	if err != nil || (contract != adapter.OpenBaoV1Alpha1 && contract != adapter.KubeBaoV1Alpha1) ||
-		target.Validate() != nil ||
-		target.Field != "" || target.Identity.Kind != "OpenBaoCluster" ||
-		target.Identity.Group != info.APIGroup || target.APIVersion != info.APIVersion {
-		return ErrInvalidPlan
+	if err != nil {
+		return invalidPlan("contract", nil)
+	}
+	if err := target.Validate(); err != nil {
+		return invalidPlan("target", err)
+	}
+	if target.Field != "" {
+		return invalidPlan("target.field", nil)
 	}
 	id := target.Identity
-	if len(id.Namespace) > 63 || !dnsLabel.MatchString(id.Namespace) || !validResourceName(id.Name) {
-		return ErrInvalidPlan
+	if id.Kind != "OpenBaoCluster" {
+		return invalidPlan("target.identity.kind", nil)
 	}
-	if target.ResourceVersion.State != evidence.ValueReported || len(*target.ResourceVersion.Value) > 253 ||
-		generation.Validate() != nil || generation.State != evidence.ValueReported || *generation.Value <= 0 {
-		return ErrInvalidPlan
+	if id.Group != info.APIGroup {
+		return invalidPlan("target.identity.group", nil)
+	}
+	if target.APIVersion != info.APIVersion {
+		return invalidPlan("target.apiVersion", nil)
+	}
+	if len(id.Namespace) > maxNamespaceLength || !dnsLabel.MatchString(id.Namespace) {
+		return invalidPlan("target.identity.namespace", nil)
+	}
+	if !validResourceName(id.Name) {
+		return invalidPlan("target.identity.name", nil)
+	}
+	version := target.ResourceVersion
+	if version.State != evidence.ValueReported || len(*version.Value) > evidence.MaxNameLength {
+		return invalidPlan("target.resourceVersion", nil)
+	}
+	if err := generation.Validate(); err != nil {
+		return invalidPlan("generation", err)
+	}
+	if generation.State != evidence.ValueReported || *generation.Value <= 0 {
+		return invalidPlan("generation", nil)
 	}
 	return nil
 }
@@ -139,7 +187,8 @@ func (p Plan) Patch() ([]byte, error) {
 	if p.Control == ControlMaintenance {
 		change.Path = "/spec/maintenance/enabled"
 		if p.MaintenanceState != evidence.ObjectReported {
-			change.Path, change.Value = "/spec/maintenance", map[string]bool{"enabled": p.Enabled}
+			change.Path = "/spec/maintenance"
+			change.Value = map[string]bool{"enabled": p.Enabled}
 		}
 	}
 	return marshalControlPatch(p.Target, p.Generation, change)
@@ -161,20 +210,17 @@ func marshalControlPatch(target evidence.Reference, generation evidence.Integer,
 
 func copyReference(value evidence.Reference) evidence.Reference {
 	if value.ResourceVersion.Value != nil {
-		copyValue := *value.ResourceVersion.Value
-		value.ResourceVersion.Value = &copyValue
+		value.ResourceVersion.Value = new(*value.ResourceVersion.Value)
 	}
 	if value.CollectedAt.Value != nil {
-		copyValue := *value.CollectedAt.Value
-		value.CollectedAt.Value = &copyValue
+		value.CollectedAt.Value = new(*value.CollectedAt.Value)
 	}
 	return value
 }
 
 func copyInteger(value evidence.Integer) evidence.Integer {
 	if value.Value != nil {
-		copyValue := *value.Value
-		value.Value = &copyValue
+		value.Value = new(*value.Value)
 	}
 	return value
 }

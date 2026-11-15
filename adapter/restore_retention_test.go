@@ -90,6 +90,6 @@ func TestRestoreRetentionContractsRejectPreviousProjectionIDs(t *testing.T) {
 		"kubebao.org/v1alpha1/unqualified-v1",
 	} {
 		_, err := adapter.Describe(previous)
-		assertProjectionError(t, err, adapter.UnsupportedContract)
+		assertProjectionError(t, err, adapter.CodeUnsupportedContract)
 	}
 }

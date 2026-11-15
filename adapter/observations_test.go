@@ -237,7 +237,7 @@ func TestNativeRecoveryIsNotAnApprovedAPI(t *testing.T) {
 	t.Parallel()
 	data := bytes.Replace(restoreFixture(t), []byte("OpenBaoRestore"), []byte("OpenBaoRecovery"), 1)
 	_, err := adapter.ProjectRestore(data, projectionOptions())
-	assertProjectionError(t, err, adapter.ResourceMismatch)
+	assertProjectionError(t, err, adapter.CodeResourceMismatch)
 }
 
 func TestEvidenceSerializationContainsCurrentFieldsWithoutVersionGates(t *testing.T) {

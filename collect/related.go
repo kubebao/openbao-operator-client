@@ -12,13 +12,20 @@ import (
 // RelatedPlan declares every related scope and the final pinned target GET.
 // Nil scopes cause no reads. Limits apply across the entire sequence.
 type RelatedPlan struct {
+	// StatefulSets declares the StatefulSet LIST, if any.
 	StatefulSets *Request
-	Pods         *Request
-	Restores     *Request
-	Verify       Request
-	Limits       Limits
+	// Pods declares the Pod LIST, if any.
+	Pods *Request
+	// Restores declares the OpenBaoRestore LIST, if any.
+	Restores *Request
+	// Verify declares the final named GET of the target.
+	Verify Request
+	// Limits bound the entire sequence of reads.
+	Limits Limits
 }
 
+// RelatedResult contains each declared read, the associations derived from
+// them, and the final target verification. Nil reads were not declared.
 type RelatedResult struct {
 	Interval      evidence.Interval             `json:"interval"`
 	Outcome       evidence.CollectionOutcome    `json:"outcome"`
@@ -57,32 +64,41 @@ func (c *Client) validateRelated(target evidence.Cluster, plan RelatedPlan) erro
 		if err := c.validate(request, item.kind, item.resource); err != nil {
 			return evidence.At(item.resource, err)
 		}
-		if request.Scope.Action != evidence.ReadList || request.Scope.Origin != target.Reference.Identity.Origin ||
-			request.Scope.Namespace != target.Reference.Identity.Namespace {
-			return evidence.At(item.resource+".scope", ErrInvalidRequest)
-		}
-		if item.kind == "OpenBaoRestore" && (request.Scope.Group != target.Reference.Identity.Group ||
-			request.Scope.Group+"/"+request.Scope.Version != target.Reference.APIVersion) {
+		if !relatedScope(request.Scope, item.kind, target.Reference) {
 			return evidence.At(item.resource+".scope", ErrInvalidRequest)
 		}
 	}
 	return nil
 }
 
+// relatedScope reports whether a related LIST stays in the target's origin and
+// namespace and, for restores, in the target's API group and version.
+func relatedScope(scope evidence.Scope, kind string, target evidence.Reference) bool {
+	if scope.Action != evidence.ReadList {
+		return false
+	}
+	if scope.Origin != target.Identity.Origin || scope.Namespace != target.Identity.Namespace {
+		return false
+	}
+	if kind != "OpenBaoRestore" {
+		return true
+	}
+	return scope.Group == target.Identity.Group && scope.Group+"/"+scope.Version == target.APIVersion
+}
+
 // Related collects only declared namespace scopes, then verifies the selected target.
 // It makes no discovery calls and never switches group, name, namespace, or UID.
 func (c *Client) Related(ctx context.Context, target evidence.Cluster, plan RelatedPlan) (result RelatedResult, err error) {
-	if ctx == nil {
-		return result, evidence.At("context", ErrInvalidRequest)
-	}
-	if validationErr := c.validateRelated(target, plan); validationErr != nil {
-		return result, validationErr
+	if err := c.validateRelated(target, plan); err != nil {
+		return result, err
 	}
 	ctx, cancel := context.WithTimeout(ctx, plan.Limits.Timeout)
 	defer cancel()
 	result = RelatedResult{
-		Interval: evidence.Interval{StartedAt: time.Now().UTC()}, Outcome: evidence.CollectionComplete,
-		Verification: uncollectedVerification(target, plan.Verify), Associations: []evidence.Association{},
+		Interval:     evidence.Interval{StartedAt: time.Now().UTC()},
+		Outcome:      evidence.CollectionComplete,
+		Verification: uncollectedVerification(target, plan.Verify),
+		Associations: []evidence.Association{},
 	}
 	defer func() {
 		completed := time.Now()
@@ -150,9 +166,13 @@ func candidates(result *RelatedResult) int {
 }
 
 func remaining(request Request, limits Limits, result *RelatedResult, verify bool) (Request, bool) {
-	reserve, availableCandidates := 1, limits.MaxCandidates-candidates(result)
+	// A related read reserves one page for the final verification GET, which
+	// itself admits at most one candidate.
+	reserve := 1
+	availableCandidates := limits.MaxCandidates - candidates(result)
 	if verify {
-		reserve, availableCandidates = 0, 1
+		reserve = 0
+		availableCandidates = 1
 	}
 	request.Limits.MaxPages = min(request.Limits.MaxPages, limits.MaxPages-result.Requests-reserve)
 	request.Limits.MaxCandidates = min(request.Limits.MaxCandidates, availableCandidates)
@@ -171,7 +191,11 @@ func remaining(request Request, limits Limits, result *RelatedResult, verify boo
 	return request, true
 }
 
-func relatedRead[T any](ctx context.Context, request Request, limits Limits, result *RelatedResult,
+func relatedRead[T any](
+	ctx context.Context,
+	request Request,
+	limits Limits,
+	result *RelatedResult,
 	read func(context.Context, Request) (Result[T], error),
 ) Result[T] {
 	skipped := Result[T]{
@@ -205,7 +229,9 @@ func associateRelated(target evidence.Cluster, result *RelatedResult) error {
 			if err != nil {
 				return err
 			}
-			sets[set.Metadata.Reference.Identity.UID], parents[set.Metadata.Reference.Identity.UID] = set, association
+			uid := set.Metadata.Reference.Identity.UID
+			sets[uid] = set
+			parents[uid] = association
 			result.Associations = append(result.Associations, association)
 		}
 	}
@@ -233,7 +259,10 @@ func associateRelated(target evidence.Cluster, result *RelatedResult) error {
 	return nil
 }
 
-func relatedPod(target evidence.Identity, pod evidence.Pod, sets map[string]evidence.StatefulSet,
+func relatedPod(
+	target evidence.Identity,
+	pod evidence.Pod,
+	sets map[string]evidence.StatefulSet,
 	parents map[string]evidence.Association,
 ) (evidence.Association, error) {
 	excluded, err := evidence.PodHasNonStatefulSetController(pod)
@@ -246,12 +275,13 @@ func relatedPod(target evidence.Identity, pod evidence.Pod, sets map[string]evid
 			return adapter.AssociatePod(pod, set, parents[owner.UID])
 		}
 	}
+	state := evidence.AssociationUnconfirmed
 	if excluded {
-		return evidence.Association{
-			Subject: pod.Metadata.Reference.Identity, Target: target, State: evidence.AssociationForeign,
-		}, nil
+		state = evidence.AssociationForeign
 	}
 	return evidence.Association{
-		Subject: pod.Metadata.Reference.Identity, Target: target, State: evidence.AssociationUnconfirmed,
+		Subject: pod.Metadata.Reference.Identity,
+		Target:  target,
+		State:   state,
 	}, nil
 }

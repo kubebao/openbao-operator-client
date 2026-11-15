@@ -10,9 +10,10 @@ MODULE = "github.com/kubebao/openbao-operator-client"
 LAYERS = {
     "evidence": set(),
     "adapter": {"evidence"},
-    "collect": {"adapter", "evidence"},
+    "collect": {"adapter", "evidence", "internal/apiendpoint"},
     "diagnose": {"evidence"},
-    "operations": {"adapter", "collect", "evidence"},
+    "operations": {"adapter", "collect", "evidence", "internal/apiendpoint"},
+    "internal/apiendpoint": set(),
 }
 FORBIDDEN = (
     "github.com/kubebao/openbao-operator",
@@ -26,12 +27,20 @@ def forbidden(path):
     return any(path == prefix or path.startswith(prefix + "/") for prefix in FORBIDDEN)
 
 
+def layer_of(path):
+    """Return the layer for a module-relative package path; internal packages are layers of their own."""
+    parts = path.split("/")
+    if parts[0] == "internal" and len(parts) > 1:
+        return "/".join(parts[:2])
+    return parts[0]
+
+
 def violations(package):
     """Return boundary violations for one go-list package description."""
     path = package["ImportPath"].split(" ", 1)[0].removesuffix("_test")
     if not path.startswith(MODULE + "/"):
         return []
-    layer = path.removeprefix(MODULE + "/").split("/", 1)[0]
+    layer = layer_of(path.removeprefix(MODULE + "/"))
     imports = package.get("Imports", []) + package.get("TestImports", []) + package.get("XTestImports", [])
     errors = []
     for imported in imports:
@@ -39,7 +48,7 @@ def violations(package):
         if forbidden(imported):
             errors.append(f"{path}: consumer/operator dependency {imported}")
         if imported.startswith(MODULE + "/"):
-            target = imported.removeprefix(MODULE + "/").split("/", 1)[0]
+            target = layer_of(imported.removeprefix(MODULE + "/"))
             if layer in LAYERS and target != layer and target not in LAYERS[layer]:
                 errors.append(f"{path}: disallowed package direction to {imported}")
         elif layer in {"evidence", "diagnose"}:

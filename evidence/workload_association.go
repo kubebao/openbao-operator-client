@@ -29,8 +29,14 @@ func PodHasNonStatefulSetController(pod Pod) (bool, error) {
 // AssociateStatefulSet confirms a controller edge to the selected cluster.
 // Annotation matches alone never prove ownership.
 func AssociateStatefulSet(set StatefulSet, cluster Identity) (Association, error) {
-	if set.Validate() != nil || cluster.Validate() != nil || cluster.Kind != "OpenBaoCluster" {
-		return Association{}, ErrInvalidEvidence
+	if err := set.Validate(); err != nil {
+		return Association{}, At("set", err)
+	}
+	if err := cluster.Validate(); err != nil {
+		return Association{}, At("cluster", err)
+	}
+	if cluster.Kind != "OpenBaoCluster" {
+		return Association{}, At("cluster.kind", ErrInvalidEvidence)
 	}
 	return controllerAssociation(set.Metadata, cluster, cluster), nil
 }
@@ -77,8 +83,12 @@ func controllerAssociation(child WorkloadMetadata, parent, cluster Identity) Ass
 // AssociatePod confirms a Pod chain or excludes a proven foreign chain.
 // The parent association must match this exact StatefulSet metadata and scope.
 func AssociatePod(pod Pod, set StatefulSet, parent Association) (Association, error) {
-	if pod.Validate() != nil || set.Validate() != nil || parent.Validate() != nil {
-		return Association{}, ErrInvalidEvidence
+	if err := checkFields(
+		fieldCheck{"pod", pod.Validate()},
+		fieldCheck{"set", set.Validate()},
+		fieldCheck{"parent", parent.Validate()},
+	); err != nil {
+		return Association{}, err
 	}
 	result := Association{
 		Subject: pod.Metadata.Reference.Identity,
@@ -101,12 +111,19 @@ func AssociatePod(pod Pod, set StatefulSet, parent Association) (Association, er
 	return controllerAssociation(pod.Metadata, result.Target, parent.Target), nil
 }
 
-// A foreign parent excludes a Pod only when both controller edges and reserved
+// foreignPodAssociation excludes a Pod only when both controller edges and reserved
 // annotations agree. An unrelated parent assertion cannot prove exclusion.
 func foreignPodAssociation(pod Pod, set StatefulSet, parent Association) Association {
-	result := Association{Subject: pod.Metadata.Reference.Identity, Target: set.Metadata.Reference.Identity, State: AssociationUnconfirmed}
+	result := Association{
+		Subject: pod.Metadata.Reference.Identity,
+		Target:  set.Metadata.Reference.Identity,
+		State:   AssociationUnconfirmed,
+	}
 	for _, owner := range set.Metadata.Owners.Values {
-		if !owner.Controller || owner.Kind != "OpenBaoCluster" || owner.Group() != parent.Target.Group || owner.UID == parent.Target.UID {
+		if !owner.Controller || owner.Kind != "OpenBaoCluster" {
+			continue
+		}
+		if owner.Group() != parent.Target.Group || owner.UID == parent.Target.UID {
 			continue
 		}
 		foreign := parent.Target

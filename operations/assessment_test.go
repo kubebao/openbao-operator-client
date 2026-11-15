@@ -276,8 +276,7 @@ func TestAssessMaintenanceRetainsInsufficientEvidence(t *testing.T) {
 			r.Verification.After.ResourceVersion = assessmentText("new-status-version")
 		}, operations.ReasonTargetUnverified},
 		{"future-related-read", func(_ *evidence.Cluster, r *collect.RelatedResult) {
-			at := assessmentTime.Add(time.Hour)
-			r.Pods.Observations[0].Metadata.Reference.CollectedAt.Value = &at
+			r.Pods.Observations[0].Metadata.Reference.CollectedAt.Value = new(assessmentTime.Add(time.Hour))
 		}, operations.ReasonInconsistentTime},
 		{"invalid-annotation", func(_ *evidence.Cluster, r *collect.RelatedResult) {
 			r.Pods.Observations[0].Metadata.Maintenance = evidence.Text{State: evidence.ValueInvalid}

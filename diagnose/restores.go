@@ -15,7 +15,9 @@ type associatedRestore struct {
 }
 
 func evaluateRestores(input ClusterInput, policy Policy, coverage Coverage) (Coverage, []Finding) {
-	coverage.State, coverage.Reason, coverage.Outcome = NotRequested, ReasonNotRequested, evidence.CollectionNotRequested
+	coverage.State = CoverageNotRequested
+	coverage.Reason = ReasonNotRequested
+	coverage.Outcome = evidence.CollectionNotRequested
 	if input.Restores == nil {
 		return coverage, nil
 	}
@@ -24,12 +26,12 @@ func evaluateRestores(input ClusterInput, policy Policy, coverage Coverage) (Cov
 	if read.Outcome == evidence.CollectionNotRequested {
 		return coverage, nil
 	}
-	coverage.State = Insufficient
+	coverage.State = CoverageInsufficient
 	if reason := relatedTarget(input, policy); reason != ReasonNone {
 		coverage.Reason = reason
 		return coverage, nil
 	}
-	result := evaluation{state: Evaluated, reason: ReasonNone}
+	result := evaluation{state: CoverageEvaluated, reason: ReasonNone}
 	if read.Outcome != evidence.CollectionComplete || input.Collection.Outcome != evidence.CollectionComplete {
 		result.insufficient(ReasonScopeIncomplete)
 	}
@@ -52,8 +54,7 @@ func evaluateRestores(input ClusterInput, policy Policy, coverage Coverage) (Cov
 	if input.Observation.RestoreHold.State == evidence.ValueReported && !boundHold {
 		result.insufficient(ReasonAssociation)
 	}
-	coverage.State, coverage.Reason, coverage.Reasons = result.state, result.reason, result.coverageReasons()
-	return coverage, result.findings
+	return result.apply(coverage)
 }
 
 func restoreAssociations(input ClusterInput, policy Policy, result *evaluation) ([]associatedRestore, int) {
@@ -61,7 +62,8 @@ func restoreAssociations(input ClusterInput, policy Policy, result *evaluation) 
 	slices.SortFunc(values, func(a, b evidence.Restore) int {
 		return strings.Compare(a.Reference.Identity.UID, b.Reference.Identity.UID)
 	})
-	records, matches := []associatedRestore{}, 0
+	records := []associatedRestore{}
+	matches := 0
 	hold := input.Observation.RestoreHold
 	for _, request := range values {
 		if !fresh(request.Reference, input.Restores.Collection, policy) {
@@ -73,57 +75,137 @@ func restoreAssociations(input ClusterInput, policy Policy, result *evaluation) 
 			result.insufficient(ReasonAssociation)
 			continue
 		}
-		match := hold.State == evidence.ValueReported && (*hold.Value == request.Reference.Identity.UID ||
-			request.Execution.OperationID.State == evidence.ValueReported && *hold.Value == *request.Execution.OperationID.Value)
+		match := holdMatches(hold, request)
 		if match {
 			matches++
 		}
 		if association.State != evidence.AssociationConfirmed && association.State != evidence.AssociationForeign {
 			result.insufficient(ReasonAssociation)
 		}
-		records = append(records, associatedRestore{request, association, match})
+		records = append(records, associatedRestore{
+			value:       request,
+			association: association,
+			holdMatch:   match,
+		})
 	}
 	return records, matches
+}
+
+// holdMatches reports whether a reported restore hold names the request's UID or execution operation ID.
+func holdMatches(hold evidence.Text, request evidence.Restore) bool {
+	if hold.State != evidence.ValueReported {
+		return false
+	}
+	if *hold.Value == request.Reference.Identity.UID {
+		return true
+	}
+	operation := request.Execution.OperationID
+	return operation.State == evidence.ValueReported && *hold.Value == *operation.Value
+}
+
+// reportedValue returns a reported text value, or "" for any other state.
+func reportedValue(value evidence.Text) string {
+	if value.State != evidence.ValueReported {
+		return ""
+	}
+	return *value.Value
+}
+
+func knownRestorePhase(phase string) bool {
+	switch phase {
+	case "Pending", "Validating", "Running", "Completed", "Failed", "Unknown":
+		return true
+	default:
+		return false
+	}
+}
+
+func knownExecutionStage(stage string) bool {
+	switch stage {
+	case "Prepared", "Committed", "Created", "TerminalObserved", "FollowThroughComplete", "Unknown":
+		return true
+	default:
+		return false
+	}
+}
+
+// restoreFieldsKnown reports whether every field that restoreConcern reads is
+// valid and, when reported, has a recognized value.
+func restoreFieldsKnown(request evidence.Restore) bool {
+	for _, state := range []evidence.ValueState{
+		request.Execution.Stage.State,
+		request.Target.Cleanup.State,
+		request.Execution.TerminalResult.State,
+		request.TargetLifecycle.State,
+		request.CleanupAfterSeconds.State,
+	} {
+		if state == evidence.ValueInvalid {
+			return false
+		}
+	}
+	if !knownRestorePhase(reportedValue(request.Phase)) {
+		return false
+	}
+	if request.Execution.State == evidence.ObjectReported && !knownExecutionStage(reportedValue(request.Execution.Stage)) {
+		return false
+	}
+	switch reportedValue(request.Execution.TerminalResult) {
+	case "", "Succeeded", "Failed":
+	default:
+		return false
+	}
+	switch reportedValue(request.Target.Cleanup) {
+	case "", "Pending", "Complete", "Failed":
+	default:
+		return false
+	}
+	return true
 }
 
 func restoreConcern(input ClusterInput, record associatedRestore, held bool, policy Policy, result *evaluation) {
 	request := record.value
 	restoreTimes(request, result)
-	phase, stage, cleanup, terminal := request.Phase, request.Execution.Stage, request.Target.Cleanup, request.Execution.TerminalResult
-	phaseKnown := phase.State == evidence.ValueReported &&
-		slices.Contains([]string{"Pending", "Validating", "Running", "Completed", "Failed", "Unknown"}, *phase.Value)
-	stageKnown := stage.State == evidence.ValueReported && slices.Contains([]string{
-		"Prepared", "Committed", "Created", "TerminalObserved", "FollowThroughComplete", "Unknown",
-	}, *stage.Value)
-	if !phaseKnown || stage.State == evidence.ValueInvalid || cleanup.State == evidence.ValueInvalid ||
-		terminal.State == evidence.ValueInvalid || request.TargetLifecycle.State == evidence.ValueInvalid ||
-		request.CleanupAfterSeconds.State == evidence.ValueInvalid ||
-		request.Execution.State == evidence.ObjectReported && !stageKnown ||
-		terminal.State == evidence.ValueReported && !slices.Contains([]string{"Succeeded", "Failed"}, *terminal.Value) ||
-		cleanup.State == evidence.ValueReported && !slices.Contains([]string{"Pending", "Complete", "Failed"}, *cleanup.Value) {
+	if !restoreFieldsKnown(request) {
 		result.insufficient(ReasonMissingField)
 	}
-	unsafe := phaseKnown && (*phase.Value == "Unknown" || *phase.Value == "Failed") ||
-		stageKnown && *stage.Value == "Unknown" || terminal.State == evidence.ValueReported && *terminal.Value == "Failed"
-	cleanupFailed := cleanup.State == evidence.ValueReported && *cleanup.Value == "Failed"
+	phase := reportedValue(request.Phase)
+	if !knownRestorePhase(phase) {
+		phase = ""
+	}
+	stage := reportedValue(request.Execution.Stage)
+	if !knownExecutionStage(stage) {
+		stage = ""
+	}
+	terminal := reportedValue(request.Execution.TerminalResult)
+	cleanupFailed := reportedValue(request.Target.Cleanup) == "Failed"
+	unsafe := phase == "Unknown" || phase == "Failed" || stage == "Unknown" || terminal == "Failed"
 	var found *Finding
 	switch {
-	case held && phaseKnown && *phase.Value == "Unknown" && stageKnown && *stage.Value == "Unknown" &&
-		disposableRetention(input, record, policy):
+	case held && phase == "Unknown" && stage == "Unknown" && disposableRetention(input, record, policy):
 		found = restoreFinding(
 			input,
 			record,
-			Info,
+			SeverityInfo,
 			"The operator reports snapshot application on the UID-confirmed disposable target; "+
 				"cleanup is pending within the configured retention period.",
 		)
 	case held && (unsafe || cleanupFailed):
-		found = restoreFinding(input, record, Error, "A UID-confirmed restore matching the reported hold requires recovery inspection.")
+		found = restoreFinding(
+			input,
+			record,
+			SeverityError,
+			"A UID-confirmed restore matching the reported hold requires recovery inspection.",
+		)
 	case policy.ReportHistoricalRestores && (unsafe || cleanupFailed):
-		found = restoreFinding(input, record, Warning,
+		found = restoreFinding(input, record, SeverityWarning,
 			"The operator records a restore outcome requiring investigation; this does not establish an active failure.")
-	case phaseKnown && slices.Contains([]string{"Pending", "Validating", "Running"}, *phase.Value):
-		found = restoreFinding(input, record, Info, "The UID-confirmed restore reports an in-progress phase; completion is not verified.")
+	case phase == "Pending" || phase == "Validating" || phase == "Running":
+		found = restoreFinding(
+			input,
+			record,
+			SeverityInfo,
+			"The UID-confirmed restore reports an in-progress phase; completion is not verified.",
+		)
 	}
 	if found != nil {
 		result.add(found)
@@ -133,17 +215,31 @@ func restoreConcern(input ClusterInput, record associatedRestore, held bool, pol
 func disposableRetention(input ClusterInput, record associatedRestore, policy Policy) bool {
 	request := record.value
 	read := input.Restores.Collection
-	if read.Outcome != evidence.CollectionComplete || read.Scope.Selector != "" || input.Collection.Outcome != evidence.CollectionComplete {
+	if read.Outcome != evidence.CollectionComplete || read.Scope.Selector != "" {
 		return false
 	}
-	if request.TargetLifecycle.State != evidence.ValueReported || *request.TargetLifecycle.Value != "Disposable" ||
-		request.CleanupAfterSeconds.State != evidence.ValueReported || *request.CleanupAfterSeconds.Value <= 0 ||
-		request.Target.State != evidence.ObjectReported || request.Target.UID.State != evidence.ValueReported ||
-		*request.Target.UID.Value != input.Subject.UID || request.Target.AppliedAt.State != evidence.ValueReported ||
-		request.Execution.TerminalResult.State != evidence.ValueReported ||
-		*request.Execution.TerminalResult.Value != "Succeeded" ||
-		request.AdministratorDisposition.State != evidence.ValueUnknown ||
-		request.Restart != evidence.ObjectAbsent && request.Restart != evidence.ObjectNull {
+	if input.Collection.Outcome != evidence.CollectionComplete {
+		return false
+	}
+	if reportedValue(request.TargetLifecycle) != "Disposable" {
+		return false
+	}
+	if request.CleanupAfterSeconds.State != evidence.ValueReported || *request.CleanupAfterSeconds.Value <= 0 {
+		return false
+	}
+	if request.Target.State != evidence.ObjectReported || reportedValue(request.Target.UID) != input.Subject.UID {
+		return false
+	}
+	if request.Target.AppliedAt.State != evidence.ValueReported {
+		return false
+	}
+	if reportedValue(request.Execution.TerminalResult) != "Succeeded" {
+		return false
+	}
+	if request.AdministratorDisposition.State != evidence.ValueUnknown {
+		return false
+	}
+	if request.Restart != evidence.ObjectAbsent && request.Restart != evidence.ObjectNull {
 		return false
 	}
 	cleanup := request.Target.Cleanup
@@ -159,10 +255,8 @@ func disposableRetention(input ClusterInput, record associatedRestore, policy Po
 
 func validRetentionTimes(request evidence.Restore) bool {
 	read := *request.Reference.CollectedAt.Value
-	for _, value := range []evidence.Timestamp{
-		request.CreatedAt, request.StartedAt, request.CompletedAt, request.Target.AppliedAt, request.RestartCompletedAt,
-	} {
-		if value.State == evidence.ValueInvalid || value.State == evidence.ValueReported && value.Value.After(read) {
+	for _, value := range restoreTimestamps(request) {
+		if inconsistentTime(value, read) {
 			return false
 		}
 	}
@@ -178,12 +272,20 @@ func validRetentionTimes(request evidence.Restore) bool {
 	return true
 }
 
+// restoreTimestamps returns the producer timestamps of a restore request.
+func restoreTimestamps(request evidence.Restore) []evidence.Timestamp {
+	return []evidence.Timestamp{
+		request.CreatedAt,
+		request.StartedAt,
+		request.CompletedAt,
+		request.Target.AppliedAt,
+		request.RestartCompletedAt,
+	}
+}
+
 func restoreTimes(request evidence.Restore, result *evaluation) {
-	for _, value := range []evidence.Timestamp{
-		request.CreatedAt, request.StartedAt, request.CompletedAt, request.Target.AppliedAt, request.RestartCompletedAt,
-	} {
-		if value.State == evidence.ValueInvalid ||
-			value.State == evidence.ValueReported && value.Value.After(*request.Reference.CollectedAt.Value) {
+	for _, value := range restoreTimestamps(request) {
+		if inconsistentTime(value, *request.Reference.CollectedAt.Value) {
 			result.insufficient(ReasonTime)
 		}
 	}
@@ -206,7 +308,7 @@ func restoreFinding(input ClusterInput, record associatedRestore, severity Sever
 		"status.execution.terminalResult",
 		"status.target.cleanup",
 	)
-	if severity == Info && record.value.Phase.State == evidence.ValueReported && *record.value.Phase.Value == "Unknown" {
+	if severity == SeverityInfo && reportedValue(record.value.Phase) == "Unknown" {
 		for _, field := range []string{"spec.targetLifecycle", "spec.cleanupAfterSeconds", "status.target.appliedAt"} {
 			ref := record.value.Reference
 			ref.Field = field

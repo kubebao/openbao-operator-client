@@ -6,33 +6,50 @@ import (
 	"io"
 	"math"
 	"regexp"
-	"strings"
 	"time"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/kubebao/openbao-operator-client/evidence"
 )
 
+// ErrorCode classifies a projection failure without retaining source data.
 type ErrorCode string
 
 const (
-	InvalidInput        ErrorCode = "invalid_input"
-	ProjectionLimit     ErrorCode = "projection_limit"
-	UnsupportedContract ErrorCode = "unsupported_contract"
-	ResourceMismatch    ErrorCode = "resource_mismatch"
+	// CodeInvalidInput means the input is malformed or violates the projection contract.
+	CodeInvalidInput ErrorCode = "invalid_input"
+	// CodeProjectionLimit means the input exceeds a projection limit.
+	CodeProjectionLimit ErrorCode = "projection_limit"
+	// CodeUnsupportedContract means the contract is unknown or does not cover the requested kind.
+	CodeUnsupportedContract ErrorCode = "unsupported_contract"
+	// CodeResourceMismatch means the document's API version, kind, or group version does not match the contract.
+	CodeResourceMismatch ErrorCode = "resource_mismatch"
+)
+
+const (
+	// defaultMaxBytes bounds one input document by default.
+	defaultMaxBytes = 8 * 1024 * 1024
+	// defaultMaxConditions bounds one retained condition set by default.
+	defaultMaxConditions = 256
+	// defaultMaxEntries bounds one projected list by default.
+	defaultMaxEntries = 256
+	// maxNestingDepth bounds JSON nesting during decoding.
+	maxNestingDepth = 64
+	// maxSnapshotKeyLength bounds an object-store snapshot key.
+	maxSnapshotKeyLength = 1024
 )
 
 // ProjectionError exposes a bounded classification without a raw parser error or source value.
 type ProjectionError struct{ Code ErrorCode }
 
+// Error returns a fixed message for the error code.
 func (e *ProjectionError) Error() string {
 	switch e.Code {
-	case ProjectionLimit:
+	case CodeProjectionLimit:
 		return "projection limit exceeded"
-	case UnsupportedContract:
+	case CodeUnsupportedContract:
 		return "unsupported projection contract"
-	case ResourceMismatch:
+	case CodeResourceMismatch:
 		return "resource does not match projection contract"
 	default:
 		return "invalid projection input"
@@ -47,8 +64,13 @@ type ProjectionLimits struct {
 	MaxEntries    int
 }
 
+// DefaultProjectionLimits returns 8 MiB documents and 256 retained conditions and list entries.
 func DefaultProjectionLimits() ProjectionLimits {
-	return ProjectionLimits{MaxBytes: 8 * 1024 * 1024, MaxConditions: 256, MaxEntries: 256}
+	return ProjectionLimits{
+		MaxBytes:      defaultMaxBytes,
+		MaxConditions: defaultMaxConditions,
+		MaxEntries:    defaultMaxEntries,
+	}
 }
 
 var identifier = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$`)
@@ -60,17 +82,18 @@ var versionIdentifier = regexp.MustCompile(
 		`(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$`,
 )
 
-// decodeValue rejects duplicate object keys, invalid UTF-8, trailing data, and
-// excessive nesting. Numbers never pass through floating point.
+// decodeObject decodes one bounded JSON object. It rejects duplicate object keys,
+// invalid UTF-8, trailing data, and excessive nesting. Numbers never pass through
+// floating point.
 func decodeObject(raw []byte, limits ProjectionLimits) (map[string]any, error) {
 	if limits.MaxBytes <= 0 || limits.MaxConditions <= 0 || limits.MaxEntries <= 0 {
-		return nil, &ProjectionError{Code: InvalidInput}
+		return nil, &ProjectionError{Code: CodeInvalidInput}
 	}
 	if len(raw) > limits.MaxBytes {
-		return nil, &ProjectionError{Code: ProjectionLimit}
+		return nil, &ProjectionError{Code: CodeProjectionLimit}
 	}
 	if !utf8.Valid(raw) {
-		return nil, &ProjectionError{Code: InvalidInput}
+		return nil, &ProjectionError{Code: CodeInvalidInput}
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.UseNumber()
@@ -79,22 +102,22 @@ func decodeObject(raw []byte, limits ProjectionLimits) (map[string]any, error) {
 		return nil, err
 	}
 	if _, err := decoder.Token(); err != io.EOF {
-		return nil, &ProjectionError{Code: InvalidInput}
+		return nil, &ProjectionError{Code: CodeInvalidInput}
 	}
 	object, ok := value.(map[string]any)
 	if !ok {
-		return nil, &ProjectionError{Code: InvalidInput}
+		return nil, &ProjectionError{Code: CodeInvalidInput}
 	}
 	return object, nil
 }
 
 func decodeValue(decoder *json.Decoder, depth int) (any, error) {
-	if depth > 64 {
-		return nil, &ProjectionError{Code: ProjectionLimit}
+	if depth > maxNestingDepth {
+		return nil, &ProjectionError{Code: CodeProjectionLimit}
 	}
 	token, err := decoder.Token()
 	if err != nil {
-		return nil, &ProjectionError{Code: InvalidInput}
+		return nil, &ProjectionError{Code: CodeInvalidInput}
 	}
 	delimiter, compound := token.(json.Delim)
 	if !compound {
@@ -113,11 +136,11 @@ func decodeValue(decoder *json.Decoder, depth int) (any, error) {
 			items = append(items, value)
 		}
 		if end, err := decoder.Token(); err != nil || end != json.Delim(']') {
-			return nil, &ProjectionError{Code: InvalidInput}
+			return nil, &ProjectionError{Code: CodeInvalidInput}
 		}
 		return items, nil
 	default:
-		return nil, &ProjectionError{Code: InvalidInput}
+		return nil, &ProjectionError{Code: CodeInvalidInput}
 	}
 }
 
@@ -126,14 +149,14 @@ func decodeMembers(decoder *json.Decoder, depth int) (map[string]any, error) {
 	for decoder.More() {
 		token, err := decoder.Token()
 		if err != nil {
-			return nil, &ProjectionError{Code: InvalidInput}
+			return nil, &ProjectionError{Code: CodeInvalidInput}
 		}
 		key, ok := token.(string)
 		if !ok {
-			return nil, &ProjectionError{Code: InvalidInput}
+			return nil, &ProjectionError{Code: CodeInvalidInput}
 		}
 		if _, duplicate := object[key]; duplicate {
-			return nil, &ProjectionError{Code: InvalidInput}
+			return nil, &ProjectionError{Code: CodeInvalidInput}
 		}
 		value, err := decodeValue(decoder, depth+1)
 		if err != nil {
@@ -142,7 +165,7 @@ func decodeMembers(decoder *json.Decoder, depth int) (map[string]any, error) {
 		object[key] = value
 	}
 	if end, err := decoder.Token(); err != nil || end != json.Delim('}') {
-		return nil, &ProjectionError{Code: InvalidInput}
+		return nil, &ProjectionError{Code: CodeInvalidInput}
 	}
 	return object, nil
 }
@@ -204,9 +227,10 @@ func text(raw map[string]any, token bool, path ...string) evidence.Text {
 		return evidence.Text{State: state}
 	}
 	parsed, ok := value.(string)
-	if !ok || parsed == "" || len(parsed) > 253 || strings.ContainsFunc(parsed, unicode.IsControl) ||
-		strings.ContainsRune(parsed, unicode.ReplacementChar) ||
-		(token && !identifier.MatchString(parsed)) {
+	if !ok || !evidence.ValidText(parsed, evidence.MaxNameLength) {
+		return evidence.Text{State: evidence.ValueInvalid}
+	}
+	if token && !identifier.MatchString(parsed) {
 		return evidence.Text{State: evidence.ValueInvalid}
 	}
 	return evidence.Text{State: evidence.ValueReported, Value: &parsed}
@@ -214,14 +238,14 @@ func text(raw map[string]any, token bool, path ...string) evidence.Text {
 
 var snapshotKeyPattern = regexp.MustCompile(`^[A-Za-z0-9._/-]+$`)
 
-// Snapshot keys are bounded object-store names, not identifiers or URLs.
+// snapshotKey projects a bounded object-store name, not an identifier or URL.
 func snapshotKey(raw map[string]any, path ...string) evidence.Text {
 	value, state := field(raw, path...)
 	if state != evidence.ValueReported {
 		return evidence.Text{State: state}
 	}
 	parsed, ok := value.(string)
-	if !ok || len(parsed) > 1024 || !snapshotKeyPattern.MatchString(parsed) {
+	if !ok || len(parsed) > maxSnapshotKeyLength || !snapshotKeyPattern.MatchString(parsed) {
 		return evidence.Text{State: evidence.ValueInvalid}
 	}
 	return evidence.Text{State: evidence.ValueReported, Value: &parsed}
@@ -237,7 +261,10 @@ func timestamp(raw map[string]any, path ...string) evidence.Timestamp {
 		return evidence.Timestamp{State: evidence.ValueInvalid}
 	}
 	parsed, err := time.Parse(time.RFC3339Nano, text)
-	if err != nil || parsed.IsZero() || parsed.Year() < 1 || parsed.Year() > 9999 {
+	if err != nil {
+		return evidence.Timestamp{State: evidence.ValueInvalid}
+	}
+	if parsed.IsZero() || parsed.Year() < 1 || parsed.Year() > 9999 {
 		return evidence.Timestamp{State: evidence.ValueInvalid}
 	}
 	parsed = parsed.UTC()

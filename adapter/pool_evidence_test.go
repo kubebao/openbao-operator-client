@@ -207,7 +207,7 @@ func TestStatefulSetGroupingReplayRejectsForgedValues(t *testing.T) {
 }
 
 func poolReportedText(value string) evidence.Text {
-	return evidence.Text{State: evidence.ValueReported, Value: &value}
+	return evidence.Text{State: evidence.ValueReported, Value: new(value)}
 }
 
 func TestPoolLabelsNeverConfirmOwnership(t *testing.T) {

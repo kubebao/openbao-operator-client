@@ -29,8 +29,10 @@ func TestLatestRestoreRequiresSupportedAPIAndRejectsDuplicateOrFutureRecords(t *
 		found {
 		t.Fatal("a matching contract label approved another API version")
 	}
-	future := request.Reference.CollectedAt.Value.AddDate(0, 1, 0)
-	request.CreatedAt = evidence.Timestamp{State: evidence.ValueReported, Value: &future}
+	request.CreatedAt = evidence.Timestamp{
+		State: evidence.ValueReported,
+		Value: new(request.Reference.CollectedAt.Value.AddDate(0, 1, 0)),
+	}
 	if _, found, err := diagnose.LatestRestore(
 		*i.Observation,
 		[]evidence.Restore{request},

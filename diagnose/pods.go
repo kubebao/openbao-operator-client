@@ -10,7 +10,7 @@ import (
 
 func podReadiness(input ClusterInput, sets map[string]associatedSet, policy Policy, result *evaluation) {
 	workloadScope(input.Pods.Collection, input.Subject, result)
-	populationComplete := result.state == Evaluated && input.Collection.Outcome == evidence.CollectionComplete
+	populationComplete := result.state == CoverageEvaluated && input.Collection.Outcome == evidence.CollectionComplete
 	counts := map[string]int64{}
 	values := slices.Clone(input.Pods.Observations)
 	slices.SortFunc(values, func(a, b evidence.Pod) int {
@@ -32,8 +32,7 @@ func podReadiness(input ClusterInput, sets map[string]associatedSet, policy Poli
 			continue
 		}
 		if deleting(pod.Metadata, result) {
-			if pod.Metadata.DeletionTimestamp.State == evidence.ValueInvalid ||
-				pod.Metadata.DeletionTimestamp.Value.After(*pod.Metadata.Reference.CollectedAt.Value) {
+			if inconsistentTime(pod.Metadata.DeletionTimestamp, *pod.Metadata.Reference.CollectedAt.Value) {
 				populationComplete = false
 			}
 			continue
@@ -74,12 +73,12 @@ func podParent(pod evidence.Pod, sets map[string]associatedSet) (string, evidenc
 func evaluatePod(pod evidence.Pod, result *evaluation) {
 	ref := pod.Metadata.Reference
 	failed := pod.Phase.State == evidence.ValueReported && *pod.Phase.Value == "Failed"
-	if pod.Phase.State != evidence.ValueReported || *pod.Phase.Value == "Unknown" ||
-		!slices.Contains([]string{"Pending", "Running", "Succeeded", "Failed"}, *pod.Phase.Value) {
+	if pod.Phase.State != evidence.ValueReported || !knownPodPhase(*pod.Phase.Value) {
 		result.insufficient(ReasonMissingField)
 	}
 	if failed {
-		result.add(resourceFinding(ref, RulePod, "phase", Error, "The UID-associated Pod reports Failed phase.", "status.phase"))
+		result.add(resourceFinding(ref, RulePod, "phase", SeverityError,
+			"The UID-associated Pod reports Failed phase.", "status.phase"))
 	}
 	if pod.Conditions.State != evidence.ValueReported {
 		result.insufficient(ReasonMissingField)
@@ -97,8 +96,7 @@ func evaluatePod(pod evidence.Pod, result *evaluation) {
 			result.insufficient(ReasonMissingField)
 			return
 		}
-		if condition.LastTransitionAt.State == evidence.ValueInvalid ||
-			condition.LastTransitionAt.State == evidence.ValueReported && condition.LastTransitionAt.Value.After(*ref.CollectedAt.Value) {
+		if inconsistentTime(condition.LastTransitionAt, *ref.CollectedAt.Value) {
 			result.insufficient(ReasonTime)
 		}
 		if condition.Status == evidence.ConditionFalse && !failed {
@@ -106,7 +104,7 @@ func evaluatePod(pod evidence.Pod, result *evaluation) {
 				ref,
 				RulePod,
 				"ready",
-				Warning,
+				SeverityWarning,
 				"The UID-associated Pod reports Ready=False for its current generation.",
 				"metadata.generation",
 				"status.conditions[type=Ready]",
@@ -117,6 +115,17 @@ func evaluatePod(pod evidence.Pod, result *evaluation) {
 		return
 	}
 	result.insufficient(ReasonMissingField)
+}
+
+// knownPodPhase reports whether phase is a Pod phase that the rule can interpret.
+// The Unknown phase is not interpretable.
+func knownPodPhase(phase string) bool {
+	switch phase {
+	case "Pending", "Running", "Succeeded", "Failed":
+		return true
+	default:
+		return false
+	}
 }
 
 func waitingReferences(found *Finding, pod evidence.Pod) {
@@ -148,7 +157,7 @@ func podPopulation(sets map[string]associatedSet, counts map[string]int64, resul
 			continue
 		}
 		if counts[uid] < *value.DesiredReplicas.Value {
-			result.add(resourceFinding(value.Metadata.Reference, RulePod, "pod-population", Warning,
+			result.add(resourceFinding(value.Metadata.Reference, RulePod, "pod-population", SeverityWarning,
 				"Fewer nonterminating UID-associated Pods were captured than desired in the declared workload scope.",
 				"metadata.generation", "status.observedGeneration", "spec.replicas"))
 		}

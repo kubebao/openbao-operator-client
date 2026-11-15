@@ -80,8 +80,10 @@ func TestRestoreDisplaySelectionDoesNotReplaceEarlierHeldConcern(t *testing.T) {
 				t.Fatal("newer foreign or name-only request displaced the latest UID-confirmed display record")
 			}
 			first, coverage := runRestore(t, i, p)
-			if coverage.State != diagnose.Insufficient || coverage.Reason != diagnose.ReasonAssociation || len(first.Findings) != 1 ||
-				first.Findings[0].Severity != diagnose.Error || first.Findings[0].Subject != held.Reference.Identity {
+			if coverage.State != diagnose.CoverageInsufficient || coverage.Reason != diagnose.ReasonAssociation ||
+				len(first.Findings) != 1 ||
+				first.Findings[0].Severity != diagnose.SeverityError ||
+				first.Findings[0].Subject != held.Reference.Identity {
 				t.Fatal("display selection or unresolved candidate hid the earlier independently confirmed held failure")
 			}
 			encoded, err := json.Marshal(capture(i))
@@ -123,7 +125,8 @@ func TestRestoreDiagnosisKeepsIdenticalUIDsInDifferentAPIGroupsSeparate(t *testi
 	}
 	groups := map[string]bool{}
 	for _, finding := range report.Findings {
-		if finding.Subject.UID != "request-1" || finding.Severity != diagnose.Error || finding.Subject.Origin != legacy.Subject.Origin {
+		if finding.Subject.UID != "request-1" || finding.Severity != diagnose.SeverityError ||
+			finding.Subject.Origin != legacy.Subject.Origin {
 			t.Fatal("restore identity or held severity changed across groups")
 		}
 		groups[finding.Subject.Group] = true

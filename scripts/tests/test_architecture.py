@@ -24,6 +24,8 @@ class ArchitectureTests(unittest.TestCase):
         for origin, destination in [
             ("adapter", "collect"), ("evidence", "diagnose"), ("diagnose", "adapter"),
             ("collect", "operations"), ("adapter", "operations"), ("operations", "diagnose"),
+            ("evidence", "internal/apiendpoint"), ("diagnose", "internal/apiendpoint"),
+            ("internal/apiendpoint", "evidence"),
         ]:
             package = {"ImportPath": architecture.MODULE + "/" + origin, "Imports": [architecture.MODULE + "/" + destination]}
             self.assertTrue(architecture.violations(package))

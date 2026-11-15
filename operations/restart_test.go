@@ -142,8 +142,7 @@ func TestRestartPreparationRequiresKnownUnrestrictedStrategy(t *testing.T) {
 		change func(*evidence.Cluster)
 	}{
 		{"paused", func(c *evidence.Cluster) {
-			v := true
-			c.Paused = evidence.Boolean{State: evidence.ValueReported, Value: &v}
+			c.Paused = evidence.Boolean{State: evidence.ValueReported, Value: new(true)}
 		}},
 		{"hold", func(c *evidence.Cluster) { c.RestoreHold = restartText("request-1") }},
 		{"stale", func(c *evidence.Cluster) {
@@ -172,8 +171,7 @@ func TestRestartPreparationRequiresKnownUnrestrictedStrategy(t *testing.T) {
 		})
 	}
 	c := restartCluster(t, assessmentTime, 1, true)
-	v := true
-	c.Maintenance.Enabled = evidence.Boolean{State: evidence.ValueReported, Value: &v}
+	c.Maintenance.Enabled = evidence.Boolean{State: evidence.ValueReported, Value: new(true)}
 	if _, e := operations.PrepareRestart(c, adapter.KubeBaoV1Alpha1, restartMarker); e != nil {
 		t.Fatal("maintenance does not pause reconciliation", e)
 	}
@@ -237,8 +235,7 @@ func TestRestartAssessmentRequiresRolloutEvidence(t *testing.T) {
 		}},
 		{"filtered", func(_ *evidence.Cluster, r *collect.RelatedResult) { r.Pods.Collection.Scope.Selector = "other=true" }},
 		{"stale", func(_ *evidence.Cluster, r *collect.RelatedResult) {
-			at := assessmentTime.Add(-time.Hour)
-			r.Pods.Observations[0].Metadata.Reference.CollectedAt.Value = &at
+			r.Pods.Observations[0].Metadata.Reference.CollectedAt.Value = new(assessmentTime.Add(-time.Hour))
 		}},
 		{"target-replaced", func(_ *evidence.Cluster, r *collect.RelatedResult) {
 			r.Verification.After.Identity.UID = "replacement"
@@ -275,8 +272,10 @@ func TestRestartAssessmentRequiresRolloutEvidence(t *testing.T) {
 			r.Pods.Observations[0].Conditions.Values[0].ObservedGeneration = assessmentInteger(0)
 		}},
 		{"pod-deleting", func(_ *evidence.Cluster, r *collect.RelatedResult) {
-			at := assessmentTime
-			r.Pods.Observations[0].Metadata.DeletionTimestamp = evidence.Timestamp{State: evidence.ValueReported, Value: &at}
+			r.Pods.Observations[0].Metadata.DeletionTimestamp = evidence.Timestamp{
+				State: evidence.ValueReported,
+				Value: new(assessmentTime),
+			}
 		}},
 		{"missing-pod", func(_ *evidence.Cluster, r *collect.RelatedResult) {
 			r.Pods.Observations = []evidence.Pod{}
