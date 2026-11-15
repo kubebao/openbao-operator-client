@@ -1,6 +1,7 @@
 # Security
 
-The module is experimental. No operator compatibility range or lifecycle operation is qualified.
+The module is experimental. Validation covers only the operator builds and fixtures listed in
+[compatibility](docs/compatibility.md). No operator compatibility range is qualified.
 
 Report suspected vulnerabilities through
 [GitHub private vulnerability reporting](https://github.com/kubebao/openbao-operator-client/security/advisories/new).
@@ -8,16 +9,17 @@ Do not include credentials, kubeconfigs, raw resources, support bundles, or sens
 
 ## Boundaries
 
-Evidence and diagnosis contain no Kubernetes clients or credential configuration. Planned adapters project approved
-public fields before serialization. Provider messages are excluded by default. Optional local diagnostic text requires
-a separate bounded projection policy; redaction does not guarantee that free-form text contains no sensitive data.
+Evidence and diagnosis contain no Kubernetes clients or credential configuration. Adapters project approved public
+fields before serialization. Provider messages are excluded by default. Optional local diagnostic text requires a
+separate bounded projection policy; redaction does not guarantee that free-form text contains no sensitive data.
 
-Planned observation collectors remain read-only and do not read Secrets, execute commands in Pods, query OpenBao, or
-change resources. Caller-declared scopes constrain collection. Failed or partial reads do not establish absence or
-resolve previous findings. Names and labels do not establish ownership.
+Collectors are read-only. They do not read Secrets, execute commands in Pods, query OpenBao, or change resources.
+Caller-declared scopes constrain collection. Failed or partial reads do not establish absence or resolve previous
+findings. Names and labels do not establish ownership.
 
-Lifecycle operations and bundle processing are not implemented. Their implementation must add identity, concurrency,
-interruption, ambiguous-submission, and untrusted-input checks before exposing them to consumers.
+The `operations` package uses a separate write client. Each request changes one field and is bound to the selected
+UID, resource version, and generation. A request with an ambiguous outcome is not resubmitted. See
+[operations](docs/operations.md). The client does not process support bundles; consumers own archive handling.
 
 ## Checks
 
