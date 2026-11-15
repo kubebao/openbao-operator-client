@@ -1,8 +1,8 @@
 # Engineering rules
 
-Write clear technical English for developers and operators. Follow the Google developer documentation style guide.
-Use selected Simplified Technical English principles when they improve procedures. Do not claim formal compliance.
-Follow the detailed rules in [.agents/rules](.agents/rules).
+Write clear technical English for developers and operators. Follow the OpenBao Operator documentation standard as
+described in [.agents/rules/documentation.md](.agents/rules/documentation.md), and the other rules in
+[.agents/rules](.agents/rules).
 
 ## Boundaries
 
@@ -33,7 +33,7 @@ Follow the detailed rules in [.agents/rules](.agents/rules).
 
 ## Repository workflow
 
-- After the initial bootstrap, use pull requests and squash merges. Follow the configured rulesets.
+- Use pull requests and squash merges. Follow the configured rulesets.
 - Use scoped Conventional Commits and conventional branches such as `feat/evidence-contract`.
 - Sign off commits under the Developer Certificate of Origin. Preserve the configured commit signing.
 - Preserve consumer repositories and existing environments. Use isolated clusters for integration checks.

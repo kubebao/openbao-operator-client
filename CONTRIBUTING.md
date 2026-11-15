@@ -15,7 +15,7 @@ Use focused pull requests with Conventional Commit titles, such as `feat(evidenc
 Use conventional branch names such as `feat/evidence-contract`. Sign off each commit with `git commit -s` under the
 [Developer Certificate of Origin](https://developercertificate.org/). Sign-off and cryptographic signing are separate.
 
-After the bootstrap commit, the default branch requires pull requests, passing checks, linear history, and resolved
+The default branch requires pull requests, passing checks, linear history, and resolved
 review threads. Squash merge is the permitted merge method. A separate ruleset requires owner review and approval of
 the latest push. Its maintainer exception matches the operator repository and applies only through pull requests;
 it does not bypass required CI, DCO, or CodeQL checks. See [repository settings](docs/development.md#repository-settings).
@@ -25,7 +25,7 @@ reference docs in the same pull request as the behavior. Add synthetic
 fixtures and expected results for semantic changes. Do not preserve a defect solely because a consumer is unreleased.
 Version changed contracts and document the treatment of existing stored data.
 
-The library must remain independent of console and CLI implementation packages. Consumer migrations use the same
+The library must remain independent of console and CLI implementation packages. Consumer updates use the same
 candidate commit and final tag. Record qualification evidence in the pull request, as described in
 [qualification and releases](docs/development.md#qualification-and-releases).
 
