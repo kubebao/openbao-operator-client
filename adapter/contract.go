@@ -70,7 +70,7 @@ func Describe(contract Contract) (ContractInfo, error) {
 			Kinds:          []string{"Pod"}, Capabilities: []Capability{CapabilityPod, CapabilityConditions},
 		}, nil
 	default:
-		return ContractInfo{}, &ProjectionError{Code: UnsupportedContract}
+		return ContractInfo{}, &ProjectionError{Code: CodeUnsupportedContract}
 	}
 	info.Capabilities = []Capability{
 		CapabilityCluster, CapabilityConditions, CapabilityVersions, CapabilityReadiness,

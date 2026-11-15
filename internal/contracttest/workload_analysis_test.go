@@ -137,7 +137,7 @@ func TestCollectedWorkloadsRetainDiagnosticReadBoundaries(t *testing.T) {
 			}
 			for _, entry := range report.Coverage {
 				if (tc.denied && entry.Rule == diagnose.RulePod || tc.moved &&
-					(entry.Rule == diagnose.RulePod || entry.Rule == diagnose.RuleWorkload)) && entry.State != diagnose.Insufficient {
+					(entry.Rule == diagnose.RulePod || entry.Rule == diagnose.RuleWorkload)) && entry.State != diagnose.CoverageInsufficient {
 					t.Fatal("incomplete collection became complete diagnostic coverage")
 				}
 			}

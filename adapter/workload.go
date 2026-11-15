@@ -123,7 +123,7 @@ func ProjectStatefulSet(raw []byte, options ProjectionOptions) (evidence.Statefu
 		result.ReadyReplicas = evidence.Integer{State: evidence.ValueImplied, Value: &zero}
 	}
 	if result.Validate() != nil {
-		return evidence.StatefulSet{}, &ProjectionError{Code: InvalidInput}
+		return evidence.StatefulSet{}, &ProjectionError{Code: CodeInvalidInput}
 	}
 	return result, nil
 }
@@ -188,7 +188,7 @@ func ProjectPod(raw []byte, options ProjectionOptions) (evidence.Pod, error) {
 		Containers:     projectContainers(root, evidence.ContainerApp, options.Limits.MaxEntries, "containerStatuses"),
 	}
 	if result.Validate() != nil {
-		return evidence.Pod{}, &ProjectionError{Code: InvalidInput}
+		return evidence.Pod{}, &ProjectionError{Code: CodeInvalidInput}
 	}
 	return result, nil
 }

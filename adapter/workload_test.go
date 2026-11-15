@@ -320,11 +320,11 @@ func TestWorkloadFieldBounds(t *testing.T) {
 func TestContractRestrictsKinds(t *testing.T) {
 	t.Parallel()
 	_, err := adapter.ProjectPod(workloadFixture(t, "pod"), workloadOptions(adapter.KubernetesAppsV1))
-	assertProjectionError(t, err, adapter.UnsupportedContract)
+	assertProjectionError(t, err, adapter.CodeUnsupportedContract)
 	_, err = adapter.ProjectStatefulSet(workloadFixture(t, "statefulset"), projectionOptions())
-	assertProjectionError(t, err, adapter.UnsupportedContract)
+	assertProjectionError(t, err, adapter.CodeUnsupportedContract)
 	_, err = adapter.ProjectCluster(clusterFixture(t), workloadOptions(adapter.KubernetesCoreV1))
-	assertProjectionError(t, err, adapter.UnsupportedContract)
+	assertProjectionError(t, err, adapter.CodeUnsupportedContract)
 	info, err := adapter.Describe(adapter.KubernetesCoreV1)
 	if err != nil {
 		t.Fatal(err)

@@ -17,7 +17,7 @@ func ResourceKind(contract Contract, resource string) (string, error) {
 		"openbaoclusters": "OpenBaoCluster", "openbaorestores": "OpenBaoRestore", "statefulsets": "StatefulSet", "pods": "Pod",
 	}[resource]
 	if !slices.Contains(info.Kinds, kind) {
-		return "", &ProjectionError{Code: UnsupportedContract}
+		return "", &ProjectionError{Code: CodeUnsupportedContract}
 	}
 	return kind, nil
 }
@@ -36,14 +36,14 @@ func ProjectDiscovery(raw []byte, resource string, options ProjectionOptions) (e
 	}
 	if required(root, "apiVersion") != "v1" || required(root, "kind") != "APIResourceList" ||
 		required(root, "groupVersion") != info.APIVersion {
-		return evidence.Discovery{}, &ProjectionError{Code: ResourceMismatch}
+		return evidence.Discovery{}, &ProjectionError{Code: CodeResourceMismatch}
 	}
 	items, ok := root["resources"].([]any)
 	if !ok {
-		return evidence.Discovery{}, &ProjectionError{Code: InvalidInput}
+		return evidence.Discovery{}, &ProjectionError{Code: CodeInvalidInput}
 	}
 	if len(items) > options.Limits.MaxEntries {
-		return evidence.Discovery{}, &ProjectionError{Code: ProjectionLimit}
+		return evidence.Discovery{}, &ProjectionError{Code: CodeProjectionLimit}
 	}
 	collected := options.CollectedAt.UTC()
 	result := evidence.Discovery{
@@ -59,11 +59,11 @@ func ProjectDiscovery(raw []byte, resource string, options ProjectionOptions) (e
 	for _, item := range items {
 		object, ok := item.(map[string]any)
 		if !ok {
-			return evidence.Discovery{}, &ProjectionError{Code: InvalidInput}
+			return evidence.Discovery{}, &ProjectionError{Code: CodeInvalidInput}
 		}
 		name := required(object, "name")
 		if name == "" || seen[name] {
-			return evidence.Discovery{}, &ProjectionError{Code: InvalidInput}
+			return evidence.Discovery{}, &ProjectionError{Code: CodeInvalidInput}
 		}
 		seen[name] = true
 		if name != resource {
@@ -75,12 +75,12 @@ func ProjectDiscovery(raw []byte, resource string, options ProjectionOptions) (e
 		for key, expected := range map[string]string{"group": info.APIGroup, "version": result.Scope.Version} {
 			value, exists := object[key]
 			if exists && value != "" && value != expected {
-				return evidence.Discovery{}, &ProjectionError{Code: ResourceMismatch}
+				return evidence.Discovery{}, &ProjectionError{Code: CodeResourceMismatch}
 			}
 		}
 	}
 	if result.Validate() != nil {
-		return evidence.Discovery{}, &ProjectionError{Code: InvalidInput}
+		return evidence.Discovery{}, &ProjectionError{Code: CodeInvalidInput}
 	}
 	return result, nil
 }

@@ -1,19 +1,23 @@
 package evidence
 
-import (
-	"fmt"
-	"strings"
-)
+import "strings"
 
+// VerificationState classifies a later read of a selected cluster.
 type VerificationState string
 
 const (
-	VerificationVerified     VerificationState = "verified"
-	VerificationChanged      VerificationState = "changed"
+	// VerificationVerified means the UID and positive generation are unchanged.
+	VerificationVerified VerificationState = "verified"
+	// VerificationChanged means the UID is unchanged and the generation changed.
+	VerificationChanged VerificationState = "changed"
+	// VerificationInsufficient means the read cannot compare generations.
 	VerificationInsufficient VerificationState = "insufficient"
-	VerificationDeleted      VerificationState = "deleted"
-	VerificationReplaced     VerificationState = "replaced"
-	VerificationFailed       VerificationState = "failed"
+	// VerificationDeleted means a complete read did not find the cluster.
+	VerificationDeleted VerificationState = "deleted"
+	// VerificationReplaced means the name now identifies a resource with another UID.
+	VerificationReplaced VerificationState = "replaced"
+	// VerificationFailed means the read failed.
+	VerificationFailed VerificationState = "failed"
 )
 
 // TargetVerification compares one selected cluster with a later named GET or
@@ -28,6 +32,7 @@ type TargetVerification struct {
 	State            VerificationState `json:"state"`
 }
 
+// Validate checks the references, read, and that the state follows from them.
 func (v TargetVerification) Validate() error {
 	if err := v.validateHeader(); err != nil {
 		return err
@@ -51,8 +56,12 @@ func (v TargetVerification) Validate() error {
 }
 
 func (v TargetVerification) validateHeader() error {
-	if err := checkFields(fieldCheck{"before", v.Before.Validate()}, fieldCheck{"beforeGeneration", v.BeforeGeneration.Validate()},
-		fieldCheck{"afterGeneration", v.AfterGeneration.Validate()}, fieldCheck{"read", v.Read.Validate()}); err != nil {
+	if err := checkFields(
+		fieldCheck{"before", v.Before.Validate()},
+		fieldCheck{"beforeGeneration", v.BeforeGeneration.Validate()},
+		fieldCheck{"afterGeneration", v.AfterGeneration.Validate()},
+		fieldCheck{"read", v.Read.Validate()},
+	); err != nil {
 		return err
 	}
 	if v.Before.Identity.Kind != "OpenBaoCluster" {
@@ -141,8 +150,10 @@ func generationVerification(before, after Integer) VerificationState {
 func NewTargetVerification(before Cluster, read Collection, observations []Cluster) (TargetVerification, error) {
 	value := TargetVerification{
 		Before:           before.Reference,
-		BeforeGeneration: before.Generation, AfterGeneration: Integer{State: ValueUnknown}, Read: read,
-		State: VerificationFailed,
+		BeforeGeneration: before.Generation,
+		AfterGeneration:  Integer{State: ValueUnknown},
+		Read:             read,
+		State:            VerificationFailed,
 	}
 	if err := before.Validate(); err != nil {
 		return TargetVerification{}, At("before", err)
@@ -162,10 +173,10 @@ func NewTargetVerification(before Cluster, read Collection, observations []Clust
 	seenUID, seenName := map[string]bool{}, map[string]bool{}
 	for index, after := range observations {
 		id := after.Reference.Identity
+		path := itemPath("observations", index)
 		if err := after.Validate(); err != nil {
-			return TargetVerification{}, At(fmt.Sprintf("observations[%d]", index), err)
+			return TargetVerification{}, At(path, err)
 		}
-		path := fmt.Sprintf("observations[%d]", index)
 		if after.Reference.APIVersion != before.Reference.APIVersion {
 			return TargetVerification{}, At(path+".reference.apiVersion", ErrInvalidEvidence)
 		}

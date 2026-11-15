@@ -5,19 +5,19 @@ import "github.com/kubebao/openbao-operator-client/evidence"
 type CoverageState string
 
 const (
-	Excluded      CoverageState = "excluded"
-	NotRequested  CoverageState = "not_requested"
-	NotApplicable CoverageState = "not_applicable"
-	Insufficient  CoverageState = "insufficient"
-	Evaluated     CoverageState = "evaluated"
+	CoverageExcluded      CoverageState = "excluded"
+	CoverageNotRequested  CoverageState = "not_requested"
+	CoverageNotApplicable CoverageState = "not_applicable"
+	CoverageInsufficient  CoverageState = "insufficient"
+	CoverageEvaluated     CoverageState = "evaluated"
 )
 
 type Applicability string
 
 const (
-	Applies              Applicability = "applicable"
-	DoesNotApply         Applicability = "not_applicable"
-	ApplicabilityUnknown Applicability = "unknown"
+	ApplicabilityApplies      Applicability = "applicable"
+	ApplicabilityDoesNotApply Applicability = "not_applicable"
+	ApplicabilityUnknown      Applicability = "unknown"
 )
 
 type CoverageInput struct {
@@ -38,17 +38,17 @@ type CoverageResult struct {
 func ResolveCoverage(input CoverageInput) CoverageResult {
 	switch {
 	case !input.Selected:
-		return CoverageResult{State: Excluded}
+		return CoverageResult{State: CoverageExcluded}
 	case !input.Requested:
-		return CoverageResult{State: NotRequested}
+		return CoverageResult{State: CoverageNotRequested}
 	case input.Collection.Validate() != nil || input.Collection.Outcome != evidence.CollectionComplete || !input.EvidenceValid:
-		return CoverageResult{State: Insufficient}
-	case input.Applicability == DoesNotApply:
-		return CoverageResult{State: NotApplicable}
-	case input.Applicability != Applies:
-		return CoverageResult{State: Insufficient}
+		return CoverageResult{State: CoverageInsufficient}
+	case input.Applicability == ApplicabilityDoesNotApply:
+		return CoverageResult{State: CoverageNotApplicable}
+	case input.Applicability != ApplicabilityApplies:
+		return CoverageResult{State: CoverageInsufficient}
 	default:
-		return CoverageResult{State: Evaluated, AbsenceConfirmed: input.Collection.AbsenceConfirmed()}
+		return CoverageResult{State: CoverageEvaluated, AbsenceConfirmed: input.Collection.AbsenceConfirmed()}
 	}
 }
 

@@ -49,7 +49,7 @@ func ProjectCluster(raw []byte, options ProjectionOptions) (evidence.Cluster, er
 		result.RestoreOrigin = evidence.Text{State: evidence.ValueUnknown}
 	}
 	if result.Validate() != nil {
-		return evidence.Cluster{}, &ProjectionError{Code: InvalidInput}
+		return evidence.Cluster{}, &ProjectionError{Code: CodeInvalidInput}
 	}
 	return result, nil
 }

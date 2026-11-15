@@ -96,7 +96,7 @@ func TestClusterOmissionPolicyIsExplicit(t *testing.T) {
 	}
 	options.Contract = "openbao.org/v1alpha1@unknown"
 	_, err = adapter.ProjectCluster(clusterFixture(t), options)
-	assertProjectionError(t, err, adapter.UnsupportedContract)
+	assertProjectionError(t, err, adapter.CodeUnsupportedContract)
 }
 
 func TestMalformedOptionalFieldsPreserveIndependentFacts(t *testing.T) {
@@ -144,18 +144,18 @@ func TestProjectionBoundaryErrors(t *testing.T) {
 		data []byte
 		code adapter.ErrorCode
 	}{
-		{"null", []byte("null"), adapter.InvalidInput},
-		{"array", []byte("[]"), adapter.InvalidInput},
-		{"malformed", []byte(`{"CANARY":`), adapter.InvalidInput},
-		{"trailing", append(bytes.Clone(base), []byte(`{}`)...), adapter.InvalidInput},
-		{"duplicate-key", duplicateUID, adapter.InvalidInput},
-		{"missing-uid", bytes.Replace(base, []byte(`"uid": "cluster-1",`), nil, 1), adapter.InvalidInput},
-		{"control-uid", bytes.Replace(base, []byte(`"cluster-1"`), []byte(`"cluster\n1"`), 1), adapter.InvalidInput},
-		{"surrogate-uid", bytes.Replace(base, []byte(`"cluster-1"`), []byte(`"\ud800"`), 1), adapter.InvalidInput},
-		{"invalid-utf8", bytes.Replace(base, []byte("cluster-1"), []byte{0xff}, 1), adapter.InvalidInput},
-		{"other-group", bytes.Replace(base, []byte("openbao.org/v1alpha1"), []byte("other.org/v1alpha1"), 1), adapter.ResourceMismatch},
-		{"other-kind", bytes.Replace(base, []byte("OpenBaoCluster"), []byte("Secret"), 1), adapter.ResourceMismatch},
-		{"nesting-limit", []byte(`{"unknown":` + strings.Repeat("[", 70) + `0` + strings.Repeat("]", 70) + `}`), adapter.ProjectionLimit},
+		{"null", []byte("null"), adapter.CodeInvalidInput},
+		{"array", []byte("[]"), adapter.CodeInvalidInput},
+		{"malformed", []byte(`{"CANARY":`), adapter.CodeInvalidInput},
+		{"trailing", append(bytes.Clone(base), []byte(`{}`)...), adapter.CodeInvalidInput},
+		{"duplicate-key", duplicateUID, adapter.CodeInvalidInput},
+		{"missing-uid", bytes.Replace(base, []byte(`"uid": "cluster-1",`), nil, 1), adapter.CodeInvalidInput},
+		{"control-uid", bytes.Replace(base, []byte(`"cluster-1"`), []byte(`"cluster\n1"`), 1), adapter.CodeInvalidInput},
+		{"surrogate-uid", bytes.Replace(base, []byte(`"cluster-1"`), []byte(`"\ud800"`), 1), adapter.CodeInvalidInput},
+		{"invalid-utf8", bytes.Replace(base, []byte("cluster-1"), []byte{0xff}, 1), adapter.CodeInvalidInput},
+		{"other-group", bytes.Replace(base, []byte("openbao.org/v1alpha1"), []byte("other.org/v1alpha1"), 1), adapter.CodeResourceMismatch},
+		{"other-kind", bytes.Replace(base, []byte("OpenBaoCluster"), []byte("Secret"), 1), adapter.CodeResourceMismatch},
+		{"nesting-limit", []byte(`{"unknown":` + strings.Repeat("[", 70) + `0` + strings.Repeat("]", 70) + `}`), adapter.CodeProjectionLimit},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := adapter.ProjectCluster(tc.data, projectionOptions())
@@ -177,7 +177,7 @@ func TestProjectionLimitsAndClock(t *testing.T) {
 	}
 	options.Limits.MaxBytes--
 	_, err := adapter.ProjectCluster(data, options)
-	assertProjectionError(t, err, adapter.ProjectionLimit)
+	assertProjectionError(t, err, adapter.CodeProjectionLimit)
 	options = projectionOptions()
 	options.Limits.MaxConditions = 1
 	got, err := adapter.ProjectCluster(data, options)
@@ -191,13 +191,13 @@ func TestProjectionLimitsAndClock(t *testing.T) {
 		options = projectionOptions()
 		options.Limits = limits
 		_, err := adapter.ProjectCluster(data, options)
-		assertProjectionError(t, err, adapter.InvalidInput)
+		assertProjectionError(t, err, adapter.CodeInvalidInput)
 	}
 	for _, clock := range []time.Time{{}, time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC)} {
 		options = projectionOptions()
 		options.CollectedAt = clock
 		_, err := adapter.ProjectCluster(data, options)
-		assertProjectionError(t, err, adapter.InvalidInput)
+		assertProjectionError(t, err, adapter.CodeInvalidInput)
 	}
 }
 

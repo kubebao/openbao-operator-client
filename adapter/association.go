@@ -8,7 +8,7 @@ import (
 func AssociateStatefulSet(set evidence.StatefulSet, cluster evidence.Identity) (evidence.Association, error) {
 	value, err := evidence.AssociateStatefulSet(set, cluster)
 	if err != nil {
-		return evidence.Association{}, &ProjectionError{Code: InvalidInput}
+		return evidence.Association{}, &ProjectionError{Code: CodeInvalidInput}
 	}
 	return value, nil
 }
@@ -17,7 +17,7 @@ func AssociateStatefulSet(set evidence.StatefulSet, cluster evidence.Identity) (
 func AssociatePod(pod evidence.Pod, set evidence.StatefulSet, parent evidence.Association) (evidence.Association, error) {
 	value, err := evidence.AssociatePod(pod, set, parent)
 	if err != nil {
-		return evidence.Association{}, &ProjectionError{Code: InvalidInput}
+		return evidence.Association{}, &ProjectionError{Code: CodeInvalidInput}
 	}
 	return value, nil
 }
@@ -27,7 +27,7 @@ func AssociatePod(pod evidence.Pod, set evidence.StatefulSet, parent evidence.As
 func AssociateRestore(target evidence.Cluster, request evidence.Restore) (evidence.Association, error) {
 	value, err := evidence.AssociateRestore(target, request)
 	if err != nil {
-		return evidence.Association{}, &ProjectionError{Code: InvalidInput}
+		return evidence.Association{}, &ProjectionError{Code: CodeInvalidInput}
 	}
 	return value, nil
 }

@@ -70,17 +70,17 @@ func TestRestoreFindingsSeparateHeldHistoricalAndProgress(t *testing.T) {
 		history                           bool
 		want                              diagnose.Severity
 	}{
-		{"held-unknown", "Unknown", "Committed", "Complete", "operation-1", false, diagnose.Error},
-		{"held-failure-by-uid", "Failed", "TerminalObserved", "Complete", "request-1", false, diagnose.Error},
-		{"recorded-unknown", "Unknown", "Committed", "Complete", "", true, diagnose.Warning},
+		{"held-unknown", "Unknown", "Committed", "Complete", "operation-1", false, diagnose.SeverityError},
+		{"held-failure-by-uid", "Failed", "TerminalObserved", "Complete", "request-1", false, diagnose.SeverityError},
+		{"recorded-unknown", "Unknown", "Committed", "Complete", "", true, diagnose.SeverityWarning},
 		{"historical-disabled", "Unknown", "Committed", "Complete", "", false, ""},
-		{"recorded-cleanup", "Completed", "FollowThroughComplete", "Failed", "", true, diagnose.Warning},
-		{"held-cleanup", "Completed", "FollowThroughComplete", "Failed", "operation-1", false, diagnose.Error},
-		{"pending", "Pending", "Prepared", "Pending", "", false, diagnose.Info},
-		{"validating", "Validating", "Prepared", "Pending", "", false, diagnose.Info},
-		{"running", "Running", "Created", "Pending", "", false, diagnose.Info},
+		{"recorded-cleanup", "Completed", "FollowThroughComplete", "Failed", "", true, diagnose.SeverityWarning},
+		{"held-cleanup", "Completed", "FollowThroughComplete", "Failed", "operation-1", false, diagnose.SeverityError},
+		{"pending", "Pending", "Prepared", "Pending", "", false, diagnose.SeverityInfo},
+		{"validating", "Validating", "Prepared", "Pending", "", false, diagnose.SeverityInfo},
+		{"running", "Running", "Created", "Pending", "", false, diagnose.SeverityInfo},
 		{"completed", "Completed", "FollowThroughComplete", "Complete", "", true, ""},
-		{"unknown-receipt-after-completion", "Completed", "Unknown", "Complete", "operation-1", false, diagnose.Error},
+		{"unknown-receipt-after-completion", "Completed", "Unknown", "Complete", "operation-1", false, diagnose.SeverityError},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			i, p := restoreInput(t), restorePolicy(t)
@@ -91,7 +91,7 @@ func TestRestoreFindingsSeparateHeldHistoricalAndProgress(t *testing.T) {
 			}
 			p.ReportHistoricalRestores = tc.history
 			report, coverage := runRestore(t, i, p)
-			if coverage.State != diagnose.Evaluated {
+			if coverage.State != diagnose.CoverageEvaluated {
 				t.Fatal("valid recorded restore facts lost coverage")
 			}
 			if tc.want == "" {
@@ -125,7 +125,7 @@ func TestRestoreHoldNeverProvesUIDOwnership(t *testing.T) {
 				i.Observation.RestoreHold = text(hold)
 				tc.change(&i)
 				report, coverage := runRestore(t, i, p)
-				if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 {
+				if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 {
 					t.Fatal("hold/name/time replaced independent UID confirmation")
 				}
 			})
@@ -140,7 +140,7 @@ func TestRestoreUnconfirmedBindingsRemainInsufficient(t *testing.T) {
 	i.Restores.Observations[0].Target.UID = evidence.Text{State: evidence.ValueUnknown}
 	i.Restores.Observations[0].Execution.TargetUID = evidence.Text{State: evidence.ValueUnknown}
 	report, coverage := runRestore(t, i, p)
-	if coverage.State != diagnose.Insufficient || coverage.Reason != diagnose.ReasonAssociation || len(report.Findings) != 0 {
+	if coverage.State != diagnose.CoverageInsufficient || coverage.Reason != diagnose.ReasonAssociation || len(report.Findings) != 0 {
 		t.Fatal("missing UID bindings confirmed restore ownership")
 	}
 }
@@ -155,7 +155,7 @@ func TestRestoreMissingPhaseAndReceiptsDoNotInferCompletion(t *testing.T) {
 		// Submission, application, restart, and administrator receipts are all
 		// present in this fixture. None supplies the missing phase.
 		report, coverage := runRestore(t, i, p)
-		if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 {
+		if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 {
 			t.Fatal("request age or independent receipt became a phase/result")
 		}
 	}
@@ -164,7 +164,8 @@ func TestRestoreMissingPhaseAndReceiptsDoNotInferCompletion(t *testing.T) {
 	i.Restores.Observations[0].Phase = evidence.Text{State: evidence.ValueInvalid}
 	i.Restores.Observations[0].Execution.Stage = text("Unknown")
 	report, coverage := runRestore(t, i, p)
-	if coverage.State != diagnose.Insufficient || len(report.Findings) != 1 || report.Findings[0].Severity != diagnose.Error {
+	if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 1 ||
+		report.Findings[0].Severity != diagnose.SeverityError {
 		t.Fatal("invalid phase erased an independently unknown held execution")
 	}
 }
@@ -179,12 +180,12 @@ func TestAmbiguousRestoreHoldAndReplayRemainDeterministic(t *testing.T) {
 	i.Observation.RestoreHold = text("operation-1")
 	p.ReportHistoricalRestores = false
 	report, coverage := runRestore(t, i, p)
-	if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 {
+	if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 {
 		t.Fatal("ambiguous operation ID selected a held request")
 	}
 	i.Observation.RestoreHold = text("request-1")
 	first, coverage := runRestore(t, i, p)
-	if coverage.State != diagnose.Evaluated || len(first.Findings) != 1 || first.Findings[0].Severity != diagnose.Error {
+	if coverage.State != diagnose.CoverageEvaluated || len(first.Findings) != 1 || first.Findings[0].Severity != diagnose.SeverityError {
 		t.Fatal("unique request UID did not bind the independently confirmed hold")
 	}
 	data, err := json.Marshal(capture(i))
@@ -216,31 +217,31 @@ func TestRestoreReadAndTimeBoundariesRetainIndependentFindings(t *testing.T) {
 	i.Observation.RestoreHold = text("operation-1")
 	i.Restores.Collection.Outcome = evidence.CollectionPartial
 	report, coverage := runRestore(t, i, p)
-	if coverage.State != diagnose.Insufficient || len(report.Findings) != 1 {
+	if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 1 {
 		t.Fatal("partial restore list erased independent UID-bound concern")
 	}
 	i.Restores.Observations[0].CompletedAt = timestamp(p.ReferenceTime.Add(time.Second))
 	report, coverage = runRestore(t, i, p)
-	if coverage.State != diagnose.Insufficient || len(report.Findings) != 1 {
+	if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 1 {
 		t.Fatal("future producer time erased an independent reported concern")
 	}
 	i = restoreInput(t)
 	i.Verification = nil
 	report, coverage = runRestore(t, i, p)
-	if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 {
+	if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 {
 		t.Fatal("unverified target produced restore findings")
 	}
 	i = restoreInput(t)
 	i.Verification.AfterGeneration, i.Verification.State = integer(5), evidence.VerificationChanged
 	report, coverage = runRestore(t, i, p)
-	if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 {
+	if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 {
 		t.Fatal("changed target produced restore findings")
 	}
 	i = restoreInput(t)
 	i.Restores.Observations, i.Restores.Collection.Items, i.Restores.Collection.Outcome = []evidence.Restore{}, 0, evidence.CollectionDenied
 	i.Observation.RestoreHold = text("operation-1")
 	report, coverage = runRestore(t, i, p)
-	if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 {
+	if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 {
 		t.Fatal("denied restore read became a resolved hold")
 	}
 }
@@ -257,12 +258,12 @@ func TestRestoreProducerTimesUseTheRequestRead(t *testing.T) {
 	r.StartedAt, r.CompletedAt = timestamp(at.Add(-10*time.Second)), timestamp(at.Add(-5*time.Second))
 	r.Target.AppliedAt, r.RestartCompletedAt = timestamp(at.Add(-8*time.Second)), timestamp(at.Add(-3*time.Second))
 	report, coverage := runRestore(t, i, p)
-	if coverage.State != diagnose.Evaluated || len(report.Findings) != 1 {
+	if coverage.State != diagnose.CoverageEvaluated || len(report.Findings) != 1 {
 		t.Fatal("valid producer times were compared with the earlier cluster read")
 	}
 	r.CompletedAt = timestamp(at.Add(-20 * time.Second))
 	report, coverage = runRestore(t, i, p)
-	if coverage.State != diagnose.Insufficient || coverage.Reason != diagnose.ReasonTime || len(report.Findings) != 1 {
+	if coverage.State != diagnose.CoverageInsufficient || coverage.Reason != diagnose.ReasonTime || len(report.Findings) != 1 {
 		t.Fatal("reversed producer times hid independent reported facts")
 	}
 }

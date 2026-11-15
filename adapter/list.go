@@ -41,23 +41,23 @@ func projectList[T any](raw []byte, options ProjectionOptions, kind string,
 		return Page[T]{}, err
 	}
 	if !slices.Contains(info.Kinds, kind) {
-		return Page[T]{}, &ProjectionError{Code: UnsupportedContract}
+		return Page[T]{}, &ProjectionError{Code: CodeUnsupportedContract}
 	}
 	origin := evidence.Text{State: evidence.ValueReported, Value: &options.Origin}
 	collected := evidence.Timestamp{State: evidence.ValueReported, Value: &options.CollectedAt}
 	if origin.Validate() != nil || len(options.Origin) > 253 || collected.Validate() != nil {
-		return Page[T]{}, &ProjectionError{Code: InvalidInput}
+		return Page[T]{}, &ProjectionError{Code: CodeInvalidInput}
 	}
 	root, err := decodeObject(raw, options.Limits)
 	if err != nil {
 		return Page[T]{}, err
 	}
 	if required(root, "apiVersion") != info.APIVersion || required(root, "kind") != kind+"List" {
-		return Page[T]{}, &ProjectionError{Code: ResourceMismatch}
+		return Page[T]{}, &ProjectionError{Code: CodeResourceMismatch}
 	}
 	version := text(root, false, "metadata", "resourceVersion")
 	if version.State != evidence.ValueReported {
-		return Page[T]{}, &ProjectionError{Code: InvalidInput}
+		return Page[T]{}, &ProjectionError{Code: CodeInvalidInput}
 	}
 	next, err := continuation(root)
 	if err != nil {
@@ -65,16 +65,16 @@ func projectList[T any](raw []byte, options ProjectionOptions, kind string,
 	}
 	items, ok := root["items"].([]any)
 	if !ok {
-		return Page[T]{}, &ProjectionError{Code: InvalidInput}
+		return Page[T]{}, &ProjectionError{Code: CodeInvalidInput}
 	}
 	if len(items) > options.Limits.MaxEntries {
-		return Page[T]{}, &ProjectionError{Code: ProjectionLimit}
+		return Page[T]{}, &ProjectionError{Code: CodeProjectionLimit}
 	}
 	result := Page[T]{Observations: []T{}, ResourceVersion: *version.Value, Continue: next}
 	for _, item := range items {
 		object, ok := item.(map[string]any)
 		if !ok {
-			return Page[T]{}, &ProjectionError{Code: InvalidInput}
+			return Page[T]{}, &ProjectionError{Code: CodeInvalidInput}
 		}
 		// Typed list items can omit TypeMeta. Only absence inherits the envelope;
 		// present null, empty, or conflicting declarations fail resource projection.
@@ -86,7 +86,7 @@ func projectList[T any](raw []byte, options ProjectionOptions, kind string,
 		}
 		encoded, err := json.Marshal(object)
 		if err != nil {
-			return Page[T]{}, &ProjectionError{Code: InvalidInput}
+			return Page[T]{}, &ProjectionError{Code: CodeInvalidInput}
 		}
 		value, err := project(encoded, options)
 		if err != nil {
@@ -105,7 +105,7 @@ func continuation(root map[string]any) (string, error) {
 	next, ok := value.(string)
 	if !ok || state != evidence.ValueReported || len(next) > 4096 ||
 		strings.ContainsFunc(next, unicode.IsControl) || strings.ContainsRune(next, unicode.ReplacementChar) {
-		return "", &ProjectionError{Code: InvalidInput}
+		return "", &ProjectionError{Code: CodeInvalidInput}
 	}
 	return next, nil
 }

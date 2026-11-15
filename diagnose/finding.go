@@ -43,14 +43,14 @@ func (r RuleID) Valid() bool {
 type Severity string
 
 const (
-	Info     Severity = "info"
-	Warning  Severity = "warning"
-	Error    Severity = "error"
-	Critical Severity = "critical"
+	SeverityInfo     Severity = "info"
+	SeverityWarning  Severity = "warning"
+	SeverityError    Severity = "error"
+	SeverityCritical Severity = "critical"
 )
 
 func (s Severity) Rank() int {
-	return map[Severity]int{Info: 1, Warning: 2, Error: 3, Critical: 4}[s]
+	return map[Severity]int{SeverityInfo: 1, SeverityWarning: 2, SeverityError: 3, SeverityCritical: 4}[s]
 }
 
 var (

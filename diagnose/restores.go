@@ -15,7 +15,7 @@ type associatedRestore struct {
 }
 
 func evaluateRestores(input ClusterInput, policy Policy, coverage Coverage) (Coverage, []Finding) {
-	coverage.State, coverage.Reason, coverage.Outcome = NotRequested, ReasonNotRequested, evidence.CollectionNotRequested
+	coverage.State, coverage.Reason, coverage.Outcome = CoverageNotRequested, ReasonNotRequested, evidence.CollectionNotRequested
 	if input.Restores == nil {
 		return coverage, nil
 	}
@@ -24,12 +24,12 @@ func evaluateRestores(input ClusterInput, policy Policy, coverage Coverage) (Cov
 	if read.Outcome == evidence.CollectionNotRequested {
 		return coverage, nil
 	}
-	coverage.State = Insufficient
+	coverage.State = CoverageInsufficient
 	if reason := relatedTarget(input, policy); reason != ReasonNone {
 		coverage.Reason = reason
 		return coverage, nil
 	}
-	result := evaluation{state: Evaluated, reason: ReasonNone}
+	result := evaluation{state: CoverageEvaluated, reason: ReasonNone}
 	if read.Outcome != evidence.CollectionComplete || input.Collection.Outcome != evidence.CollectionComplete {
 		result.insufficient(ReasonScopeIncomplete)
 	}
@@ -113,17 +113,27 @@ func restoreConcern(input ClusterInput, record associatedRestore, held bool, pol
 		found = restoreFinding(
 			input,
 			record,
-			Info,
+			SeverityInfo,
 			"The operator reports snapshot application on the UID-confirmed disposable target; "+
 				"cleanup is pending within the configured retention period.",
 		)
 	case held && (unsafe || cleanupFailed):
-		found = restoreFinding(input, record, Error, "A UID-confirmed restore matching the reported hold requires recovery inspection.")
+		found = restoreFinding(
+			input,
+			record,
+			SeverityError,
+			"A UID-confirmed restore matching the reported hold requires recovery inspection.",
+		)
 	case policy.ReportHistoricalRestores && (unsafe || cleanupFailed):
-		found = restoreFinding(input, record, Warning,
+		found = restoreFinding(input, record, SeverityWarning,
 			"The operator records a restore outcome requiring investigation; this does not establish an active failure.")
 	case phaseKnown && slices.Contains([]string{"Pending", "Validating", "Running"}, *phase.Value):
-		found = restoreFinding(input, record, Info, "The UID-confirmed restore reports an in-progress phase; completion is not verified.")
+		found = restoreFinding(
+			input,
+			record,
+			SeverityInfo,
+			"The UID-confirmed restore reports an in-progress phase; completion is not verified.",
+		)
 	}
 	if found != nil {
 		result.add(found)
@@ -206,7 +216,7 @@ func restoreFinding(input ClusterInput, record associatedRestore, severity Sever
 		"status.execution.terminalResult",
 		"status.target.cleanup",
 	)
-	if severity == Info && record.value.Phase.State == evidence.ValueReported && *record.value.Phase.Value == "Unknown" {
+	if severity == SeverityInfo && record.value.Phase.State == evidence.ValueReported && *record.value.Phase.Value == "Unknown" {
 		for _, field := range []string{"spec.targetLifecycle", "spec.cleanupAfterSeconds", "status.target.appliedAt"} {
 			ref := record.value.Reference
 			ref.Field = field

@@ -6,9 +6,10 @@ The library keeps three things apart: resource facts, their interpretation, and 
 | --- | --- | --- |
 | `evidence` | None | Standard-library value types only |
 | `adapter` | `evidence` | Approved public API fields and omission rules |
-| `collect` | `adapter`, `evidence` | Caller-configured HTTP transport |
+| `collect` | `adapter`, `evidence`, `internal/apiendpoint` | Caller-configured HTTP transport |
 | `diagnose` | `evidence` | Supplied policy and reference time; no I/O |
-| `operations` | `adapter`, `collect`, `evidence` | Caller-configured write transport; supplied observations and reference time |
+| `operations` | `adapter`, `collect`, `evidence`, `internal/apiendpoint` | Caller-configured write transport; supplied observations and reference time |
+| `internal/apiendpoint` | None | Validation of caller-supplied API server base URLs |
 
 `make architecture` enforces this direction, the import restrictions on pure packages, and the exclusion of operator and
 consumer modules. Test imports follow the same direction.

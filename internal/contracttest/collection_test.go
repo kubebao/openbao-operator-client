@@ -43,9 +43,9 @@ func cover(s scope) coverage {
 	if read.Outcome == evidence.CollectionNotCollected || read.Outcome == evidence.CollectionNotRequested {
 		read.Interval = evidence.Interval{}
 	}
-	applicable := diagnose.Applies
+	applicable := diagnose.ApplicabilityApplies
 	if !s.Applicable {
-		applicable = diagnose.DoesNotApply
+		applicable = diagnose.ApplicabilityDoesNotApply
 	}
 	value := diagnose.ResolveCoverage(diagnose.CoverageInput{
 		Selected: s.Selected, Requested: s.Requested, Applicability: applicable,

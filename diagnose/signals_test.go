@@ -66,13 +66,13 @@ func TestAvailabilityRequiresResourceAndConditionAcknowledgement(t *testing.T) {
 		state         diagnose.CoverageState
 		findings      int
 	}{
-		{"current-false", 4, 4, evidence.ConditionFalse, diagnose.Evaluated, 1},
-		{"current-true", 4, 4, evidence.ConditionTrue, diagnose.Evaluated, 0},
-		{"unknown-status", 4, 4, evidence.ConditionUnknown, diagnose.Insufficient, 0},
-		{"stale-resource", 3, 4, evidence.ConditionFalse, diagnose.Insufficient, 0},
-		{"stale-condition", 4, 3, evidence.ConditionFalse, diagnose.Insufficient, 0},
-		{"future-condition", 4, 5, evidence.ConditionFalse, diagnose.Insufficient, 0},
-		{"zero-condition", 4, 0, evidence.ConditionFalse, diagnose.Insufficient, 0},
+		{"current-false", 4, 4, evidence.ConditionFalse, diagnose.CoverageEvaluated, 1},
+		{"current-true", 4, 4, evidence.ConditionTrue, diagnose.CoverageEvaluated, 0},
+		{"unknown-status", 4, 4, evidence.ConditionUnknown, diagnose.CoverageInsufficient, 0},
+		{"stale-resource", 3, 4, evidence.ConditionFalse, diagnose.CoverageInsufficient, 0},
+		{"stale-condition", 4, 3, evidence.ConditionFalse, diagnose.CoverageInsufficient, 0},
+		{"future-condition", 4, 5, evidence.ConditionFalse, diagnose.CoverageInsufficient, 0},
+		{"zero-condition", 4, 0, evidence.ConditionFalse, diagnose.CoverageInsufficient, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			i := input(t)
@@ -82,7 +82,7 @@ func TestAvailabilityRequiresResourceAndConditionAcknowledgement(t *testing.T) {
 			if coverage.State != tc.state || len(report.Findings) != tc.findings {
 				t.Fatal("availability used unconfirmed generations or status")
 			}
-			if len(report.Findings) > 0 && report.Findings[0].Severity != diagnose.Warning {
+			if len(report.Findings) > 0 && report.Findings[0].Severity != diagnose.SeverityWarning {
 				t.Fatal("availability severity changed")
 			}
 		})
@@ -95,25 +95,26 @@ func TestSealingUsesItsOwnAcknowledgementAndPause(t *testing.T) {
 	i.Observation.ObservedGeneration = integer(3)
 	setConditions(i.Observation, condition("OpenBaoSealed", evidence.ConditionTrue, 4))
 	report, coverage := runRule(t, i, diagnose.RuleSealed)
-	if coverage.State != diagnose.Evaluated || len(report.Findings) != 1 || report.Findings[0].Severity != diagnose.Critical {
+	if coverage.State != diagnose.CoverageEvaluated || len(report.Findings) != 1 ||
+		report.Findings[0].Severity != diagnose.SeverityCritical {
 		t.Fatal("resource acknowledgement replaced individual condition acknowledgement")
 	}
 	for _, ack := range []int64{0, 3, 5, -1} {
 		setConditions(i.Observation, condition("OpenBaoSealed", evidence.ConditionTrue, ack))
 		report, coverage = runRule(t, i, diagnose.RuleSealed)
-		if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 {
+		if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 {
 			t.Fatal("noncurrent sealing became a current finding")
 		}
 	}
 	i.Observation.Paused = flag(true)
 	i.Observation.Conditions = evidence.Conditions{State: evidence.ValueUnknown}
 	report, coverage = runRule(t, i, diagnose.RuleSealed)
-	if coverage.State != diagnose.Evaluated || len(report.Findings) != 0 {
+	if coverage.State != diagnose.CoverageEvaluated || len(report.Findings) != 0 {
 		t.Fatal("pause did not suppress sealing")
 	}
 	i.Observation.Paused = evidence.Boolean{State: evidence.ValueUnknown}
 	report, coverage = runRule(t, i, diagnose.RuleSealed)
-	if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 {
+	if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 {
 		t.Fatal("unknown pause became known false")
 	}
 }
@@ -126,7 +127,7 @@ func TestGenericConditionsHaveSeparateIdentitiesAndNoSpecializedDuplicates(t *te
 		condition("Degraded", evidence.ConditionTrue, 4), condition("TLSReady", evidence.ConditionFalse, 4),
 		condition("FutureCondition", evidence.ConditionUnknown, 0))
 	report, coverage := runRule(t, i, diagnose.RuleCondition)
-	if coverage.State != diagnose.Evaluated || len(report.Findings) != 2 {
+	if coverage.State != diagnose.CoverageEvaluated || len(report.Findings) != 2 {
 		t.Fatal("generic conditions duplicated specialized or unknown conditions")
 	}
 	seen := map[string]bool{}
@@ -142,7 +143,7 @@ func TestGenericConditionsHaveSeparateIdentitiesAndNoSpecializedDuplicates(t *te
 	}
 	setConditions(i.Observation, condition("Degraded", evidence.ConditionTrue, 4), condition("TLSReady", evidence.ConditionFalse, 3))
 	report, coverage = runRule(t, i, diagnose.RuleCondition)
-	if coverage.State != diagnose.Insufficient || len(report.Findings) != 1 || report.Findings[0].Subsubject != "Degraded" {
+	if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 1 || report.Findings[0].Subsubject != "Degraded" {
 		t.Fatal("stale optional evidence discarded an independently confirmed condition")
 	}
 	encoded, err := json.Marshal(report)
@@ -158,13 +159,13 @@ func TestConditionTransitionTimeIsNotAHeartbeat(t *testing.T) {
 	value.LastTransitionAt = timestamp(i.Observation.Reference.CollectedAt.Value.Add(-365 * 24 * time.Hour))
 	setConditions(i.Observation, value)
 	report, coverage := runRule(t, i, diagnose.RuleAvailability)
-	if coverage.State != diagnose.Evaluated || len(report.Findings) != 1 {
+	if coverage.State != diagnose.CoverageEvaluated || len(report.Findings) != 1 {
 		t.Fatal("old transition suppressed current reported status")
 	}
 	value.LastTransitionAt = timestamp(i.Observation.Reference.CollectedAt.Value.Add(time.Second))
 	setConditions(i.Observation, value)
 	report, coverage = runRule(t, i, diagnose.RuleAvailability)
-	if coverage.State != diagnose.Insufficient || coverage.Reason != diagnose.ReasonTime || len(report.Findings) != 1 {
+	if coverage.State != diagnose.CoverageInsufficient || coverage.Reason != diagnose.ReasonTime || len(report.Findings) != 1 {
 		t.Fatal("inconsistent transition time hid an independent status fact or became complete coverage")
 	}
 }
@@ -177,11 +178,11 @@ func TestGenerationDistinguishesStaleInconsistentAndUnknown(t *testing.T) {
 		findings int
 		word     string
 	}{
-		{4, diagnose.Evaluated, 0, ""},
-		{3, diagnose.Evaluated, 1, "earlier"},
-		{5, diagnose.Evaluated, 1, "inconsistent"},
-		{-1, diagnose.Evaluated, 1, "inconsistent"},
-		{0, diagnose.Insufficient, 0, ""},
+		{4, diagnose.CoverageEvaluated, 0, ""},
+		{3, diagnose.CoverageEvaluated, 1, "earlier"},
+		{5, diagnose.CoverageEvaluated, 1, "inconsistent"},
+		{-1, diagnose.CoverageEvaluated, 1, "inconsistent"},
+		{0, diagnose.CoverageInsufficient, 0, ""},
 	} {
 		i := input(t)
 		i.Observation.ObservedGeneration = integer(tc.observed)
@@ -207,7 +208,7 @@ func TestRestrictionsRemainIndependentAndUnknownFlagsStayIncomplete(t *testing.T
 	}
 	before, _ := json.Marshal(i)
 	report, coverage := runRule(t, i, diagnose.RuleRestriction)
-	if coverage.State != diagnose.Evaluated || len(report.Findings) != 4 {
+	if coverage.State != diagnose.CoverageEvaluated || len(report.Findings) != 4 {
 		t.Fatal("independent restrictions were combined")
 	}
 	warnings, infos := 0, 0
@@ -221,10 +222,10 @@ func TestRestrictionsRemainIndependentAndUnknownFlagsStayIncomplete(t *testing.T
 			t.Fatal("restriction finding identities collided")
 		}
 		keys[key] = true
-		if found.Severity == diagnose.Warning {
+		if found.Severity == diagnose.SeverityWarning {
 			warnings++
 		}
-		if found.Severity == diagnose.Info {
+		if found.Severity == diagnose.SeverityInfo {
 			infos++
 		}
 	}
@@ -237,14 +238,14 @@ func TestRestrictionsRemainIndependentAndUnknownFlagsStayIncomplete(t *testing.T
 	}
 	i.Observation.Maintenance.Enabled = evidence.Boolean{State: evidence.ValueUnknown}
 	report, coverage = runRule(t, i, diagnose.RuleRestriction)
-	if coverage.State != diagnose.Insufficient || len(report.Findings) != 3 {
+	if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 3 {
 		t.Fatal("unknown maintenance erased independent restrictions")
 	}
 	i.Observation.Paused = flag(false)
 	i.Observation.Maintenance.Enabled = flag(false)
 	i.Observation.BreakGlass.Active = flag(false)
 	report, coverage = runRule(t, i, diagnose.RuleRestriction)
-	if coverage.State != diagnose.Evaluated || len(report.Findings) != 1 ||
+	if coverage.State != diagnose.CoverageEvaluated || len(report.Findings) != 1 ||
 		report.Findings[0].Subsubject != "metadata.annotations[openbao.org/restore-hold]" {
 		t.Fatal("independent restore hold was cleared by false pause, maintenance, or break-glass flags")
 	}
@@ -266,7 +267,8 @@ func TestControllerErrorsRemainHistoricalAndSubjectSpecific(t *testing.T) {
 		At: evidence.Timestamp{State: evidence.ValueUnknown},
 	}
 	report, coverage := runRule(t, i, diagnose.RuleController)
-	if coverage.State != diagnose.Evaluated || len(report.Findings) != 2 || report.Findings[0].Subsubject == report.Findings[1].Subsubject {
+	if coverage.State != diagnose.CoverageEvaluated || len(report.Findings) != 2 ||
+		report.Findings[0].Subsubject == report.Findings[1].Subsubject {
 		t.Fatal("controller domains lost their identities")
 	}
 	for _, found := range report.Findings {
@@ -276,7 +278,7 @@ func TestControllerErrorsRemainHistoricalAndSubjectSpecific(t *testing.T) {
 	}
 	i.Observation.AdminOpsError.Reason = evidence.Text{State: evidence.ValueInvalid}
 	report, coverage = runRule(t, i, diagnose.RuleController)
-	if coverage.State != diagnose.Insufficient || len(report.Findings) != 1 {
+	if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 1 {
 		t.Fatal("malformed optional domain erased independent error")
 	}
 	encoded, err := json.Marshal(report)
@@ -346,7 +348,7 @@ func TestReadReplicaConditionsApplyOnlyToConfiguredReadReplicas(t *testing.T) {
 				got = append(got, found.Subsubject)
 			}
 			slices.Sort(got)
-			if coverage.State != diagnose.Evaluated || !slices.Equal(got, tc.want) {
+			if coverage.State != diagnose.CoverageEvaluated || !slices.Equal(got, tc.want) {
 				t.Fatalf("findings for %v, want %v (coverage %s)", got, tc.want, coverage.State)
 			}
 		})
@@ -365,11 +367,12 @@ func TestConditionFindingsNameTheConditionAndEtcdIsAdvisory(t *testing.T) {
 	for _, found := range report.Findings {
 		switch found.Subsubject {
 		case "EtcdEncryptionWarning":
-			if found.Severity != diagnose.Info || !strings.Contains(found.Summary, "encrypts Secrets at rest in etcd") {
+			if found.Severity != diagnose.SeverityInfo || !strings.Contains(found.Summary, "encrypts Secrets at rest in etcd") {
 				t.Fatalf("etcd advisory = %+v", found)
 			}
 		case "TLSReady":
-			if found.Severity != diagnose.Warning || found.Summary != "The operator reports TLSReady=False for the current generation." {
+			if found.Severity != diagnose.SeverityWarning ||
+				found.Summary != "The operator reports TLSReady=False for the current generation." {
 				t.Fatalf("condition finding = %+v", found)
 			}
 		default:

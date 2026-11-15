@@ -94,32 +94,32 @@ func TestWorkloadReadinessRequiresCurrentUIDAssociation(t *testing.T) {
 		state    diagnose.CoverageState
 		findings int
 	}{
-		{"current-implied-zero", func(_ *evidence.StatefulSet) {}, diagnose.Evaluated, 1},
+		{"current-implied-zero", func(_ *evidence.StatefulSet) {}, diagnose.CoverageEvaluated, 1},
 		{"stale", func(v *evidence.StatefulSet) {
 			v.ObservedGeneration, v.ReadyReplicas = integer(3), integer(0)
-		}, diagnose.Insufficient, 0},
+		}, diagnose.CoverageInsufficient, 0},
 		{"future", func(v *evidence.StatefulSet) {
 			v.ObservedGeneration, v.ReadyReplicas = integer(5), integer(0)
-		}, diagnose.Insufficient, 0},
+		}, diagnose.CoverageInsufficient, 0},
 		{
 			"missing-ready", func(v *evidence.StatefulSet) { v.ReadyReplicas = evidence.Integer{State: evidence.ValueUnknown} },
-			diagnose.Insufficient, 0,
+			diagnose.CoverageInsufficient, 0,
 		},
-		{"ready", func(v *evidence.StatefulSet) { v.ReadyReplicas = integer(3) }, diagnose.Evaluated, 0},
-		{"zero-desired", func(v *evidence.StatefulSet) { v.DesiredReplicas = integer(0) }, diagnose.Evaluated, 0},
+		{"ready", func(v *evidence.StatefulSet) { v.ReadyReplicas = integer(3) }, diagnose.CoverageEvaluated, 0},
+		{"zero-desired", func(v *evidence.StatefulSet) { v.DesiredReplicas = integer(0) }, diagnose.CoverageEvaluated, 0},
 		{"deleting", func(v *evidence.StatefulSet) {
 			v.Metadata.DeletionTimestamp = timestamp(*v.Metadata.Reference.CollectedAt.Value)
-		}, diagnose.Evaluated, 0},
+		}, diagnose.CoverageEvaluated, 0},
 		{"invalid-deletion", func(v *evidence.StatefulSet) {
 			v.Metadata.DeletionTimestamp = evidence.Timestamp{State: evidence.ValueInvalid}
-		}, diagnose.Insufficient, 0},
+		}, diagnose.CoverageInsufficient, 0},
 		{
 			"missing-owner", func(v *evidence.StatefulSet) { v.Metadata.Owners = evidence.Owners{State: evidence.ValueUnknown} },
-			diagnose.Insufficient, 0,
+			diagnose.CoverageInsufficient, 0,
 		},
 		{
 			"conflicting-annotation", func(v *evidence.StatefulSet) { v.Metadata.ClusterOwnerUID = text("replacement") },
-			diagnose.Insufficient, 0,
+			diagnose.CoverageInsufficient, 0,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -129,7 +129,8 @@ func TestWorkloadReadinessRequiresCurrentUIDAssociation(t *testing.T) {
 			if coverage.State != tc.state || len(report.Findings) != tc.findings {
 				t.Fatal("unconfirmed workload readiness became a current finding")
 			}
-			if tc.findings > 0 && (report.Findings[0].Subject.Kind != "StatefulSet" || report.Findings[0].Severity != diagnose.Warning) {
+			if tc.findings > 0 &&
+				(report.Findings[0].Subject.Kind != "StatefulSet" || report.Findings[0].Severity != diagnose.SeverityWarning) {
 				t.Fatal("workload finding lost its subject or severity")
 			}
 		})
@@ -141,7 +142,7 @@ func TestMissingWorkloadsRequireCompleteSupportedScope(t *testing.T) {
 	i := workloadInput(t)
 	i.StatefulSets.Observations, i.StatefulSets.Collection.Items = []evidence.StatefulSet{}, 0
 	report, coverage := runWorkloadRule(t, i, diagnose.RuleWorkload)
-	if coverage.State != diagnose.Evaluated || len(report.Findings) != 1 || report.Findings[0].Subject != i.Subject ||
+	if coverage.State != diagnose.CoverageEvaluated || len(report.Findings) != 1 || report.Findings[0].Subject != i.Subject ||
 		report.Findings[0].Subsubject != "statefulset-population" {
 		t.Fatal("complete empty workload scope lost its bounded absence finding")
 	}
@@ -150,20 +151,20 @@ func TestMissingWorkloadsRequireCompleteSupportedScope(t *testing.T) {
 	} {
 		i.StatefulSets.Collection.Outcome = outcome
 		report, coverage = runWorkloadRule(t, i, diagnose.RuleWorkload)
-		if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 || coverage.Outcome != outcome {
+		if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 || coverage.Outcome != outcome {
 			t.Fatal("incomplete workload list became absence")
 		}
 	}
 	i.StatefulSets.Collection.Outcome = evidence.CollectionComplete
 	i.StatefulSets.Collection.Scope.Selector = "app=unrelated"
 	report, coverage = runWorkloadRule(t, i, diagnose.RuleWorkload)
-	if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 || coverage.Reason != diagnose.ReasonScopeRestricted {
+	if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 || coverage.Reason != diagnose.ReasonScopeRestricted {
 		t.Fatal("narrow query became complete workload coverage")
 	}
 	i = workloadInput(t)
 	i.StatefulSets.Collection.Scope.Selector = "app=unrelated"
 	report, coverage = runWorkloadRule(t, i, diagnose.RuleWorkload)
-	if coverage.State != diagnose.Insufficient || len(report.Findings) != 1 {
+	if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 1 {
 		t.Fatal("restricted query erased independent workload evidence")
 	}
 }
@@ -173,7 +174,7 @@ func TestPodReadinessAndFailureHaveSubjectSpecificFindings(t *testing.T) {
 	i := workloadInput(t)
 	i.StatefulSets.Observations[0].DesiredReplicas = integer(1)
 	report, coverage := runWorkloadRule(t, i, diagnose.RulePod)
-	if coverage.State != diagnose.Evaluated || len(report.Findings) != 1 || report.Findings[0].Subsubject != "ready" ||
+	if coverage.State != diagnose.CoverageEvaluated || len(report.Findings) != 1 || report.Findings[0].Subsubject != "ready" ||
 		report.Findings[0].Subject != i.Pods.Observations[0].Metadata.Reference.Identity {
 		t.Fatal("Pod readiness lost its identity")
 	}
@@ -186,8 +187,8 @@ func TestPodReadinessAndFailureHaveSubjectSpecificFindings(t *testing.T) {
 	i.Pods.Observations[0].Phase = text("Failed")
 	i.Pods.Observations[0].Conditions = evidence.Conditions{State: evidence.ValueUnknown}
 	report, coverage = runWorkloadRule(t, i, diagnose.RulePod)
-	if len(report.Findings) != 1 || report.Findings[0].Severity != diagnose.Error || report.Findings[0].Subsubject != "phase" ||
-		coverage.State != diagnose.Insufficient {
+	if len(report.Findings) != 1 || report.Findings[0].Severity != diagnose.SeverityError || report.Findings[0].Subsubject != "phase" ||
+		coverage.State != diagnose.CoverageInsufficient {
 		t.Fatal("failed phase lost its error or hid missing readiness evidence")
 	}
 }
@@ -199,7 +200,7 @@ func TestPodGenerationAndOwnershipStayIndependent(t *testing.T) {
 		i.StatefulSets.Observations[0].DesiredReplicas = integer(1)
 		i.Pods.Observations[0].Conditions.Values[0].ObservedGeneration = integer(ack)
 		report, coverage := runWorkloadRule(t, i, diagnose.RulePod)
-		if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 {
+		if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 {
 			t.Fatal("unconfirmed Pod condition generation became Ready=False")
 		}
 	}
@@ -215,7 +216,7 @@ func TestPodGenerationAndOwnershipStayIndependent(t *testing.T) {
 		i := workloadInput(t)
 		change(&i)
 		report, coverage := runWorkloadRule(t, i, diagnose.RulePod)
-		if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 {
+		if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 {
 			t.Fatal("Pod finding crossed a replaced or conflicting ownership chain")
 		}
 	}
@@ -226,7 +227,7 @@ func TestPodPopulationUsesBothCompleteScopes(t *testing.T) {
 	i := workloadInput(t)
 	i.Pods.Observations[0].Conditions.Values[0].Status = evidence.ConditionTrue
 	report, coverage := runWorkloadRule(t, i, diagnose.RulePod)
-	if coverage.State != diagnose.Evaluated || len(report.Findings) != 1 || report.Findings[0].Subsubject != "pod-population" ||
+	if coverage.State != diagnose.CoverageEvaluated || len(report.Findings) != 1 || report.Findings[0].Subsubject != "pod-population" ||
 		report.Findings[0].Subject != i.StatefulSets.Observations[0].Metadata.Reference.Identity {
 		t.Fatal("Pod population finding lost the StatefulSet subject")
 	}
@@ -239,14 +240,14 @@ func TestPodPopulationUsesBothCompleteScopes(t *testing.T) {
 			i.Pods.Collection.Outcome = evidence.CollectionPartial
 		}
 		report, coverage = runWorkloadRule(t, i, diagnose.RulePod)
-		if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 {
+		if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 {
 			t.Fatal("partial dependency scope became missing Pod population")
 		}
 	}
 	i = workloadInput(t)
 	i.Pods.Observations[0].Conditions = evidence.Conditions{State: evidence.ValueUnknown}
 	report, coverage = runWorkloadRule(t, i, diagnose.RulePod)
-	if coverage.State != diagnose.Insufficient || len(report.Findings) != 1 || report.Findings[0].Subsubject != "pod-population" {
+	if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 1 || report.Findings[0].Subsubject != "pod-population" {
 		t.Fatal("unknown readiness erased independently confirmed Pod population")
 	}
 }
@@ -257,14 +258,14 @@ func TestWorkloadTargetVerificationAndFreshnessAreRequired(t *testing.T) {
 		i := workloadInput(t)
 		i.Verification = nil
 		report, coverage := runWorkloadRule(t, i, rule)
-		if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 || coverage.Reason != diagnose.ReasonVerification {
+		if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 || coverage.Reason != diagnose.ReasonVerification {
 			t.Fatal("unverified workload snapshot produced findings")
 		}
 		i = workloadInput(t)
 		i.Verification.AfterGeneration = integer(5)
 		i.Verification.State = evidence.VerificationChanged
 		report, coverage = runWorkloadRule(t, i, rule)
-		if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 {
+		if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 {
 			t.Fatal("changed target generation produced workload findings")
 		}
 		i = workloadInput(t)
@@ -283,18 +284,18 @@ func TestPodDeletionAndIncompleteReadinessDoNotHidePopulation(t *testing.T) {
 	i := workloadInput(t)
 	i.Pods.Observations[0].Metadata.DeletionTimestamp = timestamp(*i.Observation.Reference.CollectedAt.Value)
 	report, coverage := runWorkloadRule(t, i, diagnose.RulePod)
-	if coverage.State != diagnose.Evaluated || len(report.Findings) != 1 || report.Findings[0].Subsubject != "pod-population" {
+	if coverage.State != diagnose.CoverageEvaluated || len(report.Findings) != 1 || report.Findings[0].Subsubject != "pod-population" {
 		t.Fatal("terminating Pod was counted or produced a readiness finding")
 	}
 	i.Pods.Observations[0].Metadata.DeletionTimestamp = evidence.Timestamp{State: evidence.ValueInvalid}
 	report, coverage = runWorkloadRule(t, i, diagnose.RulePod)
-	if coverage.State != diagnose.Insufficient || len(report.Findings) != 0 {
+	if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 0 {
 		t.Fatal("invalid deletion state became missing Pod population")
 	}
 	i = workloadInput(t)
 	i.Pods.Observations[0].Conditions.Values[0].ObservedGeneration = evidence.Integer{State: evidence.ValueUnknown}
 	report, coverage = runWorkloadRule(t, i, diagnose.RulePod)
-	if coverage.State != diagnose.Insufficient || len(report.Findings) != 1 || report.Findings[0].Subsubject != "pod-population" {
+	if coverage.State != diagnose.CoverageInsufficient || len(report.Findings) != 1 || report.Findings[0].Subsubject != "pod-population" {
 		t.Fatal("missing condition generation erased independently confirmed population")
 	}
 }
@@ -390,7 +391,7 @@ func TestWorkloadReplayPreservesOrderingAndExcludesProducerText(t *testing.T) {
 	if err != nil || !bytes.Equal(a, b) || strings.Contains(string(a), "CANARY") || strings.Contains(string(a), "CrashLoopBackOff") {
 		t.Fatal("workload replay changed order or copied producer diagnostic text")
 	}
-	if first.Findings[0].Severity != diagnose.Error {
+	if first.Findings[0].Severity != diagnose.SeverityError {
 		t.Fatal("failed Pod severity did not determine finding order")
 	}
 }
@@ -425,7 +426,7 @@ func TestForeignPodChainDoesNotLimitTargetCoverage(t *testing.T) {
 			}
 		}
 		if conflicting {
-			if coverage.State != diagnose.Insufficient {
+			if coverage.State != diagnose.CoverageInsufficient {
 				t.Fatal("conflicting annotation became foreign proof")
 			}
 		} else if coverage.State != baselineCoverage.State {
@@ -460,7 +461,7 @@ func TestJobPodsDoNotLimitCoverageOrSatisfyStatefulSetPopulation(t *testing.T) {
 					population++
 				}
 			}
-			if coverage.State != diagnose.Evaluated || population != 1 {
+			if coverage.State != diagnose.CoverageEvaluated || population != 1 {
 				t.Fatalf("Job Pod changed workload coverage or population: %+v %+v", coverage, report.Findings)
 			}
 		})
@@ -479,7 +480,7 @@ func TestNonStatefulSetExclusionRequiresOneValidController(t *testing.T) {
 				evidence.OwnerReference{APIVersion: "apps/v1", Kind: "StatefulSet", Name: "bao", UID: "set-1", Controller: true}))
 		}
 		_, coverage := runWorkloadRule(t, i, diagnose.RulePod)
-		if coverage.State != diagnose.Insufficient {
+		if coverage.State != diagnose.CoverageInsufficient {
 			t.Fatal("a noncontroller or ambiguous controller proved exclusion")
 		}
 	}
@@ -491,7 +492,7 @@ func TestNonStatefulSetKindCannotHideKnownStatefulSetUIDConflict(t *testing.T) {
 	owner := &i.Pods.Observations[0].Metadata.Owners.Values[0]
 	owner.Kind, owner.APIVersion = "Job", "batch/v1"
 	_, coverage := runWorkloadRule(t, i, diagnose.RulePod)
-	if coverage.State != diagnose.Insufficient || !slices.Contains(coverage.Reasons, diagnose.ReasonAssociation) {
+	if coverage.State != diagnose.CoverageInsufficient || !slices.Contains(coverage.Reasons, diagnose.ReasonAssociation) {
 		t.Fatal("a contradictory controller kind hid a known StatefulSet UID")
 	}
 }

@@ -10,7 +10,7 @@ import (
 
 func podReadiness(input ClusterInput, sets map[string]associatedSet, policy Policy, result *evaluation) {
 	workloadScope(input.Pods.Collection, input.Subject, result)
-	populationComplete := result.state == Evaluated && input.Collection.Outcome == evidence.CollectionComplete
+	populationComplete := result.state == CoverageEvaluated && input.Collection.Outcome == evidence.CollectionComplete
 	counts := map[string]int64{}
 	values := slices.Clone(input.Pods.Observations)
 	slices.SortFunc(values, func(a, b evidence.Pod) int {
@@ -79,7 +79,7 @@ func evaluatePod(pod evidence.Pod, result *evaluation) {
 		result.insufficient(ReasonMissingField)
 	}
 	if failed {
-		result.add(resourceFinding(ref, RulePod, "phase", Error, "The UID-associated Pod reports Failed phase.", "status.phase"))
+		result.add(resourceFinding(ref, RulePod, "phase", SeverityError, "The UID-associated Pod reports Failed phase.", "status.phase"))
 	}
 	if pod.Conditions.State != evidence.ValueReported {
 		result.insufficient(ReasonMissingField)
@@ -106,7 +106,7 @@ func evaluatePod(pod evidence.Pod, result *evaluation) {
 				ref,
 				RulePod,
 				"ready",
-				Warning,
+				SeverityWarning,
 				"The UID-associated Pod reports Ready=False for its current generation.",
 				"metadata.generation",
 				"status.conditions[type=Ready]",
@@ -148,7 +148,7 @@ func podPopulation(sets map[string]associatedSet, counts map[string]int64, resul
 			continue
 		}
 		if counts[uid] < *value.DesiredReplicas.Value {
-			result.add(resourceFinding(value.Metadata.Reference, RulePod, "pod-population", Warning,
+			result.add(resourceFinding(value.Metadata.Reference, RulePod, "pod-population", SeverityWarning,
 				"Fewer nonterminating UID-associated Pods were captured than desired in the declared workload scope.",
 				"metadata.generation", "status.observedGeneration", "spec.replicas"))
 		}

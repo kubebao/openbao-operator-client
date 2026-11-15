@@ -49,7 +49,7 @@ func (c *Client) Pods(ctx context.Context, request Request) (Result[evidence.Pod
 
 func projectionOutcome(err error) evidence.CollectionOutcome {
 	var failure *adapter.ProjectionError
-	if errors.As(err, &failure) && failure.Code == adapter.ProjectionLimit {
+	if errors.As(err, &failure) && failure.Code == adapter.CodeProjectionLimit {
 		return evidence.CollectionSizeLimit
 	}
 	return evidence.CollectionInvalid

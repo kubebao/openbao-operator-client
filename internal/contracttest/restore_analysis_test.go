@@ -71,7 +71,7 @@ func TestCollectedRestoresRetainUIDAndReadBoundaries(t *testing.T) {
 			if err != nil || len(report.Findings) != tc.findings || transport.reads != 3 {
 				t.Fatalf("collected restore diagnosis: findings %d reads %d error %v", len(report.Findings), transport.reads, err)
 			}
-			if tc.findings > 0 && report.Findings[0].Severity != diagnose.Error {
+			if tc.findings > 0 && report.Findings[0].Severity != diagnose.SeverityError {
 				t.Fatal("held restore concern lost its severity")
 			}
 			encoded, err := json.Marshal(report)

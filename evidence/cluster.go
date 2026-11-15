@@ -2,11 +2,15 @@ package evidence
 
 import "strings"
 
+// ConditionStatus is the status of a Kubernetes condition.
 type ConditionStatus string
 
 const (
-	ConditionTrue    ConditionStatus = "True"
-	ConditionFalse   ConditionStatus = "False"
+	// ConditionTrue means the condition holds.
+	ConditionTrue ConditionStatus = "True"
+	// ConditionFalse means the condition does not hold.
+	ConditionFalse ConditionStatus = "False"
+	// ConditionUnknown means the producer cannot determine the condition.
 	ConditionUnknown ConditionStatus = "Unknown"
 )
 
@@ -19,19 +23,30 @@ type Condition struct {
 	LastTransitionAt   Timestamp       `json:"lastTransitionAt"`
 }
 
+// Validate checks the type, status, and structured fields. The observed generation is never implied.
 func (c Condition) Validate() error {
-	if !validText(c.Type, 128, false) || c.Reason.Validate() != nil || c.ObservedGeneration.Validate() != nil ||
-		c.ObservedGeneration.State == ValueImplied || c.LastTransitionAt.Validate() != nil {
-		return ErrInvalidEvidence
+	if !ValidText(c.Type, maxConditionTypeLength) {
+		return At("type", ErrInvalidEvidence)
+	}
+	if err := checkFields(
+		fieldCheck{"reason", c.Reason.Validate()},
+		fieldCheck{"observedGeneration", c.ObservedGeneration.Validate()},
+		fieldCheck{"lastTransitionAt", c.LastTransitionAt.Validate()},
+	); err != nil {
+		return err
+	}
+	if c.ObservedGeneration.State == ValueImplied {
+		return At("observedGeneration", ErrInvalidEvidence)
 	}
 	switch c.Status {
 	case ConditionTrue, ConditionFalse, ConditionUnknown:
 		return nil
 	default:
-		return ErrInvalidEvidence
+		return At("status", ErrInvalidEvidence)
 	}
 }
 
+// Acknowledgement compares the condition's observed generation with the resource generation.
 func (c Condition) Acknowledgement(generation Integer) GenerationState {
 	return compareGenerationFields(generation, c.ObservedGeneration)
 }
@@ -43,20 +58,19 @@ type Conditions struct {
 	Values []Condition `json:"values"`
 }
 
+// Validate checks the set's presence contract and that reported conditions are valid, sorted, and unique.
 func (c Conditions) Validate() error {
-	if c.State == ValueUnknown || c.State == ValueInvalid {
-		if c.Values == nil {
-			return nil
-		}
-		return ErrInvalidEvidence
-	}
-	if c.State != ValueReported || c.Values == nil {
-		return ErrInvalidEvidence
+	reported, err := validateSet(c.State, c.Values)
+	if !reported {
+		return err
 	}
 	previous := ""
-	for _, value := range c.Values {
-		if value.Validate() != nil || strings.Compare(previous, value.Type) >= 0 {
-			return ErrInvalidEvidence
+	for i, value := range c.Values {
+		if err := value.Validate(); err != nil {
+			return At(itemPath("values", i), err)
+		}
+		if strings.Compare(previous, value.Type) >= 0 {
+			return At(itemPath("values", i)+".type", ErrInvalidEvidence)
 		}
 		previous = value.Type
 	}
@@ -95,6 +109,7 @@ type Cluster struct {
 	AdminOpsError           ControllerError `json:"adminOpsError"`
 }
 
+// Acknowledgement compares the cluster generation with the status observed generation.
 func (c Cluster) Acknowledgement() GenerationState {
 	return compareGenerationFields(c.Generation, c.ObservedGeneration)
 }
@@ -103,12 +118,17 @@ func (c Cluster) Acknowledgement() GenerationState {
 // It does not select an adapter or establish producer freshness.
 func (c Cluster) Validate() error {
 	if err := checkFields(
-		fieldCheck{"reference", c.Reference.Validate()}, fieldCheck{"createdAt", c.CreatedAt.Validate()},
+		fieldCheck{"reference", c.Reference.Validate()},
+		fieldCheck{"createdAt", c.CreatedAt.Validate()},
 		fieldCheck{"deletionTimestamp", c.DeletionTimestamp.Validate()},
-		fieldCheck{"generation", c.Generation.Validate()}, fieldCheck{"observedGeneration", c.ObservedGeneration.Validate()},
-		fieldCheck{"conditions", c.Conditions.Validate()}, fieldCheck{"paused", c.Paused.Validate()},
-		fieldCheck{"desiredVersion", c.DesiredVersion.Validate()}, fieldCheck{"observedVersion", c.ObservedVersion.Validate()},
-		fieldCheck{"phase", c.Phase.Validate()}, fieldCheck{"desiredReplicas", validateCount(c.DesiredReplicas)},
+		fieldCheck{"generation", c.Generation.Validate()},
+		fieldCheck{"observedGeneration", c.ObservedGeneration.Validate()},
+		fieldCheck{"conditions", c.Conditions.Validate()},
+		fieldCheck{"paused", c.Paused.Validate()},
+		fieldCheck{"desiredVersion", c.DesiredVersion.Validate()},
+		fieldCheck{"observedVersion", c.ObservedVersion.Validate()},
+		fieldCheck{"phase", c.Phase.Validate()},
+		fieldCheck{"desiredReplicas", validateCount(c.DesiredReplicas)},
 		fieldCheck{"readyReplicas", validateReadyCount(c.ReadyReplicas)},
 	); err != nil {
 		return err
@@ -122,14 +142,12 @@ func (c Cluster) Validate() error {
 	if c.ObservedGeneration.State == ValueImplied {
 		return At("observedGeneration", ErrInvalidEvidence)
 	}
-	if c.ReadyReplicas.State == ValueImplied && (c.Acknowledgement() != GenerationCurrent || c.DesiredReplicas.State != ValueReported) {
+	if c.ReadyReplicas.State == ValueImplied &&
+		(c.Acknowledgement() != GenerationCurrent || c.DesiredReplicas.State != ValueReported) {
 		return At("readyReplicas", ErrInvalidEvidence)
 	}
 	return checkFields(
-		fieldCheck{
-			"backup",
-			c.Backup.Validate(),
-		},
+		fieldCheck{"backup", c.Backup.Validate()},
 		fieldCheck{"upgrade", c.Upgrade.Validate()},
 		fieldCheck{"blueGreen", c.BlueGreen.Validate()},
 		fieldCheck{"readReplicas", c.ReadReplicas.Validate()},
@@ -141,36 +159,8 @@ func (c Cluster) Validate() error {
 		fieldCheck{"restoreHold", c.RestoreHold.Validate()},
 		fieldCheck{"operationLock", c.OperationLock.Validate()},
 		fieldCheck{"breakGlass", c.BreakGlass.Validate()},
-		fieldCheck{
-			"legacyRestore",
-			c.LegacyRestore.Validate(),
-		},
+		fieldCheck{"legacyRestore", c.LegacyRestore.Validate()},
 		fieldCheck{"workloadError", c.WorkloadError.Validate()},
 		fieldCheck{"adminOpsError", c.AdminOpsError.Validate()},
 	)
-}
-
-func validateReadyCount(v Integer) error {
-	if err := v.Validate(); err != nil {
-		return err
-	}
-	if v.Value != nil && (*v.Value < 0 || *v.Value > 2147483647) {
-		return ErrInvalidEvidence
-	}
-	return nil
-}
-
-func validateEnum(value Text, values ...string) error {
-	if value.Validate() != nil || value.State == ValueImplied {
-		return ErrInvalidEvidence
-	}
-	if value.Value != nil {
-		for _, allowed := range values {
-			if *value.Value == allowed {
-				return nil
-			}
-		}
-		return ErrInvalidEvidence
-	}
-	return nil
 }

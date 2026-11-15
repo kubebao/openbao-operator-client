@@ -82,7 +82,7 @@ func TestFindingIdentityAndReferencesRemainIndependent(t *testing.T) {
 		t.Fatal(err)
 	}
 	changed := finding
-	changed.Severity, changed.Summary = diagnose.Info, "Different library-authored text"
+	changed.Severity, changed.Summary = diagnose.SeverityInfo, "Different library-authored text"
 	again, err := changed.Key()
 	if err != nil || key != again {
 		t.Fatal("presentation changed finding identity")
@@ -132,10 +132,10 @@ func TestCoverageDistinguishesDiscoveryGetAndListAbsence(t *testing.T) {
 			read.Scope.Name = ""
 		}
 		got := diagnose.ResolveCoverage(diagnose.CoverageInput{
-			Selected: true, Requested: true, Applicability: diagnose.Applies,
+			Selected: true, Requested: true, Applicability: diagnose.ApplicabilityApplies,
 			Collection: read, EvidenceValid: true,
 		})
-		if got.State != diagnose.Evaluated || got.AbsenceConfirmed != (action == evidence.ReadList) {
+		if got.State != diagnose.CoverageEvaluated || got.AbsenceConfirmed != (action == evidence.ReadList) {
 			t.Fatal("non-list scope proved absence")
 		}
 	}

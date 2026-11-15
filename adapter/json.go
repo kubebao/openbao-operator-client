@@ -17,10 +17,10 @@ import (
 type ErrorCode string
 
 const (
-	InvalidInput        ErrorCode = "invalid_input"
-	ProjectionLimit     ErrorCode = "projection_limit"
-	UnsupportedContract ErrorCode = "unsupported_contract"
-	ResourceMismatch    ErrorCode = "resource_mismatch"
+	CodeInvalidInput        ErrorCode = "invalid_input"
+	CodeProjectionLimit     ErrorCode = "projection_limit"
+	CodeUnsupportedContract ErrorCode = "unsupported_contract"
+	CodeResourceMismatch    ErrorCode = "resource_mismatch"
 )
 
 // ProjectionError exposes a bounded classification without a raw parser error or source value.
@@ -28,11 +28,11 @@ type ProjectionError struct{ Code ErrorCode }
 
 func (e *ProjectionError) Error() string {
 	switch e.Code {
-	case ProjectionLimit:
+	case CodeProjectionLimit:
 		return "projection limit exceeded"
-	case UnsupportedContract:
+	case CodeUnsupportedContract:
 		return "unsupported projection contract"
-	case ResourceMismatch:
+	case CodeResourceMismatch:
 		return "resource does not match projection contract"
 	default:
 		return "invalid projection input"
@@ -64,13 +64,13 @@ var versionIdentifier = regexp.MustCompile(
 // excessive nesting. Numbers never pass through floating point.
 func decodeObject(raw []byte, limits ProjectionLimits) (map[string]any, error) {
 	if limits.MaxBytes <= 0 || limits.MaxConditions <= 0 || limits.MaxEntries <= 0 {
-		return nil, &ProjectionError{Code: InvalidInput}
+		return nil, &ProjectionError{Code: CodeInvalidInput}
 	}
 	if len(raw) > limits.MaxBytes {
-		return nil, &ProjectionError{Code: ProjectionLimit}
+		return nil, &ProjectionError{Code: CodeProjectionLimit}
 	}
 	if !utf8.Valid(raw) {
-		return nil, &ProjectionError{Code: InvalidInput}
+		return nil, &ProjectionError{Code: CodeInvalidInput}
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.UseNumber()
@@ -79,22 +79,22 @@ func decodeObject(raw []byte, limits ProjectionLimits) (map[string]any, error) {
 		return nil, err
 	}
 	if _, err := decoder.Token(); err != io.EOF {
-		return nil, &ProjectionError{Code: InvalidInput}
+		return nil, &ProjectionError{Code: CodeInvalidInput}
 	}
 	object, ok := value.(map[string]any)
 	if !ok {
-		return nil, &ProjectionError{Code: InvalidInput}
+		return nil, &ProjectionError{Code: CodeInvalidInput}
 	}
 	return object, nil
 }
 
 func decodeValue(decoder *json.Decoder, depth int) (any, error) {
 	if depth > 64 {
-		return nil, &ProjectionError{Code: ProjectionLimit}
+		return nil, &ProjectionError{Code: CodeProjectionLimit}
 	}
 	token, err := decoder.Token()
 	if err != nil {
-		return nil, &ProjectionError{Code: InvalidInput}
+		return nil, &ProjectionError{Code: CodeInvalidInput}
 	}
 	delimiter, compound := token.(json.Delim)
 	if !compound {
@@ -113,11 +113,11 @@ func decodeValue(decoder *json.Decoder, depth int) (any, error) {
 			items = append(items, value)
 		}
 		if end, err := decoder.Token(); err != nil || end != json.Delim(']') {
-			return nil, &ProjectionError{Code: InvalidInput}
+			return nil, &ProjectionError{Code: CodeInvalidInput}
 		}
 		return items, nil
 	default:
-		return nil, &ProjectionError{Code: InvalidInput}
+		return nil, &ProjectionError{Code: CodeInvalidInput}
 	}
 }
 
@@ -126,14 +126,14 @@ func decodeMembers(decoder *json.Decoder, depth int) (map[string]any, error) {
 	for decoder.More() {
 		token, err := decoder.Token()
 		if err != nil {
-			return nil, &ProjectionError{Code: InvalidInput}
+			return nil, &ProjectionError{Code: CodeInvalidInput}
 		}
 		key, ok := token.(string)
 		if !ok {
-			return nil, &ProjectionError{Code: InvalidInput}
+			return nil, &ProjectionError{Code: CodeInvalidInput}
 		}
 		if _, duplicate := object[key]; duplicate {
-			return nil, &ProjectionError{Code: InvalidInput}
+			return nil, &ProjectionError{Code: CodeInvalidInput}
 		}
 		value, err := decodeValue(decoder, depth+1)
 		if err != nil {
@@ -142,7 +142,7 @@ func decodeMembers(decoder *json.Decoder, depth int) (map[string]any, error) {
 		object[key] = value
 	}
 	if end, err := decoder.Token(); err != nil || end != json.Delim('}') {
-		return nil, &ProjectionError{Code: InvalidInput}
+		return nil, &ProjectionError{Code: CodeInvalidInput}
 	}
 	return object, nil
 }

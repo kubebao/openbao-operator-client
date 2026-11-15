@@ -12,17 +12,17 @@ func projectResource(raw []byte, options ProjectionOptions, kind string) (map[st
 		return nil, evidence.Reference{}, err
 	}
 	if !slices.Contains(info.Kinds, kind) {
-		return nil, evidence.Reference{}, &ProjectionError{Code: UnsupportedContract}
+		return nil, evidence.Reference{}, &ProjectionError{Code: CodeUnsupportedContract}
 	}
 	if options.CollectedAt.IsZero() {
-		return nil, evidence.Reference{}, &ProjectionError{Code: InvalidInput}
+		return nil, evidence.Reference{}, &ProjectionError{Code: CodeInvalidInput}
 	}
 	object, err := decodeObject(raw, options.Limits)
 	if err != nil {
 		return nil, evidence.Reference{}, err
 	}
 	if required(object, "apiVersion") != info.APIVersion || required(object, "kind") != kind {
-		return nil, evidence.Reference{}, &ProjectionError{Code: ResourceMismatch}
+		return nil, evidence.Reference{}, &ProjectionError{Code: CodeResourceMismatch}
 	}
 	collected := options.CollectedAt.UTC()
 	ref := evidence.Reference{
@@ -42,7 +42,7 @@ func projectResource(raw []byte, options ProjectionOptions, kind string) (map[st
 		CollectedAt: evidence.Timestamp{State: evidence.ValueReported, Value: &collected},
 	}
 	if ref.Validate() != nil {
-		return nil, evidence.Reference{}, &ProjectionError{Code: InvalidInput}
+		return nil, evidence.Reference{}, &ProjectionError{Code: CodeInvalidInput}
 	}
 	return object, ref, nil
 }

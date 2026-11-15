@@ -31,19 +31,19 @@ func conditionTime(result *evaluation, cluster evidence.Cluster, condition evide
 func availability(cluster evidence.Cluster) evaluation {
 	condition := reportedCondition(cluster, "Available")
 	if condition == nil {
-		return evaluation{state: Insufficient, reason: ReasonMissingField}
+		return evaluation{state: CoverageInsufficient, reason: ReasonMissingField}
 	}
 	if cluster.Acknowledgement() != evidence.GenerationCurrent ||
 		condition.Acknowledgement(cluster.Generation) != evidence.GenerationCurrent {
-		return evaluation{state: Insufficient, reason: ReasonGeneration}
+		return evaluation{state: CoverageInsufficient, reason: ReasonGeneration}
 	}
 	if condition.Status == evidence.ConditionUnknown {
-		return evaluation{state: Insufficient, reason: ReasonMissingField}
+		return evaluation{state: CoverageInsufficient, reason: ReasonMissingField}
 	}
-	result := evaluation{state: Evaluated, reason: ReasonNone}
+	result := evaluation{state: CoverageEvaluated, reason: ReasonNone}
 	conditionTime(&result, cluster, *condition)
 	if condition.Status == evidence.ConditionFalse {
-		result.add(finding(cluster, RuleAvailability, Warning, "The operator reports Available=False for the current generation.",
+		result.add(finding(cluster, RuleAvailability, SeverityWarning, "The operator reports Available=False for the current generation.",
 			"metadata.generation", "status.observedGeneration", conditionField("Available")))
 	}
 	return result
@@ -51,25 +51,25 @@ func availability(cluster evidence.Cluster) evaluation {
 
 func sealed(cluster evidence.Cluster) evaluation {
 	if cluster.Paused.State != evidence.ValueReported && cluster.Paused.State != evidence.ValueImplied {
-		return evaluation{state: Insufficient, reason: ReasonMissingField}
+		return evaluation{state: CoverageInsufficient, reason: ReasonMissingField}
 	}
 	if *cluster.Paused.Value {
-		return evaluation{state: Evaluated, reason: ReasonNone}
+		return evaluation{state: CoverageEvaluated, reason: ReasonNone}
 	}
 	condition := reportedCondition(cluster, "OpenBaoSealed")
 	if condition == nil {
-		return evaluation{state: Insufficient, reason: ReasonMissingField}
+		return evaluation{state: CoverageInsufficient, reason: ReasonMissingField}
 	}
 	if condition.Acknowledgement(cluster.Generation) != evidence.GenerationCurrent {
-		return evaluation{state: Insufficient, reason: ReasonGeneration}
+		return evaluation{state: CoverageInsufficient, reason: ReasonGeneration}
 	}
 	if condition.Status == evidence.ConditionUnknown {
-		return evaluation{state: Insufficient, reason: ReasonMissingField}
+		return evaluation{state: CoverageInsufficient, reason: ReasonMissingField}
 	}
-	result := evaluation{state: Evaluated, reason: ReasonNone}
+	result := evaluation{state: CoverageEvaluated, reason: ReasonNone}
 	conditionTime(&result, cluster, *condition)
 	if condition.Status == evidence.ConditionTrue {
-		result.add(finding(cluster, RuleSealed, Critical, "The operator reports OpenBaoSealed=True for the current generation.",
+		result.add(finding(cluster, RuleSealed, SeverityCritical, "The operator reports OpenBaoSealed=True for the current generation.",
 			"metadata.generation", conditionField("OpenBaoSealed")))
 	}
 	return result
@@ -135,11 +135,11 @@ func conditionApplies(cluster evidence.Cluster, condition evidence.Condition) bo
 
 // conditionFinding names the recognized condition type and status. Reasons and messages stay out of findings.
 func conditionFinding(cluster evidence.Cluster, condition evidence.Condition) *Finding {
-	severity := Warning
+	severity := SeverityWarning
 	summary := "The operator reports " + condition.Type + "=" + string(condition.Status) + " for the current generation."
 	if condition.Type == etcdEncryptionWarning {
 		// The operator sets this advisory on every cluster because it cannot inspect the API server configuration.
-		severity = Info
+		severity = SeverityInfo
 		summary = "The operator cannot verify that the Kubernetes API server encrypts Secrets at rest in etcd."
 	}
 	value := finding(cluster, RuleCondition, severity, summary, "metadata.generation", conditionField(condition.Type))
@@ -149,9 +149,9 @@ func conditionFinding(cluster evidence.Cluster, condition evidence.Condition) *F
 
 func conditions(cluster evidence.Cluster) evaluation {
 	if cluster.Conditions.State != evidence.ValueReported {
-		return evaluation{state: Insufficient, reason: ReasonMissingField}
+		return evaluation{state: CoverageInsufficient, reason: ReasonMissingField}
 	}
-	result := evaluation{state: Evaluated, reason: ReasonNone}
+	result := evaluation{state: CoverageEvaluated, reason: ReasonNone}
 	for _, condition := range cluster.Conditions.Values {
 		adverse, recognized := conditionPolarity(condition.Type)
 		if !recognized || !conditionApplies(cluster, condition) {
@@ -174,15 +174,15 @@ func conditions(cluster evidence.Cluster) evaluation {
 }
 
 func generation(cluster evidence.Cluster) evaluation {
-	result := evaluation{state: Evaluated, reason: ReasonNone}
+	result := evaluation{state: CoverageEvaluated, reason: ReasonNone}
 	switch cluster.Acknowledgement() {
 	case evidence.GenerationUnknown:
 		result.insufficient(ReasonGeneration)
 	case evidence.GenerationStale:
-		result.add(finding(cluster, RuleGeneration, Warning, "Operator status acknowledges an earlier resource generation.",
+		result.add(finding(cluster, RuleGeneration, SeverityWarning, "Operator status acknowledges an earlier resource generation.",
 			"metadata.generation", "status.observedGeneration"))
 	case evidence.GenerationInconsistent:
-		result.add(finding(cluster, RuleGeneration, Warning, "Resource generation acknowledgement is inconsistent.",
+		result.add(finding(cluster, RuleGeneration, SeverityWarning, "Resource generation acknowledgement is inconsistent.",
 			"metadata.generation", "status.observedGeneration"))
 	case evidence.GenerationCurrent:
 	}

@@ -60,7 +60,7 @@ func ProjectRestore(raw []byte, options ProjectionOptions) (evidence.Restore, er
 		result.Execution.TargetUID = evidence.Text{State: evidence.ValueUnknown}
 	}
 	if result.Validate() != nil {
-		return evidence.Restore{}, &ProjectionError{Code: InvalidInput}
+		return evidence.Restore{}, &ProjectionError{Code: CodeInvalidInput}
 	}
 	return result, nil
 }

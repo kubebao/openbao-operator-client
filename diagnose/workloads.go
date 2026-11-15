@@ -21,7 +21,7 @@ func evaluateWorkloads(input ClusterInput, rule RuleID, policy Policy, coverage 
 	if rule == RulePod && input.Pods != nil {
 		read = &input.Pods.Collection
 	}
-	coverage.State, coverage.Reason, coverage.Outcome = NotRequested, ReasonNotRequested, evidence.CollectionNotRequested
+	coverage.State, coverage.Reason, coverage.Outcome = CoverageNotRequested, ReasonNotRequested, evidence.CollectionNotRequested
 	if read == nil {
 		return coverage, nil
 	}
@@ -29,12 +29,12 @@ func evaluateWorkloads(input ClusterInput, rule RuleID, policy Policy, coverage 
 	if read.Outcome == evidence.CollectionNotRequested {
 		return coverage, nil
 	}
-	coverage.State, coverage.Reason = Insufficient, ReasonMissingObservation
+	coverage.State, coverage.Reason = CoverageInsufficient, ReasonMissingObservation
 	if reason := relatedTarget(input, policy); reason != ReasonNone {
 		coverage.Reason = reason
 		return coverage, nil
 	}
-	result := evaluation{state: Evaluated, reason: ReasonNone}
+	result := evaluation{state: CoverageEvaluated, reason: ReasonNone}
 	if input.Collection.Outcome != evidence.CollectionComplete {
 		result.insufficient(ReasonScopeIncomplete)
 	}
@@ -147,12 +147,12 @@ func workloadReadiness(input ClusterInput, sets map[string]associatedSet, result
 			continue
 		}
 		if *value.ReadyReplicas.Value < *value.DesiredReplicas.Value {
-			result.add(resourceFinding(value.Metadata.Reference, RuleWorkload, "ready", Warning,
+			result.add(resourceFinding(value.Metadata.Reference, RuleWorkload, "ready", SeverityWarning,
 				"The UID-associated StatefulSet reports fewer ready replicas than desired.",
 				"metadata.generation", "status.observedGeneration", "spec.replicas", "status.readyReplicas"))
 		}
 	}
-	if confirmed != 0 || result.state != Evaluated {
+	if confirmed != 0 || result.state != CoverageEvaluated {
 		return
 	}
 	if !knownInteger(input.Observation.DesiredReplicas) || input.Observation.Acknowledgement() != evidence.GenerationCurrent {
@@ -160,7 +160,7 @@ func workloadReadiness(input ClusterInput, sets map[string]associatedSet, result
 		return
 	}
 	if *input.Observation.DesiredReplicas.Value > 0 {
-		found := finding(*input.Observation, RuleWorkload, Warning,
+		found := finding(*input.Observation, RuleWorkload, SeverityWarning,
 			"No UID-associated StatefulSet was found in the declared workload scope.", "spec.replicas")
 		found.Subsubject = "statefulset-population"
 		result.add(found)

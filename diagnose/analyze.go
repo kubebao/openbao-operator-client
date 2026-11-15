@@ -56,7 +56,7 @@ func Analyze(capture Capture, policy Policy) (Report, error) {
 	for _, input := range capture.Clusters {
 		for _, rule := range SupportedRules() {
 			coverage, findings := evaluate(input, rule, policy)
-			if coverage.State == Insufficient && len(coverage.Reasons) == 0 {
+			if coverage.State == CoverageInsufficient && len(coverage.Reasons) == 0 {
 				coverage.Reasons = []CoverageReason{coverage.Reason}
 			}
 			result.Coverage = append(result.Coverage, coverage)
@@ -82,7 +82,13 @@ func canonicalPolicy(policy Policy) Policy {
 }
 
 func evaluate(input ClusterInput, rule RuleID, policy Policy) (Coverage, []Finding) {
-	coverage := Coverage{Rule: rule, Subject: input.Subject, State: Excluded, Reason: ReasonExcluded, Outcome: input.Collection.Outcome}
+	coverage := Coverage{
+		Rule:    rule,
+		Subject: input.Subject,
+		State:   CoverageExcluded,
+		Reason:  ReasonExcluded,
+		Outcome: input.Collection.Outcome,
+	}
 	if !slices.Contains(policy.Rules, rule) {
 		return coverage, nil
 	}
@@ -93,10 +99,10 @@ func evaluate(input ClusterInput, rule RuleID, policy Policy) (Coverage, []Findi
 		return evaluateRestores(input, policy, coverage)
 	}
 	if input.Collection.Outcome == evidence.CollectionNotRequested {
-		coverage.State, coverage.Reason = NotRequested, ReasonNotRequested
+		coverage.State, coverage.Reason = CoverageNotRequested, ReasonNotRequested
 		return coverage, nil
 	}
-	coverage.State, coverage.Reason = Insufficient, ReasonMissingObservation
+	coverage.State, coverage.Reason = CoverageInsufficient, ReasonMissingObservation
 	if input.Collection.Outcome == evidence.CollectionDeleted || input.Collection.Outcome == evidence.CollectionReplaced {
 		coverage.Reason = ReasonVerification
 		return coverage, nil
@@ -154,17 +160,17 @@ func evaluate(input ClusterInput, rule RuleID, policy Policy) (Coverage, []Findi
 func (e *evaluation) add(value *Finding) { e.findings = append(e.findings, *value) }
 
 func (e *evaluation) insufficient(reason CoverageReason) {
-	if e.state == Insufficient && e.reason != ReasonNone && !slices.Contains(e.reasons, e.reason) {
+	if e.state == CoverageInsufficient && e.reason != ReasonNone && !slices.Contains(e.reasons, e.reason) {
 		e.reasons = append(e.reasons, e.reason)
 	}
 	if !slices.Contains(e.reasons, reason) {
 		e.reasons = append(e.reasons, reason)
 	}
-	e.state, e.reason = Insufficient, reason
+	e.state, e.reason = CoverageInsufficient, reason
 }
 
 func (e evaluation) coverageReasons() []CoverageReason {
-	if e.state != Insufficient {
+	if e.state != CoverageInsufficient {
 		return nil
 	}
 	reasons := slices.Clone(e.reasons)
